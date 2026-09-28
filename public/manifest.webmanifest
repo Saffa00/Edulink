@@ -1,0 +1,26 @@
+{
+  "name": "EduLink — Academic Management System",
+  "short_name": "EduLink",
+  "description": "EduLink - Lecturer & Student Mobile Academic Management System",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#102b4a",
+  "theme_color": "#102b4a",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/edulink-logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/edulink-logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+.push-notification-settings {
+  display: grid;
+  gap: 10px;
+}
+
+.push-notification-settings button {
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+}

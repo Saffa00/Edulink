@@ -1,0 +1,16 @@
+.student-dashboard-v36{max-width:900px;margin:auto;padding:16px;display:grid;gap:18px}
+.student-hero{padding:20px;border-radius:20px}
+.student-hero h1{margin:4px 0}
+.dashboard-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.dashboard-stats article,.module-cards article,.grade-card,.list-card{padding:14px;border:1px solid #ddd;border-radius:14px;display:flex;gap:7px}
+.dashboard-stats article{flex-direction:column}
+.dashboard-stats strong{font-size:24px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.section-heading button,.dashboard-actions button,.module-cards button{min-height:40px;padding:8px 12px;border-radius:9px}
+.module-cards{display:grid;grid-template-columns:1fr;gap:10px}
+.module-cards article{flex-direction:column}
+.grade-card{flex-direction:column}
+.grade-card b{font-size:28px}
+.list-card{justify-content:space-between;align-items:center}
+.dashboard-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:700px){.dashboard-stats{grid-template-columns:repeat(4,1fr)}.module-cards{grid-template-columns:repeat(2,1fr)}.dashboard-actions{grid-template-columns:repeat(3,1fr)}}

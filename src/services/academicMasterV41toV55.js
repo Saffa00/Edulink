@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { apiUrl } from './apiConfig.js';
 
 // ============================================================================
 // Shared Auth Helpers
@@ -468,7 +469,7 @@ export async function getConversationsList() {
 
   if (token) {
     try {
-      const res = await fetch('/api/messages/conversations', {
+      const res = await fetch(apiUrl('/api/messages/conversations'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -505,7 +506,7 @@ export async function getConversationMessages(conversationId) {
 
   if (token && conversationId) {
     try {
-      const res = await fetch(`/api/messages/conversations/${conversationId}/messages`, {
+      const res = await fetch(apiUrl(`/api/messages/conversations/${conversationId}/messages`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -536,7 +537,7 @@ export async function sendChatMessage(conversationId, body) {
 
   if (token) {
     try {
-      const res = await fetch('/api/messages/send', {
+      const res = await fetch(apiUrl('/api/messages/send'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -581,7 +582,7 @@ export async function createOrGetConversation({ moduleId, lecturerId, studentId,
 
   if (!token) throw new Error('You must be signed in.');
 
-  const res = await fetch('/api/messages/conversations', {
+  const res = await fetch(apiUrl('/api/messages/conversations'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -601,7 +602,7 @@ export async function getAvailableChatContacts() {
 
   if (token) {
     try {
-      const res = await fetch('/api/messages/contacts', {
+      const res = await fetch(apiUrl('/api/messages/contacts'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) return await res.json();

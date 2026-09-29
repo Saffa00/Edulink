@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { apiUrl } from './apiConfig';
 
 export async function getMyStudentProfile() {
   const { data: { user }, error: u } = await supabase.auth.getUser();
@@ -110,7 +111,7 @@ export async function markStudentAttendance({ classId, latitude, longitude, devi
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Please log in again.');
 
-  const r = await fetch('/api/attendance/mark', {
+  const r = await fetch(apiUrl('/api/attendance/mark'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

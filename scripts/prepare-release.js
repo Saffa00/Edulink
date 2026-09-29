@@ -56,20 +56,20 @@ for (const relFile of requiredDbFiles) {
 // 2. Check Key Components
 console.log('\n--- 2. Frontend Components & Services ---');
 const requiredComponents = [
-  'src/components/AttendanceManagementV39.jsx',
-  'src/components/AssignmentManagementV40.jsx',
-  'src/components/GradeManagementV41.jsx',
-  'src/components/DissertationManagementV42.jsx',
-  'src/components/TimetableManagementV43.jsx',
-  'src/components/MessagingCenterV44.jsx',
-  'src/components/NotificationsCenterV45.jsx',
-  'src/components/PaymentCenterV46.jsx',
-  'src/components/ModuleRegistrationV47.jsx',
-  'src/components/StudentManagementV48.jsx',
-  'src/components/ProfileSecurityCenterV49.jsx',
-  'src/components/AdminOperationsV50.jsx',
-  'src/services/academicMasterV41toV55.js',
-  'src/v41-to-v55-master.css'
+  'frontend/src/components/AttendanceManagementV39.jsx',
+  'frontend/src/components/AssignmentManagementV40.jsx',
+  'frontend/src/components/GradeManagementV41.jsx',
+  'frontend/src/components/DissertationManagementV42.jsx',
+  'frontend/src/components/TimetableManagementV43.jsx',
+  'frontend/src/components/MessagingCenterV44.jsx',
+  'frontend/src/components/NotificationsCenterV45.jsx',
+  'frontend/src/components/PaymentCenterV46.jsx',
+  'frontend/src/components/ModuleRegistrationV47.jsx',
+  'frontend/src/components/StudentManagementV48.jsx',
+  'frontend/src/components/ProfileSecurityCenterV49.jsx',
+  'frontend/src/components/AdminOperationsV50.jsx',
+  'frontend/src/services/academicMasterV41toV55.js',
+  'frontend/src/v41-to-v55-master.css'
 ];
 for (const comp of requiredComponents) {
   assertCheck(`Component/Service exists: ${comp}`, () => {
@@ -80,9 +80,9 @@ for (const comp of requiredComponents) {
 // 3. Check Production Deployment Files (V56)
 console.log('\n--- 3. Production Deployment Assets (V56) ---');
 const requiredDeploymentFiles = [
-  '.env.production.example',
+  'frontend/.env.example',
   'server/.env.production.example',
-  'V56-PRODUCTION-DEPLOYMENT.md'
+  'docs/V56-PRODUCTION-DEPLOYMENT.md'
 ];
 for (const depFile of requiredDeploymentFiles) {
   assertCheck(`Deployment file exists: ${depFile}`, () => {
@@ -93,7 +93,7 @@ for (const depFile of requiredDeploymentFiles) {
 // 4. Strict Compliance Check: Zero GPA / CGPA rule in Grade Management
 console.log('\n--- 4. Policy Compliance Verification ---');
 assertCheck('Strict Rule: No GPA or CGPA calculation or display in GradeManagementV41', () => {
-  const gradeCompCode = fs.readFileSync(path.join(rootDir, 'src/components/GradeManagementV41.jsx'), 'utf-8');
+  const gradeCompCode = fs.readFileSync(path.join(rootDir, 'frontend/src/components/GradeManagementV41.jsx'), 'utf-8');
   // Confirm that GPA is not being calculated, stored in state, or rendered as student metrics
   const hasGpaCalculation = /calculateGPA|calculateCGPA|student\.gpa|student\.cgpa|grade_point_average/i.test(gradeCompCode);
   if (hasGpaCalculation) {
@@ -103,7 +103,7 @@ assertCheck('Strict Rule: No GPA or CGPA calculation or display in GradeManageme
 });
 
 assertCheck('Strict Rule: No GPA or CGPA calculation in Academic Master Service', () => {
-  const serviceCode = fs.readFileSync(path.join(rootDir, 'src/services/academicMasterV41toV55.js'), 'utf-8');
+  const serviceCode = fs.readFileSync(path.join(rootDir, 'frontend/src/services/academicMasterV41toV55.js'), 'utf-8');
   const hasGPA = /calculateGPA|calculateCGPA/i.test(serviceCode);
   if (hasGPA) {
     throw new Error('Found forbidden calculateGPA reference in academicMasterV41toV55.js!');

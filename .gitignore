@@ -4,8 +4,17 @@ dist
 .env.*
 !.env.example
 !.env.production.example
+
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+server/node_modules
 server/.env
 server/.env.*
 !server/.env.example
 !server/.env.production.example
+
 .DS_Store

@@ -21,8 +21,22 @@ app.use(express.json({
   verify: (req, _res, buf) => { req.rawBody = Buffer.from(buf); }
 }));
 
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'online',
+    message: 'Edulink Academic Portal Backend API is running.',
+    version: 'v57',
+    healthCheck: '/api/health',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, status: 'healthy', version: 'v57', timestamp: new Date().toISOString() });
+});
+
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'academic-pwa-production-server', version: 'v55' });
+  res.json({ ok: true, service: 'academic-pwa-production-server', version: 'v57' });
 });
 
 // Authoritative Attendance Route

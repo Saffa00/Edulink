@@ -1,31 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import { signInById, signUpStudent, signUpLecturer, signOut } from './services/auth';
 import { supabase } from './services/supabase';
 import { verifyCurrentDevice, registerCurrentDevice } from './services/device';
 import { requestPasswordRecovery } from './services/recovery';
 import { openRegistrationCheckout, registerStudentApplicantAndCheckout } from './services/payment';
-import PaymentSuccess from './components/PaymentSuccess';
-import PaymentCheckout from './components/PaymentCheckout';
-import SetPermanentPasswordModal from './components/SetPermanentPasswordModal';
-import AttendanceManagementV39 from './components/AttendanceManagementV39';
-import StudentAttendance from './components/StudentAttendance';
-import AssignmentManagementV40 from './components/AssignmentManagementV40';
-import GradeManagementV41 from './components/GradeManagementV41';
-import DissertationManagementV42 from './components/DissertationManagementV42';
-import TimetableManagementV43 from './components/TimetableManagementV43';
-import MessagingCenterV44 from './components/MessagingCenterV44';
-import NotificationsCenterV45 from './components/NotificationsCenterV45';
 import LiveNotificationToast from './components/LiveNotificationToast';
 import { initLiveNotificationListener, fetchLiveUnreadCounts } from './services/liveNotificationService';
-import PaymentCenterV46 from './components/PaymentCenterV46';
-import ModuleRegistrationV47 from './components/ModuleRegistrationV47';
-import ModuleManagement from './components/ModuleManagement';
-import StudentManagementV48 from './components/StudentManagementV48';
-import ProfileSecurityCenterV49 from './components/ProfileSecurityCenterV49';
-import AdminOperationsV50 from './components/AdminOperationsV50';
-import StudentDashboardV36 from './components/StudentDashboardV36';
-import StudentGradeInbox from './components/StudentGradeInbox';
-import PaymentGate from './components/PaymentGate';
+
+const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
+const PaymentCheckout = lazy(() => import('./components/PaymentCheckout'));
+const SetPermanentPasswordModal = lazy(() => import('./components/SetPermanentPasswordModal'));
+const AttendanceManagementV39 = lazy(() => import('./components/AttendanceManagementV39'));
+const StudentAttendance = lazy(() => import('./components/StudentAttendance'));
+const AssignmentManagementV40 = lazy(() => import('./components/AssignmentManagementV40'));
+const GradeManagementV41 = lazy(() => import('./components/GradeManagementV41'));
+const DissertationManagementV42 = lazy(() => import('./components/DissertationManagementV42'));
+const TimetableManagementV43 = lazy(() => import('./components/TimetableManagementV43'));
+const MessagingCenterV44 = lazy(() => import('./components/MessagingCenterV44'));
+const NotificationsCenterV45 = lazy(() => import('./components/NotificationsCenterV45'));
+const PaymentCenterV46 = lazy(() => import('./components/PaymentCenterV46'));
+const ModuleRegistrationV47 = lazy(() => import('./components/ModuleRegistrationV47'));
+const ModuleManagement = lazy(() => import('./components/ModuleManagement'));
+const StudentManagementV48 = lazy(() => import('./components/StudentManagementV48'));
+const ProfileSecurityCenterV49 = lazy(() => import('./components/ProfileSecurityCenterV49'));
+const AdminOperationsV50 = lazy(() => import('./components/AdminOperationsV50'));
+const StudentDashboardV36 = lazy(() => import('./components/StudentDashboardV36'));
+const StudentGradeInbox = lazy(() => import('./components/StudentGradeInbox'));
+const PaymentGate = lazy(() => import('./components/PaymentGate'));
 import './v39-attendance.css';
 import './v15-attendance.css';
 import './v40-assignments.css';
@@ -1044,7 +1045,11 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           onNavigateSettings={navigateToSettings}
           unreadNotifsCount={unreadNotifsCount}
         />
-        <main className="app-main-content">{content}</main>
+        <main className="app-main-content">
+          <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
+            {content}
+          </Suspense>
+        </main>
         <BottomNav
           page={page}
           setPage={setPage}
@@ -1214,15 +1219,17 @@ export default function App(){
 
   if (paymentSuccessMode) {
     return (
-      <PaymentSuccess
-        onProceedToLogin={({ studentId } = {}) => {
-          setPaymentSuccessMode(false);
-          try {
-            window.history.replaceState({}, '', window.location.pathname.replace(/\/payment-success\/?$/, '') || '/');
-          } catch (e) {}
-          setForceAuthScreen({ screen: 'login', role: 'student', studentId: studentId || '' });
-        }}
-      />
+      <Suspense fallback={<main className="auth-screen"><section className="auth-card"><Logo/><div className="loading-panel">Loading...</div></section></main>}>
+        <PaymentSuccess
+          onProceedToLogin={({ studentId } = {}) => {
+            setPaymentSuccessMode(false);
+            try {
+              window.history.replaceState({}, '', window.location.pathname.replace(/\/payment-success\/?$/, '') || '/');
+            } catch (e) {}
+            setForceAuthScreen({ screen: 'login', role: 'student', studentId: studentId || '' });
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -1246,21 +1253,23 @@ export default function App(){
     sessionState.profile.account_status !== 'active'
   ) {
     return (
-      <PaymentGate
-        profile={sessionState.profile}
-        onActivated={(updatedProfile) => {
-          setSessionState(prev => ({
-            ...prev,
-            profile: { ...prev.profile, ...updatedProfile, account_status: 'active' }
-          }));
-        }}
-        onLogout={logout}
-      />
+      <Suspense fallback={<main className="auth-screen"><section className="auth-card"><Logo/><div className="loading-panel">Loading payment gateway…</div></section></main>}>
+        <PaymentGate
+          profile={sessionState.profile}
+          onActivated={(updatedProfile) => {
+            setSessionState(prev => ({
+              ...prev,
+              profile: { ...prev.profile, ...updatedProfile, account_status: 'active' }
+            }));
+          }}
+          onLogout={logout}
+        />
+      </Suspense>
     );
   }
 
   return (
-    <>
+    <Suspense fallback={<main className="auth-screen"><section className="auth-card"><Logo/><div className="loading-panel">Loading portal…</div></section></main>}>
       {showPasswordChangeModal && (
         <SetPermanentPasswordModal
           profile={sessionState.profile}
@@ -1288,7 +1297,7 @@ export default function App(){
           }));
         }}
       />
-    </>
+    </Suspense>
   );
 }
 

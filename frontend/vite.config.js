@@ -38,10 +38,25 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    target: "esnext",
+    minify: "esbuild",
+    cssMinify: true,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-supabase": ["@supabase/supabase-js"],
+          "vendor-icons": ["lucide-react"]
+        }
+      }
+    }
+  },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:4000',
+      "/api": {
+        target: "http://localhost:4000",
         changeOrigin: true
       }
     }

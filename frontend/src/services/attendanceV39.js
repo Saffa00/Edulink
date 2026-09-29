@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { getCampusCoordinates } from '../data/academicCatalogue.js';
 
 /**
  * Haversine formula to compute distance in meters between two GPS coordinates
@@ -94,6 +95,7 @@ export async function getLecturerClasses(moduleId = null) {
       for (const slot of timetableSlots) {
         const alreadyExists = data.some(c => c.module_id === slot.module_id && c.class_date === todayDateStr);
         if (!alreadyExists) {
+          const coords = getCampusCoordinates(slot.location_name);
           const { data: newClass } = await supabase
             .from('classes')
             .insert({
@@ -102,10 +104,10 @@ export async function getLecturerClasses(moduleId = null) {
               class_date: todayDateStr,
               start_time: slot.start_time,
               end_time: slot.end_time,
-              location_name: slot.location_name || slot.room_code || 'Lecture Hall',
-              latitude: 8.484,
-              longitude: -13.230,
-              radius_meters: 100,
+              location_name: slot.location_name || slot.room_code || coords.name,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              radius_meters: coords.radiusMeters || 150,
               late_threshold_minutes: 15,
               attendance_status: 'scheduled'
             })
@@ -133,16 +135,17 @@ export async function getLecturerClasses(moduleId = null) {
  */
 export async function createLecturerClass(payload) {
   const lecturer = await getCurrentLecturer();
+  const campusCoords = getCampusCoordinates(payload.location_name);
   const insertData = {
     module_id: payload.module_id,
     lecturer_id: lecturer.id,
     class_date: payload.class_date,
     start_time: payload.start_time,
     end_time: payload.end_time,
-    location_name: payload.location_name || 'Main Campus',
-    latitude: Number(payload.latitude) || 0,
-    longitude: Number(payload.longitude) || 0,
-    radius_meters: Number(payload.radius_meters) || 100,
+    location_name: payload.location_name || campusCoords.name,
+    latitude: Number(payload.latitude) || campusCoords.latitude,
+    longitude: Number(payload.longitude) || campusCoords.longitude,
+    radius_meters: Number(payload.radius_meters) || campusCoords.radiusMeters || 150,
     late_threshold_minutes: Number(payload.late_threshold_minutes) || 15,
     attendance_status: payload.attendance_status || 'scheduled'
   };

@@ -5,6 +5,10 @@ export const CAMPUSES_DATA = [
   {
     id: "goderich",
     name: "Goderich Campus (Main Campus)",
+    location: "Goderich, Freetown",
+    latitude: 8.42431,
+    longitude: -13.28477,
+    radiusMeters: 150,
     faculties: [
       {
         id: "faculty-education",
@@ -232,6 +236,10 @@ export const CAMPUSES_DATA = [
   {
     id: "congo-cross",
     name: "Congo Cross Campus",
+    location: "Congo Cross, Freetown",
+    latitude: 8.4875,
+    longitude: -13.2705,
+    radiusMeters: 150,
     faculties: [
       {
         id: "faculty-engineering",
@@ -319,6 +327,10 @@ export const CAMPUSES_DATA = [
   {
     id: "brookfields",
     name: "Brookfields Campus",
+    location: "Jomo Kenyatta Road, Brookfields",
+    latitude: 8.4755,
+    longitude: -13.2505,
+    radiusMeters: 150,
     faculties: [
       {
         id: "faculty-hotel-tourism",
@@ -446,7 +458,54 @@ export const CAMPUSES_DATA = [
 ];
 
 // Flat list of campuses
-export const CAMPUSES = CAMPUSES_DATA.map(c => ({ id: c.id, name: c.name }));
+export const CAMPUSES = CAMPUSES_DATA.map(c => ({
+  id: c.id,
+  name: c.name,
+  location: c.location,
+  latitude: c.latitude,
+  longitude: c.longitude,
+  radiusMeters: c.radiusMeters
+}));
+
+// Authoritative GPS Geofence Coordinates for MMTU Campuses
+export const CAMPUS_COORDINATES = {
+  goderich: {
+    id: "goderich",
+    name: "Goderich Campus",
+    location: "Goderich, Freetown",
+    latitude: 8.42431,
+    longitude: -13.28477,
+    radiusMeters: 150
+  },
+  "congo-cross": {
+    id: "congo-cross",
+    name: "Congo Cross Campus",
+    location: "Congo Cross, Freetown",
+    latitude: 8.4875,
+    longitude: -13.2705,
+    latRange: [8.487, 8.488],
+    lngRange: [-13.271, -13.270],
+    radiusMeters: 150
+  },
+  brookfields: {
+    id: "brookfields",
+    name: "Brookfields Campus",
+    location: "Jomo Kenyatta Road, Brookfields",
+    latitude: 8.4755,
+    longitude: -13.2505,
+    latRange: [8.475, 8.476],
+    lngRange: [-13.251, -13.250],
+    radiusMeters: 150
+  }
+};
+
+export function getCampusCoordinates(campusIdOrLocation) {
+  if (!campusIdOrLocation) return CAMPUS_COORDINATES.goderich;
+  const str = String(campusIdOrLocation).toLowerCase();
+  if (str.includes("congo")) return CAMPUS_COORDINATES["congo-cross"];
+  if (str.includes("brookfield") || str.includes("kenyatta")) return CAMPUS_COORDINATES.brookfields;
+  return CAMPUS_COORDINATES.goderich;
+}
 
 // Flat list of all faculties across all campuses (for fallback)
 export const ALL_FACULTIES = CAMPUSES_DATA.flatMap(c => c.faculties);

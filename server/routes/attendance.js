@@ -9,6 +9,24 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+export const CAMPUS_GEOFENCES = {
+  goderich: { lat: 8.42431, lng: -13.28477, name: 'Goderich Campus' },
+  'congo-cross': { lat: 8.4875, lng: -13.2705, name: 'Congo Cross Campus' },
+  brookfields: { lat: 8.4755, lng: -13.2505, name: 'Brookfields Campus' }
+};
+
+export function resolveClassCoordinates(classRecord = {}) {
+  const lat = Number(classRecord.latitude);
+  const lng = Number(classRecord.longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+    return { lat, lng };
+  }
+  const loc = String(classRecord.location_name || '').toLowerCase();
+  if (loc.includes('congo')) return CAMPUS_GEOFENCES['congo-cross'];
+  if (loc.includes('brookfield') || loc.includes('kenyatta')) return CAMPUS_GEOFENCES.brookfields;
+  return CAMPUS_GEOFENCES.goderich;
+}
+
 export function registerAttendanceRoutes(app, { supabaseAdmin }) {
   // Student mark attendance endpoint
   app.post('/api/attendance/mark', async (req, res) => {
@@ -71,12 +89,13 @@ export function registerAttendanceRoutes(app, { supabaseAdmin }) {
         .maybeSingle();
       if (!device) return res.status(403).json({ error: 'This device is not registered for your student account.' });
 
-      // Calculate Haversine distance
-      const dist = distanceMeters(Number(latitude), Number(longitude), Number(c.latitude), Number(c.longitude));
-      const allowedRadius = Number(c.radius_meters || 100);
+      // Calculate Haversine distance against authoritative campus coordinates
+      const targetCoords = resolveClassCoordinates(c);
+      const dist = distanceMeters(Number(latitude), Number(longitude), targetCoords.lat, targetCoords.lng);
+      const allowedRadius = Number(c.radius_meters || 150);
       if (dist > allowedRadius) {
         return res.status(403).json({
-          error: `You are outside the attendance geofence (${Math.round(dist)}m away, radius is ${allowedRadius}m).`
+          error: `You are outside the attendance geofence (${Math.round(dist)}m away from ${targetCoords.name}, radius is ${allowedRadius}m).`
         });
       }
 

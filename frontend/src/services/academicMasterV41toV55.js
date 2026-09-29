@@ -858,14 +858,14 @@ export async function updateUserPassword(newPassword) {
 export async function uploadProfileAvatar({ file, profileId, role = 'student' }) {
   if (!file) throw new Error('No image file selected.');
 
-  // Compress & center-crop image to 280x280 using in-browser Canvas
+  // Compress & center-crop image to 180x180 (~7-9 KB) for permanent cloud & local persistence
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const size = 280;
+        const size = 180;
         let width = img.width;
         let height = img.height;
         let sx = 0, sy = 0, sWidth = width, sHeight = height;
@@ -882,7 +882,7 @@ export async function uploadProfileAvatar({ file, profileId, role = 'student' })
         canvas.height = size;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, size, size);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
       };
       img.onerror = reject;
       img.src = e.target.result;
@@ -891,15 +891,9 @@ export async function uploadProfileAvatar({ file, profileId, role = 'student' })
     reader.readAsDataURL(file);
   });
 
-  // 1. Immediately store in localStorage for zero-latency hydration
-  if (profileId) {
-    try {
-      localStorage.setItem(`edulink_avatar_${profileId}`, dataUrl);
-    } catch (e) {}
-  }
-
   let publicUrl = dataUrl;
-  // 2. Safely attempt Supabase storage upload if available
+
+  // 1. Safely attempt Supabase storage upload if bucket is provisioned
   try {
     const fileExt = file.name ? file.name.split('.').pop() : 'jpg';
     const filePath = `avatars/${profileId || 'user'}_${Date.now()}.${fileExt}`;
@@ -916,14 +910,28 @@ export async function uploadProfileAvatar({ file, profileId, role = 'student' })
     // Graceful fallback to dataUrl
   }
 
-  // 3. Only persist to Supabase Auth metadata if it's an HTTP URL (avoids GoTrue payload overflow)
-  if (publicUrl.startsWith('http')) {
-    try {
+  // 2. Persist permanently to Supabase Auth User Metadata (available across restarts & devices)
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
       await supabase.auth.updateUser({
         data: { avatar_url: publicUrl }
       });
-    } catch (e) {}
+      try {
+        localStorage.setItem(`edulink_avatar_${user.id}`, publicUrl);
+      } catch (e) {}
+    }
+  } catch (authErr) {
+    console.warn('Auth user metadata update note:', authErr);
   }
+
+  // 3. Immediately store in localStorage under multiple reliable keys
+  try {
+    localStorage.setItem('edulink_active_avatar', publicUrl);
+    if (profileId) {
+      localStorage.setItem(`edulink_avatar_${profileId}`, publicUrl);
+    }
+  } catch (e) {}
 
   // 4. Safely attempt to write to database column if it exists
   const table = role === 'lecturer' ? 'lecturers' : 'students';
@@ -945,11 +953,19 @@ export async function removeProfileAvatar({ profileId, role = 'student' }) {
     });
   } catch (e) {}
 
-  if (profileId) {
-    try {
+  try {
+    localStorage.removeItem('edulink_active_avatar');
+    if (profileId) {
       localStorage.removeItem(`edulink_avatar_${profileId}`);
-    } catch (e) {}
-    const table = role === 'lecturer' ? 'lecturers' : 'students';
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      localStorage.removeItem(`edulink_avatar_${user.id}`);
+    }
+  } catch (e) {}
+
+  const table = role === 'lecturer' ? 'lecturers' : 'students';
+  if (profileId) {
     try {
       await supabase.from(table).update({ avatar_url: null }).eq('id', profileId);
     } catch (e) {}

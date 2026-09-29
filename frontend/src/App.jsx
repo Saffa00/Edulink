@@ -553,7 +553,7 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
   return <header className="topbar">
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
       <button
-        className="icon-btn sidebar-toggle-btn"
+        className="icon-btn sidebar-toggle-btn desktop-only"
         onClick={onToggleSidebar}
         title={collapsed ? "Expand sidebar menu" : "Toggle sidebar menu"}
         aria-label="Toggle sidebar menu"
@@ -561,17 +561,11 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
         <Menu size={20} />
       </button>
 
-      {/* Mobile Title Bar with Brand Logo */}
-      <div className="mobile-only mobile-header-brand" style={{ display: 'none', alignItems: 'center', gap: '8px' }}>
-        <img
-          src="/edulink-logo.jpg"
-          alt="EduLink"
-          style={{ width: '28px', height: '28px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
-        />
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <strong style={{ fontSize: '14px', color: '#061626', lineHeight: 1.2 }}>{activeTitle}</strong>
-          <small style={{ fontSize: '10px', color: '#718096' }}>EduLink Portal</small>
-        </div>
+      {/* Clean Native Mobile Header Title (No logo image, no 'EduLink Portal' text) */}
+      <div className="mobile-header-clean-title">
+        <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#061626', margin: 0, letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+          {activeTitle}
+        </h1>
       </div>
     </div>
 
@@ -1099,7 +1093,12 @@ export default function App(){
 
             if (lecturerRecord) {
               resolvedRole = 'lecturer';
-              const savedAvatar = user.user_metadata?.avatar_url || localStorage.getItem(`edulink_avatar_${lecturerRecord.id}`);
+              const savedAvatar = user.user_metadata?.avatar_url ||
+                (lecturerRecord.id && localStorage.getItem(`edulink_avatar_${lecturerRecord.id}`)) ||
+                localStorage.getItem(`edulink_avatar_${user.id}`) ||
+                localStorage.getItem('edulink_active_avatar') ||
+                lecturerRecord.avatar_url ||
+                null;
               userProfile = {
                 ...lecturerRecord,
                 avatar_url: savedAvatar || lecturerRecord.avatar_url || null,
@@ -1121,7 +1120,12 @@ export default function App(){
 
             if (studentRecord) {
               resolvedRole = 'student';
-              const savedAvatar = user.user_metadata?.avatar_url || localStorage.getItem(`edulink_avatar_${studentRecord.id}`);
+              const savedAvatar = user.user_metadata?.avatar_url ||
+                (studentRecord.id && localStorage.getItem(`edulink_avatar_${studentRecord.id}`)) ||
+                localStorage.getItem(`edulink_avatar_${user.id}`) ||
+                localStorage.getItem('edulink_active_avatar') ||
+                studentRecord.avatar_url ||
+                null;
               userProfile = {
                 ...studentRecord,
                 avatar_url: savedAvatar || studentRecord.avatar_url || null,
@@ -1143,7 +1147,12 @@ export default function App(){
 
             if (lecturerRecord) {
               resolvedRole = 'lecturer';
-              const savedAvatar = user.user_metadata?.avatar_url || localStorage.getItem(`edulink_avatar_${lecturerRecord.id}`);
+              const savedAvatar = user.user_metadata?.avatar_url ||
+                (lecturerRecord.id && localStorage.getItem(`edulink_avatar_${lecturerRecord.id}`)) ||
+                localStorage.getItem(`edulink_avatar_${user.id}`) ||
+                localStorage.getItem('edulink_active_avatar') ||
+                lecturerRecord.avatar_url ||
+                null;
               userProfile = {
                 ...lecturerRecord,
                 avatar_url: savedAvatar || lecturerRecord.avatar_url || null,
@@ -1157,13 +1166,18 @@ export default function App(){
 
           if (!resolvedRole) resolvedRole = user.user_metadata?.role || 'student';
           if (!userProfile) {
+            const savedAvatar = user.user_metadata?.avatar_url ||
+              localStorage.getItem(`edulink_avatar_${user.id}`) ||
+              localStorage.getItem('edulink_active_avatar') ||
+              null;
             userProfile = {
               auth_user_id: user.id,
               email: user.email,
               role: resolvedRole,
               full_name: user.user_metadata?.full_name || (resolvedRole === 'student' ? 'Student' : 'Lecturer'),
               student_id: user.user_metadata?.student_id || (resolvedRole === 'student' ? '8100' : undefined),
-              lecturer_id: user.user_metadata?.lecturer_id || (resolvedRole === 'lecturer' ? 'LECT-2026-0001' : undefined)
+              lecturer_id: user.user_metadata?.lecturer_id || (resolvedRole === 'lecturer' ? 'LECT-2026-0001' : undefined),
+              avatar_url: savedAvatar
             };
           }
 

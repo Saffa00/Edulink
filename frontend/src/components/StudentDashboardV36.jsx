@@ -3,7 +3,7 @@ import { getStudentDashboardSummary } from '../services/studentDashboard';
 import {
   BookOpen, CalendarCheck, ClipboardList, Award, Clock3,
   ChevronRight, MessageSquare, CreditCard, AlertCircle,
-  FileText, CheckCircle2, ArrowRight, RefreshCw
+  FileText, CheckCircle2, ArrowRight, RefreshCw, Bell
 } from 'lucide-react';
 
 export default function StudentDashboardV36({ onNavigate, profile }) {
@@ -105,15 +105,70 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
             {student.academic_year || 'Academic Year 2026/2027'}<br />
             <strong>{student.semester || 'First Semester'}</strong>
           </div>
-          <button
-            className="outline-btn"
-            style={{ fontSize: '11px', padding: '6px 10px' }}
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            title="Refresh dashboard data"
-          >
-            <RefreshCw size={13} className={refreshing ? 'spin' : ''} />
-            {refreshing ? 'Refreshing…' : 'Sync'}
+        </div>
+      </div>
+
+      {/* Native Campus Services Quick Actions Grid */}
+      <div className="quick-services-section">
+        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0, letterSpacing: '-0.2px' }}>Campus Services</h2>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>All Features</span>
+        </div>
+        <div className="quick-services-grid">
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('attendance')}>
+            <div className="quick-service-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
+              <CalendarCheck size={22} />
+            </div>
+            <span className="quick-service-label">Attendance</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('timetable')}>
+            <div className="quick-service-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
+              <Clock3 size={22} />
+            </div>
+            <span className="quick-service-label">Timetable</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('assignments')}>
+            <div className="quick-service-icon" style={{ background: '#fff7ed', color: '#ea580c' }}>
+              <ClipboardList size={22} />
+            </div>
+            <span className="quick-service-label">Assignments</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('grades')}>
+            <div className="quick-service-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+              <Award size={22} />
+            </div>
+            <span className="quick-service-label">Grades</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('modules')}>
+            <div className="quick-service-icon" style={{ background: '#f0f9ff', color: '#0284c7' }}>
+              <BookOpen size={22} />
+            </div>
+            <span className="quick-service-label">Modules</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('payments')}>
+            <div className="quick-service-icon" style={{ background: '#fffbeb', color: '#d97706' }}>
+              <CreditCard size={22} />
+            </div>
+            <span className="quick-service-label">Tuition Fees</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('messages')}>
+            <div className="quick-service-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
+              <MessageSquare size={22} />
+            </div>
+            <span className="quick-service-label">Messages</span>
+          </button>
+
+          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('notifications')}>
+            <div className="quick-service-icon" style={{ background: '#fef2f2', color: '#dc2626' }}>
+              <Bell size={22} />
+            </div>
+            <span className="quick-service-label">Notices</span>
           </button>
         </div>
       </div>

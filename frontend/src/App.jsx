@@ -863,7 +863,72 @@ function Stat({ icon:Icon, title, value, sub }) {
 
 function Dashboard({ setPage }) {
   return <div className="page">
-    <div className="welcome"><div><p className="eyebrow">LECT-2026-0001</p><h1>Good Morning, Lecturer</h1><p>Here’s an overview of your teaching and academic activities.</p></div><div className="date-chip">Academic Year 2025/2026<br/><strong>First Semester</strong></div></div>
+    <div className="welcome"><div><p className="eyebrow">LECT-2026-0001</p><h1>Good Morning, Lecturer</h1><p>Here’s an overview of your teaching and academic activities.</p></div><div className="date-chip">Academic Year 2026/2027<br/><strong>First Semester</strong></div></div>
+
+    {/* Campus Services Quick Actions Grid */}
+    <div className="quick-services-section">
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h2 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0, letterSpacing: '-0.2px' }}>Lecturer Services</h2>
+        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Quick Actions</span>
+      </div>
+      <div className="quick-services-grid">
+        <button type="button" className="quick-service-btn" onClick={() => setPage('attendance')}>
+          <div className="quick-service-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
+            <CalendarCheck size={22} />
+          </div>
+          <span className="quick-service-label">Attendance</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('timetable')}>
+          <div className="quick-service-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
+            <Clock3 size={22} />
+          </div>
+          <span className="quick-service-label">Timetable</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('assignments')}>
+          <div className="quick-service-icon" style={{ background: '#fff7ed', color: '#ea580c' }}>
+            <ClipboardList size={22} />
+          </div>
+          <span className="quick-service-label">Assignments</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('grades')}>
+          <div className="quick-service-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
+            <Award size={22} />
+          </div>
+          <span className="quick-service-label">Grades</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('modules')}>
+          <div className="quick-service-icon" style={{ background: '#f0f9ff', color: '#0284c7' }}>
+            <BookOpen size={22} />
+          </div>
+          <span className="quick-service-label">Modules</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('students')}>
+          <div className="quick-service-icon" style={{ background: '#fdf2f8', color: '#db2777' }}>
+            <Users size={22} />
+          </div>
+          <span className="quick-service-label">Students</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('messages')}>
+          <div className="quick-service-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
+            <MessageSquare size={22} />
+          </div>
+          <span className="quick-service-label">Messages</span>
+        </button>
+
+        <button type="button" className="quick-service-btn" onClick={() => setPage('notifications')}>
+          <div className="quick-service-icon" style={{ background: '#fef2f2', color: '#dc2626' }}>
+            <Bell size={22} />
+          </div>
+          <span className="quick-service-label">Notices</span>
+        </button>
+      </div>
+    </div>
     <div className="stats-grid">
       <Stat icon={Users} title="Total Students" value="86" sub="Across 4 modules"/>
       <Stat icon={BookOpen} title="Modules Teaching" value="4" sub="View modules"/>

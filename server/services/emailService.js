@@ -91,6 +91,11 @@ export async function sendPaymentReceiptEmail({ to, studentName, studentId, amou
     <body>
       <div class="container">
         <div class="header">
+          <img
+            src="https://cdpxngnhurcswvieccph.supabase.co/storage/v1/object/public/public-assets/edulink-logo.jpg"
+            alt="EduLink Emblem"
+            style="width: 56px; height: 56px; border-radius: 14px; object-fit: cover; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);"
+          />
           <h1>EduLink Academic Portal</h1>
           <p>Registration Payment Confirmation</p>
         </div>

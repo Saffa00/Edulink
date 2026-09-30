@@ -6,6 +6,7 @@ import { requestPasswordRecovery } from './services/recovery';
 import { openRegistrationCheckout, registerStudentApplicantAndCheckout } from './services/payment';
 import LiveNotificationToast from './components/LiveNotificationToast';
 import { initLiveNotificationListener, fetchLiveUnreadCounts } from './services/liveNotificationService';
+import { setOneSignalUser, clearOneSignalUser } from './services/oneSignalService';
 
 const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCheckout = lazy(() => import('./components/PaymentCheckout'));
@@ -1444,6 +1445,7 @@ export default function App(){
           const device = await verifyCurrentDevice({ role: resolvedRole }).catch(() => ({ registered: false }));
           if (device.registered && mounted) {
             setSessionState({ role: resolvedRole, profile: userProfile });
+            setOneSignalUser(userProfile, resolvedRole).catch(() => {});
             if (user.user_metadata?.requires_password_change || userProfile?.requires_password_change || userProfile?.temporary_password) {
               setShowPasswordChangeModal(true);
             }
@@ -1464,6 +1466,7 @@ export default function App(){
       }
       if (!session && mounted) {
         setSessionState(null);
+        clearOneSignalUser().catch(() => {});
         localStorage.removeItem('academic_active_role');
       }
     });
@@ -1478,6 +1481,7 @@ export default function App(){
     try {
       await signOut();
     } finally {
+      clearOneSignalUser().catch(() => {});
       localStorage.removeItem('academic_active_role');
       setSessionState(null);
       setShowPasswordChangeModal(false);
@@ -1506,6 +1510,8 @@ export default function App(){
         if (profile.lecturer_id) localStorage.setItem(`edulink_avatar_${profile.lecturer_id}`, avatar);
       } catch (e) {}
     }
+
+    setOneSignalUser(profile, data?.role).catch(() => {});
 
     setSessionState({
       ...data,

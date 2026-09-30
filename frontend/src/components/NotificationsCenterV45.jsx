@@ -16,6 +16,7 @@ import {
   subscribeToLiveToasts
 } from '../services/liveNotificationService.js';
 import { enableMessagePushNotifications } from '../services/pushSetup.js';
+import { promptOneSignalPush } from '../services/oneSignalService.js';
 import { supabase } from '../services/supabase.js';
 
 export default function NotificationsCenterV45({ onNavigate }) {
@@ -100,8 +101,9 @@ export default function NotificationsCenterV45({ onNavigate }) {
       setPermission(perm);
       if (perm === 'granted') {
         setActionFeedback('Live device notifications granted successfully! 🔔');
-        // Also register Service Worker Web Push
+        // Register OneSignal Push & Service Worker Web Push
         try {
+          await promptOneSignalPush();
           await enableMessagePushNotifications();
         } catch { }
       } else if (perm === 'denied') {

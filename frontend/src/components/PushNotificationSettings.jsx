@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { enableMessagePushNotifications, disableMessagePushNotifications } from '../services/pushSetup'
+import { promptOneSignalPush } from '../services/oneSignalService'
 
 export default function PushNotificationSettings() {
   const [status, setStatus] = useState('')
@@ -8,6 +9,7 @@ export default function PushNotificationSettings() {
   async function enable() {
     setBusy(true)
     try {
+      await promptOneSignalPush().catch(() => {});
       await enableMessagePushNotifications()
       setStatus('Push notifications are enabled on this device.')
     } catch (error) {

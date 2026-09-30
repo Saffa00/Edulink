@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import "./styles.css";
+import { initOneSignal } from "./services/oneSignalService";
+
+// Initialize OneSignal Push Service (gracefully no-ops if VITE_ONESIGNAL_APP_ID is not yet set)
+initOneSignal().catch(() => {});
 
 // Instant Auto-Update for Installed Mobile Phone PWA
 let updateSW;

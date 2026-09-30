@@ -1,6 +1,7 @@
 import express from 'express';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToUser as sendOneSignalPushToUser } from '../services/oneSignalService.js';
 
 const router = express.Router();
 
@@ -142,6 +143,19 @@ export async function sendPushToUser(userId, payload) {
         await admin.from('push_subscriptions').delete().eq('id', sub.id).catch(() => {});
       }
     }
+  }
+
+  // Also dispatch via OneSignal to target PWA / Mobile devices
+  try {
+    await sendOneSignalPushToUser({
+      userId,
+      title: payload.title || 'EduLink Alert',
+      message: payload.body || payload.message || '',
+      url: payload.data?.url || '/notifications',
+      data: payload.data || {}
+    });
+  } catch (osErr) {
+    console.warn('OneSignal dispatch notice:', osErr.message);
   }
 
   return { sent, failed };

@@ -12,6 +12,7 @@ const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCheckout = lazy(() => import('./components/PaymentCheckout'));
 const ResetPasswordScreen = lazy(() => import('./components/ResetPasswordScreen'));
 const OnboardingScreen = lazy(() => import('./components/OnboardingScreen'));
+const PortalGatewayScreen = lazy(() => import('./components/PortalGatewayScreen'));
 const SetPermanentPasswordModal = lazy(() => import('./components/SetPermanentPasswordModal'));
 const AttendanceManagementV39 = lazy(() => import('./components/AttendanceManagementV39'));
 const StudentAttendance = lazy(() => import('./components/StudentAttendance'));
@@ -76,7 +77,7 @@ function Logo({ small=false }) {
   );
 }
 
-function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student', initialStudentId = '', onShowOnboarding }) {
+function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'student', initialStudentId = '', onShowOnboarding }) {
   const [role, setRole] = useState(initialRole);
   const [screen, setScreen] = useState(initialScreen);
   const [busy, setBusy] = useState(false);
@@ -126,6 +127,18 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
           throw devErr;
         }
         console.warn('Device verification grace notice:', devErr.message);
+      }
+
+      const savedAcc = {
+        id: result.profile?.student_id || result.profile?.lecturer_id || form.id.trim(),
+        name: result.profile?.full_name || (role === 'lecturer' ? 'Lecturer' : 'Student'),
+        role,
+        avatar: result.profile?.avatar_url || localStorage.getItem('edulink_active_avatar') || null
+      };
+      if (savedAcc.id) {
+        try {
+          localStorage.setItem('edulink_last_account', JSON.stringify(savedAcc));
+        } catch (e) {}
       }
 
       onAuthenticated({ role, profile: result.profile });
@@ -193,6 +206,31 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
     try {
       setScreen('checkout');
     } catch (err) { setError(err.message || 'Unable to start payment.'); setBusy(false); }
+  }
+
+  if (screen === 'gateway') {
+    return (
+      <Suspense fallback={<main className="auth-screen"><div className="loading-panel">Loading EduLink…</div></main>}>
+        <PortalGatewayScreen
+          onLogin={() => {
+            resetState();
+            setScreen('login');
+          }}
+          onRegister={() => {
+            resetState();
+            setScreen('register');
+          }}
+          onSelectAccount={(account) => {
+            resetState();
+            if (account.role) setRole(account.role);
+            if (account.id) {
+              setForm(f => ({ ...f, id: account.id }));
+            }
+            setScreen('login');
+          }}
+        />
+      </Suspense>
+    );
   }
 
   if (screen === 'checkout') {
@@ -677,7 +715,7 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
     );
   }
 
-  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>{onShowOnboarding && <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" className="text-btn" onClick={onShowOnboarding} style={{ fontSize: '12px', color: '#64748b' }}>App Tour & Features</button></div>}</section></main>;
+  return <main className="auth-screen"><section className="auth-card"><button type="button" className="back-link" onClick={()=>{resetState();setScreen('gateway')}}>← Portal Home</button><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>{onShowOnboarding && <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" className="text-btn" onClick={onShowOnboarding} style={{ fontSize: '12px', color: '#64748b' }}>App Tour & Features</button></div>}</section></main>;
 }
 
 function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, setPage, onNavigateSettings, unreadNotifsCount = 0 }) {
@@ -1572,7 +1610,7 @@ export default function App(){
           <OnboardingScreen
             onFinish={(action) => {
               setShowOnboarding(false);
-              setForceAuthScreen({ screen: action === 'register' ? 'register' : 'login', role: 'student' });
+              setForceAuthScreen({ screen: action || 'gateway', role: 'student' });
             }}
           />
         </Suspense>
@@ -1581,7 +1619,7 @@ export default function App(){
     return (
       <Auth
         onAuthenticated={handleAuthenticated}
-        initialScreen={forceAuthScreen?.screen || 'login'}
+        initialScreen={forceAuthScreen?.screen || 'gateway'}
         initialRole={forceAuthScreen?.role || 'student'}
         initialStudentId={forceAuthScreen?.studentId || ''}
         onShowOnboarding={() => setShowOnboarding(true)}

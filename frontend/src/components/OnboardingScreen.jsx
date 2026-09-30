@@ -54,7 +54,7 @@ export default function OnboardingScreen({ onFinish }) {
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
-  const handleFinish = (action = 'login') => {
+  const handleFinish = (action = 'gateway') => {
     try {
       localStorage.setItem('edulink_onboarded', 'true');
     } catch (e) {}
@@ -65,7 +65,7 @@ export default function OnboardingScreen({ onFinish }) {
     if (currentSlide < SLIDES.length - 1) {
       setCurrentSlide(prev => prev + 1);
     } else {
-      handleFinish('login');
+      handleFinish('gateway');
     }
   };
 
@@ -139,7 +139,7 @@ export default function OnboardingScreen({ onFinish }) {
         </span>
         <button
           type="button"
-          onClick={() => handleFinish('login')}
+          onClick={() => handleFinish('gateway')}
           style={{
             background: 'none',
             border: 'none',
@@ -333,7 +333,7 @@ export default function OnboardingScreen({ onFinish }) {
               <button
                 type="button"
                 className="primary-btn"
-                onClick={() => handleFinish('login')}
+                onClick={() => handleFinish('gateway')}
                 style={{
                   width: '100%',
                   height: '52px',
@@ -377,7 +377,7 @@ export default function OnboardingScreen({ onFinish }) {
             <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
               <button
                 type="button"
-                onClick={() => handleFinish('login')}
+                onClick={() => handleFinish('gateway')}
                 style={{
                   flex: 1,
                   height: '50px',

@@ -3,7 +3,7 @@
  * Dispatches targeted push notifications to mobile PWA and desktop browsers
  */
 
-const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID;
+const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || 'adf253a3-776e-487c-909f-0229cc10373f';
 const ONESIGNAL_REST_API_KEY = process.env.ONESIGNAL_REST_API_KEY;
 
 /**

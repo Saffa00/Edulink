@@ -3,7 +3,7 @@
  * Supports cross-platform mobile PWA (iOS 16.4+, Android) & Desktop notifications.
  */
 
-const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
+const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID || 'adf253a3-776e-487c-909f-0229cc10373f';
 
 let isInitialized = false;
 

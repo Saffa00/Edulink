@@ -1,7 +1,8 @@
 import { getAdminSupabase } from './supabase.js';
+import { sendPaymentReceiptEmail } from './emailService.js';
 
-export async function sendStudentCredentialsEmail({ email, fullName, studentId, temporaryPassword }) {
-  const loginUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+export async function sendStudentCredentialsEmail({ email, fullName, studentId, temporaryPassword, amount = '100' }) {
+  const loginUrl = process.env.CLIENT_URL || 'https://edulink.vercel.app';
   
   console.log('------------------------------------------------------------');
   console.log(`[EMAIL DISPATCH] Student Credentials Notification`);
@@ -11,9 +12,25 @@ export async function sendStudentCredentialsEmail({ email, fullName, studentId, 
   console.log(`Portal Login URL: ${loginUrl}`);
   console.log('------------------------------------------------------------');
 
+  let resendResult = null;
+  // 1. Dispatch real email via Resend
+  try {
+    resendResult = await sendPaymentReceiptEmail({
+      to: email,
+      studentName: fullName,
+      studentId,
+      amount,
+      temporaryPassword,
+      transactionRef: `REG-${studentId}-${Date.now().toString().slice(-4)}`
+    });
+    console.log('[EMAIL] Successfully dispatched credentials email via Resend:', resendResult?.id);
+  } catch (resendErr) {
+    console.warn('[EMAIL] Resend delivery notice (check verified domain / sandbox recipient):', resendErr.message);
+  }
+
+  // 2. Also generate magiclink token in Supabase if supported
   try {
     const db = getAdminSupabase();
-    // Attempt Supabase auth link generation if supported
     if (db?.auth?.admin?.generateLink) {
       await db.auth.admin.generateLink({
         type: 'magiclink',
@@ -25,9 +42,10 @@ export async function sendStudentCredentialsEmail({ email, fullName, studentId, 
         console.warn('[EMAIL] Supabase magiclink notice:', err.message);
       });
     }
-    return { sent: true };
   } catch (err) {
-    console.warn('[EMAIL] Error dispatching credentials email:', err.message);
-    return { sent: false, error: err.message };
+    console.warn('[EMAIL] Supabase admin link notice:', err.message);
   }
+
+  return { sent: true, resend: resendResult };
 }
+

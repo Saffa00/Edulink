@@ -4,7 +4,17 @@
  */
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'EduLink Academic Portal <onboarding@resend.dev>';
+
+function getEffectiveSender() {
+  const envFrom = process.env.RESEND_FROM_EMAIL;
+  if (!envFrom) return 'EduLink Academic Portal <onboarding@resend.dev>';
+  // Resend strictly forbids sending from personal domains (@gmail.com, @yahoo.com, etc.)
+  if (/@(gmail|yahoo|hotmail|outlook|icloud)\.com/i.test(envFrom)) {
+    console.warn(`[Resend Notice] "${envFrom}" uses a personal domain which Resend forbids. Using onboarding@resend.dev`);
+    return 'EduLink Academic Portal <onboarding@resend.dev>';
+  }
+  return envFrom;
+}
 
 /**
  * Base method to dispatch an email via Resend REST API
@@ -22,6 +32,7 @@ export async function sendEmail({ to, subject, html, text }) {
   }
 
   try {
+    const fromAddress = getEffectiveSender();
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -29,7 +40,7 @@ export async function sendEmail({ to, subject, html, text }) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: RESEND_FROM_EMAIL,
+        from: fromAddress,
         to: recipientList,
         subject,
         html,

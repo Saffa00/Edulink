@@ -794,26 +794,29 @@ function BottomNav({ page, setPage, role, profile, onNavigateSettings, unreadNot
 
   const msgBadge = unreadMessagesCount > 0 ? (unreadMessagesCount > 99 ? '99+' : unreadMessagesCount) : null;
 
-  // Student: Home | Modules | Messages | Profile (4 clean spaced dock buttons)
+  // Student: Home | Modules | Grades | Messages | Profile (5 clean spaced dock buttons)
   const studentItems = [
     ["home", "Home", Home],
     ["modules", "Modules", BookOpen],
+    ["grades", "Grades", Award],
     ["messages", "Messages", MessageSquare, msgBadge],
     ["settings", "Profile", User]
   ];
 
-  // Dissertation student: Home | Dissertation | Messages | Profile
+  // Dissertation student: Home | Dissertation | Grades | Messages | Profile
   const dissertationStudentItems = [
     ["home", "Home", Home],
     ["dissertation", "Dissertation", FileText],
+    ["grades", "Grades", Award],
     ["messages", "Messages", MessageSquare, msgBadge],
     ["settings", "Profile", User]
   ];
 
-  // Lecturer: Home | Modules | Messages | Profile
+  // Lecturer: Home | Modules | Grades | Messages | Profile
   const lecturerItems = [
     ["home", "Home", Home],
     ["modules", "Modules", BookOpen],
+    ["grades", "Grades", Award],
     ["messages", "Messages", MessageSquare, msgBadge],
     ["settings", "Profile", User]
   ];

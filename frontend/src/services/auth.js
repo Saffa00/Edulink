@@ -185,9 +185,22 @@ export async function signInById({ role, id, password }) {
       if (role === 'lecturer' && profile && profile.active === false) {
         throw new Error('Lecturer account is inactive.');
       }
-      const resolvedProfile = profile ? { ...profile, role } : { auth_user_id: data.user?.id, email: cleanId, role };
+      const savedAvatarEmail = (data.user?.user_metadata?.avatar_url) ||
+        (profile?.id && localStorage.getItem(`edulink_avatar_${profile.id}`)) ||
+        (profile?.student_id && localStorage.getItem(`edulink_avatar_${profile.student_id}`)) ||
+        (profile?.lecturer_id && localStorage.getItem(`edulink_avatar_${profile.lecturer_id}`)) ||
+        (data.user?.id && localStorage.getItem(`edulink_avatar_${data.user.id}`)) ||
+        localStorage.getItem('edulink_active_avatar') ||
+        profile?.avatar_url ||
+        null;
+
+      const resolvedProfile = profile
+        ? { ...profile, role, avatar_url: savedAvatarEmail }
+        : { auth_user_id: data.user?.id, email: cleanId, role, avatar_url: savedAvatarEmail };
+
       if (typeof window !== 'undefined') {
         localStorage.setItem('academic_active_role', role);
+        if (savedAvatarEmail) localStorage.setItem('edulink_active_avatar', savedAvatarEmail);
       }
       return { ...data, profile: resolvedProfile };
     }
@@ -219,7 +232,22 @@ export async function signInById({ role, id, password }) {
       password
     });
     if (error) throw error;
-    return { ...data, profile: { ...profile, role } };
+
+    const savedAvatarId = (data.user?.user_metadata?.avatar_url) ||
+      (profile?.id && localStorage.getItem(`edulink_avatar_${profile.id}`)) ||
+      (profile?.student_id && localStorage.getItem(`edulink_avatar_${profile.student_id}`)) ||
+      (profile?.lecturer_id && localStorage.getItem(`edulink_avatar_${profile.lecturer_id}`)) ||
+      (data.user?.id && localStorage.getItem(`edulink_avatar_${data.user.id}`)) ||
+      localStorage.getItem('edulink_active_avatar') ||
+      profile?.avatar_url ||
+      null;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('academic_active_role', role);
+      if (savedAvatarId) localStorage.setItem('edulink_active_avatar', savedAvatarId);
+    }
+
+    return { ...data, profile: { ...profile, role, avatar_url: savedAvatarId } };
   } catch (err) {
     const raw = String(err?.message || err || '');
     if (raw.includes('Failed to fetch') || raw.includes('NetworkError')) {

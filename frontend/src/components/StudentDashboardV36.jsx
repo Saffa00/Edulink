@@ -3,7 +3,7 @@ import { getStudentDashboardSummary } from '../services/studentDashboard';
 import {
   BookOpen, CalendarCheck, ClipboardList, Award, Clock3,
   ChevronRight, MessageSquare, CreditCard, AlertCircle,
-  FileText, CheckCircle2, ArrowRight, RefreshCw, Bell
+  FileText, CheckCircle2, ArrowRight, Bell
 } from 'lucide-react';
 
 export default function StudentDashboardV36({ onNavigate, profile }) {
@@ -30,12 +30,10 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
   });
 
   const [loading, setLoading] = useState(!profile);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else if (!data) setLoading(true);
+  const loadData = useCallback(async () => {
+    if (!data) setLoading(true);
     setError('');
 
     try {
@@ -48,7 +46,6 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
       }
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [profile]);
 

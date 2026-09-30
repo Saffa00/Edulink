@@ -106,18 +106,25 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
     e.preventDefault(); resetState(); setBusy(true);
     try {
       const result = await signInById({ role, id: form.id.trim(), password: form.password });
-      let device = { registered: true };
+
+      // One Device Per Account verification (silent & seamless - no device name prompt)
       try {
-        device = await verifyCurrentDevice({ role });
+        const device = await verifyCurrentDevice({ role });
+        if (!device.registered) {
+          // If the account already has another device registered on a different phone/browser
+          if (device.code === 'UNKNOWN_DEVICE' || device.reason === 'UNKNOWN_DEVICE') {
+            throw new Error('Access denied: This account is already bound to another registered device (One device per account policy). To change devices, contact the university administrator.');
+          }
+          // If the account does not have a registered device yet, auto-register this current browser
+          await registerCurrentDevice({ role, profileId: result.profile?.id });
+        }
       } catch (devErr) {
-        console.warn('Device verification skipped due to network:', devErr);
-        device = { registered: true };
+        if (devErr.message?.includes('One device per account policy')) {
+          throw devErr;
+        }
+        console.warn('Device verification grace notice:', devErr.message);
       }
-      if (!device.registered) {
-        setDeviceRequired(true);
-        setMessage('This account has no registered device on this browser. Register this device to continue.');
-        setBusy(false); return;
-      }
+
       onAuthenticated({ role, profile: result.profile });
     } catch (err) {
       const rawMsg = err.message || 'Login failed.';
@@ -223,13 +230,6 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
     </div>{error && <div className="error-box">{error}</div>}
   </section></main>;
 
-  if (deviceRequired) return <main className="auth-screen"><section className="auth-card">
-    <Logo /><div className="auth-heading"><div className="auth-icon"><ShieldCheck/></div><h1>Register This Device</h1><p>Your credentials are correct, but this account is protected by device binding.</p></div>
-    <label>Device name</label><input value={form.deviceName} onChange={e=>update('deviceName',e.target.value)} placeholder="e.g. Peter's Android"/>
-    <button className="primary-btn full-btn" disabled={busy} onClick={registerDevice}>{busy?'Registering…':'Register This Device'}</button>
-    <div className="security-note"><ShieldCheck size={18}/><span>Only a secure app-scoped device credential is stored. Hardware IMEI is not used.</span></div>
-    {error && <div className="error-box">{error}</div>}<button className="back-link" onClick={()=>setDeviceRequired(false)}>← Back</button>
-  </section></main>;
 
   if (screen === 'register') return <main className="auth-screen"><section className="auth-card wide"><Logo />
     <button className="back-link" onClick={()=>{resetState();setScreen('login')}}>← Back to login</button>
@@ -523,7 +523,7 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
 
   if (screen === 'forgot') return <main className="auth-screen"><section className="auth-card"><Logo/><button className="back-link" onClick={()=>setScreen('login')}>← Back to login</button><div className="auth-heading"><div className="auth-icon"><KeyRound/></div><h1>Forgot Password</h1><p>Enter your registered email. Supabase will send a secure reset link.</p></div><form onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await requestPasswordRecovery(form.email);setMessage('If an account uses that email, recovery instructions have been sent.');}catch{setMessage('If an account uses that email, recovery instructions have been sent.');}finally{setBusy(false)}}}><label>Email Address</label><input type="email" value={form.email} onChange={e=>update('email',e.target.value)} required/><button className="primary-btn full-btn" disabled={busy}>{busy?'Sending…':'Send Reset Link'}</button></form>{message&&<div className="security-note"><ShieldCheck size={18}/><span>{message}</span></div>}</section></main>;
 
-  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p><div className="device-note"><ShieldCheck size={18}/><div><strong>Device protected</strong><span>Unknown devices cannot access the dashboard.</span></div></div></section></main>;
+  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p></section></main>;
 }
 
 function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, setPage, onNavigateSettings, unreadNotifsCount = 0 }) {
@@ -660,37 +660,39 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
               margin: '0 auto'
             }}
           >
-            <img
-              src="/edulink-logo.jpg"
-              alt="EduLink"
-              className="sidebar-logo"
+            <div
               style={{
                 width: '38px',
                 height: '38px',
                 borderRadius: '10px',
-                objectFit: 'cover',
+                background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                display: 'grid',
+                placeItems: 'center',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                 border: '1.5px solid rgba(255,255,255,0.15)'
               }}
-            />
+            >
+              <GraduationCap size={22} color="#ffffff" />
+            </div>
           </button>
         ) : (
           <>
             <div className="sidebar-brand">
-              <img
-                src="/edulink-logo.jpg"
-                alt="EduLink"
-                className="sidebar-logo"
+              <div
                 style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '11px',
-                  objectFit: 'cover',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                  display: 'grid',
+                  placeItems: 'center',
                   boxShadow: '0 4px 14px rgba(0,0,0,0.28)',
                   border: '1.5px solid rgba(255,255,255,0.15)',
                   flexShrink: 0
                 }}
-              />
+              >
+                <GraduationCap size={23} color="#ffffff" />
+              </div>
               <div className="sidebar-brand-info">
                 <span className="sidebar-brand-title">EduLink</span>
                 <span className="sidebar-brand-subtitle">
@@ -1290,7 +1292,32 @@ export default function App(){
     if (data?.role) {
       localStorage.setItem('academic_active_role', data.role);
     }
-    setSessionState(data);
+    const profile = data?.profile || {};
+    const avatar = profile.avatar_url ||
+      data?.session?.user?.user_metadata?.avatar_url ||
+      (profile.id && localStorage.getItem(`edulink_avatar_${profile.id}`)) ||
+      (profile.student_id && localStorage.getItem(`edulink_avatar_${profile.student_id}`)) ||
+      (profile.lecturer_id && localStorage.getItem(`edulink_avatar_${profile.lecturer_id}`)) ||
+      (data?.session?.user?.id && localStorage.getItem(`edulink_avatar_${data.session.user.id}`)) ||
+      localStorage.getItem('edulink_active_avatar') ||
+      null;
+
+    if (avatar) {
+      try {
+        localStorage.setItem('edulink_active_avatar', avatar);
+        if (profile.id) localStorage.setItem(`edulink_avatar_${profile.id}`, avatar);
+        if (profile.student_id) localStorage.setItem(`edulink_avatar_${profile.student_id}`, avatar);
+        if (profile.lecturer_id) localStorage.setItem(`edulink_avatar_${profile.lecturer_id}`, avatar);
+      } catch (e) {}
+    }
+
+    setSessionState({
+      ...data,
+      profile: {
+        ...profile,
+        avatar_url: avatar
+      }
+    });
     if (data?.profile?.requires_password_change || data?.profile?.temporary_password || data?.session?.user?.user_metadata?.requires_password_change) {
       setShowPasswordChangeModal(true);
     }

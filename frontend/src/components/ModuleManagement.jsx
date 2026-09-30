@@ -167,14 +167,6 @@ export default function ModuleManagement({ setPage }) {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             type="button"
-            className="v-btn secondary small"
-            onClick={loadModules}
-            disabled={loading}
-          >
-            <RefreshCw size={14} className={loading ? 'v-spin' : ''} /> Refresh
-          </button>
-          <button
-            type="button"
             className="v-btn primary small"
             onClick={() => {
               if (showCreateForm && !editingId) setShowCreateForm(false);

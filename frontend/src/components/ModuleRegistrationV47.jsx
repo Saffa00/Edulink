@@ -6,7 +6,6 @@ import { supabase } from '../services/supabase';
 export default function ModuleRegistrationV47() {
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -17,17 +16,15 @@ export default function ModuleRegistrationV47() {
     }
   }, [message, error]);
 
-  const loadData = useCallback(async (isRefresh = false) => {
+  const loadData = useCallback(async () => {
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      setLoading(true);
       const list = await getModuleCatalogue();
       setModules(list || []);
     } catch (err) {
       setError(err.message || 'Failed to load module curriculum.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
@@ -73,14 +70,6 @@ export default function ModuleRegistrationV47() {
             Official course modules automatically assigned to your programme and academic level by your department.
           </p>
         </div>
-        <button
-          type="button"
-          className="v-btn secondary small"
-          onClick={() => loadData(true)}
-          disabled={refreshing}
-        >
-          <RefreshCw size={14} className={refreshing ? 'v-spin' : ''} /> {refreshing ? 'Refreshing…' : 'Refresh Modules'}
-        </button>
       </header>
 
       {/* Notifications */}

@@ -24,6 +24,17 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
         setLoading(true);
         const res = await verifyPaymentAndProvision({ sessionId, studentId });
         setData(res);
+
+        // Automatically bind this device upon account creation & payment completion (One Device Per Account)
+        try {
+          const { ensureDeviceCredential, setDeviceName } = await import('../services/device');
+          await ensureDeviceCredential();
+          const ua = navigator.userAgent || '';
+          const detected = /iPhone/i.test(ua) ? 'iPhone' : /Android/i.test(ua) ? 'Android Device' : /iPad/i.test(ua) ? 'iPad' : /Macintosh/i.test(ua) ? 'Mac' : 'Windows PC';
+          setDeviceName(detected);
+        } catch (devErr) {
+          console.warn('Device binding notice:', devErr);
+        }
       } catch (err) {
         console.error('Payment confirmation error:', err);
         setError(err.message || 'Unable to confirm payment session.');
@@ -179,6 +190,14 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
         </div>
 
         {/* Security & First Login Note */}
+        <div className="security-note" style={{ marginBottom: '14px', background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
+          <ShieldCheck size={18} color="#16a34a" />
+          <div>
+            <strong style={{ color: '#14532d' }}>Device Registered (One Device Per Account)</strong>
+            <span style={{ color: '#15803d' }}>This device has been automatically bound to your account. You will not need to type in your device name when logging in.</span>
+          </div>
+        </div>
+
         <div className="security-note" style={{ marginBottom: '20px', background: '#f8fafc', borderColor: '#e2e8f0', color: '#334155' }}>
           <ShieldCheck size={18} color="#0a2540" />
           <div>

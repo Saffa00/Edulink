@@ -120,18 +120,21 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
     <main className="auth-screen" style={{ minHeight: '100vh', padding: '24px 16px', background: '#f0f2f5' }}>
       <section className="auth-card" style={{ maxWidth: '580px', width: '100%', padding: '32px 28px' }}>
         {/* University Logo & Branding */}
-        <div className="logo-wrap" style={{ justifyContent: 'center', marginBottom: '24px' }}>
-          <img
-            src="/edulink-logo.jpg"
-            alt="EduLink Logo"
+        <div className="logo-wrap" style={{ justifyContent: 'center', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
             style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '16px',
-              objectFit: 'cover',
-              boxShadow: '0 8px 24px rgba(18, 59, 99, 0.18)'
+              width: '52px',
+              height: '52px',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+              display: 'grid',
+              placeItems: 'center',
+              boxShadow: '0 8px 24px rgba(18, 59, 99, 0.18)',
+              flexShrink: 0
             }}
-          />
+          >
+            <CreditCard size={26} color="#ffffff" />
+          </div>
           <div>
             <strong style={{ fontSize: '18px', color: '#061626' }}>EduLink University Portal</strong>
             <span style={{ fontSize: '12px', color: '#64748b' }}>Academic Management & Student Services</span>

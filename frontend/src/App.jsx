@@ -9,6 +9,7 @@ import { initLiveNotificationListener, fetchLiveUnreadCounts } from './services/
 
 const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCheckout = lazy(() => import('./components/PaymentCheckout'));
+const ResetPasswordScreen = lazy(() => import('./components/ResetPasswordScreen'));
 const SetPermanentPasswordModal = lazy(() => import('./components/SetPermanentPasswordModal'));
 const AttendanceManagementV39 = lazy(() => import('./components/AttendanceManagementV39'));
 const StudentAttendance = lazy(() => import('./components/StudentAttendance'));
@@ -521,7 +522,158 @@ function Auth({ onAuthenticated, initialScreen = 'login', initialRole = 'student
     <p className="signup">Already registered? <button type="button" className="text-btn" onClick={()=>setScreen('login')}>Login</button></p>
   </section></main>;
 
-  if (screen === 'forgot') return <main className="auth-screen"><section className="auth-card"><Logo/><button className="back-link" onClick={()=>setScreen('login')}>← Back to login</button><div className="auth-heading"><div className="auth-icon"><KeyRound/></div><h1>Forgot Password</h1><p>Enter your registered email. Supabase will send a secure reset link.</p></div><form onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{await requestPasswordRecovery(form.email);setMessage('If an account uses that email, recovery instructions have been sent.');}catch{setMessage('If an account uses that email, recovery instructions have been sent.');}finally{setBusy(false)}}}><label>Email Address</label><input type="email" value={form.email} onChange={e=>update('email',e.target.value)} required/><button className="primary-btn full-btn" disabled={busy}>{busy?'Sending…':'Send Reset Link'}</button></form>{message&&<div className="security-note"><ShieldCheck size={18}/><span>{message}</span></div>}</section></main>;
+  if (screen === 'forgot') {
+    const handleForgotSubmit = async (e) => {
+      e.preventDefault();
+      setBusy(true);
+      setError('');
+      setMessage('');
+      try {
+        const identifier = (form.id || form.email || '').trim();
+        const res = await requestPasswordRecovery(identifier, role);
+        setMessage(`Password reset instructions have been sent to your registered email (${res.maskedEmail || 'registered email'}). Please check your inbox and click the reset link.`);
+      } catch (err) {
+        setError(err.message || 'Unable to send reset instructions. Please try again.');
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    return (
+      <main className="auth-screen">
+        <section className="auth-card" style={{ maxWidth: '440px', width: '100%' }}>
+          <button
+            type="button"
+            className="back-link"
+            onClick={() => { resetState(); setScreen('login'); }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              color: '#52657c',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: '16px'
+            }}
+          >
+            ← Back to login
+          </button>
+
+          <div className="role-switch">
+            <button
+              type="button"
+              className={role === 'lecturer' ? 'active' : ''}
+              onClick={() => { setRole('lecturer'); resetState(); }}
+            >
+              Lecturer
+            </button>
+            <button
+              type="button"
+              className={role === 'student' ? 'active' : ''}
+              onClick={() => { setRole('student'); resetState(); }}
+            >
+              Student
+            </button>
+          </div>
+
+          <div className="auth-heading" style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                background: '#eaf1f8',
+                color: '#0a2540',
+                display: 'grid',
+                placeItems: 'center',
+                margin: '0 auto 12px'
+              }}
+            >
+              <KeyRound size={26} />
+            </div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#061626', margin: '0 0 6px 0' }}>
+              Forgot Password
+            </h1>
+            <p style={{ color: '#52657c', fontSize: '13px', margin: 0, lineHeight: 1.5 }}>
+              Enter your {role === 'lecturer' ? 'Lecturer ID' : 'Student ID'} or registered email to receive a password reset link.
+            </p>
+          </div>
+
+          {message ? (
+            <div
+              style={{
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '12px',
+                padding: '20px 18px',
+                textAlign: 'center',
+                color: '#065f46',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                alignItems: 'center'
+              }}
+            >
+              <ShieldCheck size={36} color="#059669" />
+              <p style={{ fontSize: '13.5px', lineHeight: 1.55, margin: 0, color: '#065f46' }}>
+                {message}
+              </p>
+              <button
+                type="button"
+                className="outline-btn"
+                onClick={() => { resetState(); setScreen('login'); }}
+                style={{ marginTop: '6px' }}
+              >
+                Back to Login
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotSubmit}>
+              <label>{role === 'lecturer' ? 'Lecturer ID or Email' : 'Student ID or Email'}</label>
+              <input
+                type="text"
+                value={form.id || form.email}
+                onChange={e => {
+                  const val = e.target.value;
+                  update('id', val);
+                  update('email', val);
+                }}
+                required
+                placeholder={role === 'lecturer' ? 'e.g. LECT-2026-0001 or you@example.com' : 'e.g. 8100 or you@example.com'}
+                autoComplete="username"
+              />
+
+              {error && <div className="error-box" style={{ marginTop: '12px' }}>{error}</div>}
+
+              <button
+                type="submit"
+                className="primary-btn full-btn"
+                disabled={busy}
+                style={{ marginTop: '16px' }}
+              >
+                {busy ? 'Sending Reset Link…' : 'Send Reset Link'}
+              </button>
+            </form>
+          )}
+
+          <p className="signup" style={{ marginTop: '20px', textAlign: 'center' }}>
+            Remembered your password?{' '}
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => { resetState(); setScreen('login'); }}
+            >
+              Login
+            </button>
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p></section></main>;
 }
@@ -1137,6 +1289,13 @@ export default function App(){
     const search = new URLSearchParams(window.location.search);
     return path.includes('payment-success') || search.has('session_id') || search.has('sessionId');
   });
+  const [resetPasswordMode, setResetPasswordMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    return path.includes('reset-password') || hash.includes('type=recovery') || search.includes('type=recovery');
+  });
   const [forceAuthScreen, setForceAuthScreen] = useState(null);
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
 
@@ -1144,6 +1303,19 @@ export default function App(){
     let mounted = true;
     const checkSession = async () => {
       try {
+        // If recovery token or route is reset-password, enter resetPasswordMode directly
+        if (
+          window.location.pathname.includes('reset-password') ||
+          window.location.hash.includes('type=recovery') ||
+          window.location.search.includes('type=recovery')
+        ) {
+          if (mounted) {
+            setResetPasswordMode(true);
+            setLoading(false);
+          }
+          return;
+        }
+
         const { data, error } = await supabase.auth.getSession();
         if (error) console.warn('Supabase getSession warning:', error.message);
         if (!mounted) return;
@@ -1268,7 +1440,10 @@ export default function App(){
 
     checkSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        if (mounted) setResetPasswordMode(true);
+      }
       if (!session && mounted) {
         setSessionState(null);
         localStorage.removeItem('academic_active_role');
@@ -1325,6 +1500,29 @@ export default function App(){
       setShowPasswordChangeModal(true);
     }
   };
+
+  if (resetPasswordMode) {
+    return (
+      <Suspense fallback={<main className="auth-screen"><section className="auth-card"><div className="loading-panel">Loading password reset…</div></section></main>}>
+        <ResetPasswordScreen
+          onComplete={() => {
+            setResetPasswordMode(false);
+            try {
+              window.history.replaceState({}, '', window.location.pathname.replace(/\/reset-password\/?$/, '') || '/');
+            } catch (e) {}
+            setForceAuthScreen({ screen: 'login', role: 'student' });
+          }}
+          onCancel={() => {
+            setResetPasswordMode(false);
+            try {
+              window.history.replaceState({}, '', window.location.pathname.replace(/\/reset-password\/?$/, '') || '/');
+            } catch (e) {}
+            setForceAuthScreen({ screen: 'login', role: 'student' });
+          }}
+        />
+      </Suspense>
+    );
+  }
 
   if (paymentSuccessMode) {
     return (

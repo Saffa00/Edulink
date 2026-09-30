@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { requestPasswordRecovery, updateRecoveredPassword, requestDeviceRecovery } from '../services/recovery.js';
 
-export function ForgotPassword({ initialEmail = '' }) {
-  const [email, setEmail] = useState(initialEmail);
+export function ForgotPassword({ initialEmail = '', role = 'student' }) {
+  const [identifier, setIdentifier] = useState(initialEmail);
   const [sent, setSent] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -12,13 +12,11 @@ export function ForgotPassword({ initialEmail = '' }) {
     setBusy(true);
     setMessage('');
     try {
-      await requestPasswordRecovery(email.trim());
+      const res = await requestPasswordRecovery(identifier.trim(), role);
       setSent(true);
-      setMessage('If an account uses that email address, recovery instructions have been sent.');
-    } catch {
-      // Keep the same outward response style to reduce account enumeration.
-      setSent(true);
-      setMessage('If an account uses that email address, recovery instructions have been sent.');
+      setMessage(`Recovery instructions have been sent to your registered email (${res.maskedEmail || 'registered email'}).`);
+    } catch (err) {
+      setMessage(err.message || 'If an account uses those details, recovery instructions have been sent.');
     } finally {
       setBusy(false);
     }
@@ -27,19 +25,18 @@ export function ForgotPassword({ initialEmail = '' }) {
   return (
     <section className="security-card">
       <h2>Forgot Password</h2>
-      <p>Enter your registered email address.</p>
+      <p>Enter your Student ID, Lecturer ID, or registered email address.</p>
       <form onSubmit={submit}>
         <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
+          type="text"
+          value={identifier}
+          onChange={e => setIdentifier(e.target.value)}
           required
-          autoComplete="email"
-          placeholder="you@example.com"
+          placeholder="Student ID, Lecturer ID, or email"
         />
         <button disabled={busy}>{busy ? 'Sending…' : 'Send recovery email'}</button>
       </form>
-      {sent && <div className="security-message">{message}</div>}
+      {message && <div className="security-message">{message}</div>}
     </section>
   );
 }

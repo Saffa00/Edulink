@@ -718,14 +718,126 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   return <main className="auth-screen"><section className="auth-card"><button type="button" className="back-link" onClick={()=>{resetState();setScreen('gateway')}}>← Portal Home</button><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>{onShowOnboarding && <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" className="text-btn" onClick={onShowOnboarding} style={{ fontSize: '12px', color: '#64748b' }}>App Tour & Features</button></div>}</section></main>;
 }
 
+function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }) {
+  const [query, setQuery] = useState("");
+
+  if (!isOpen) return null;
+
+  const searchableItems = [
+    { id: "modules", label: role === "student" ? "Module Registration & Courses" : "Module Management & Courses", category: "Academic", page: "modules", keywords: "module registration course study credit syllabus" },
+    { id: "grades", label: role === "student" ? "My Grades & Assessment Scores" : "Student Grade Management", category: "Academic", page: "grades", keywords: "grade result mark exam test score gpa cgpa" },
+    { id: "timetable", label: "Class Timetable & Schedule", category: "Schedule", page: "timetable", keywords: "timetable class time lecture schedule slot room venue" },
+    { id: "attendance", label: role === "student" ? "Attendance GPS Check-In" : "Attendance Tracking & QR", category: "Academic", page: "attendance", keywords: "attendance present check in scan gps location absent late" },
+    { id: "assignments", label: "Assignments & Submissions", category: "Academic", page: "assignments", keywords: "assignment submit homework project coursework deadline task" },
+    { id: "messages", label: "Direct Messages & Chats", category: "Communication", page: "messages", keywords: "message chat lecturer student inbox conversation communicate" },
+    { id: "notifications", label: "Campus Notifications & Alerts", category: "Communication", page: "notifications", keywords: "notifications alert notice announcement unread news" },
+    ...(role === "student" ? [
+      { id: "payments", label: "Tuition & Registration Payments (Monime)", category: "Finance", page: "payments", keywords: "payment tuition fee monime orange money afrimoney bank checkout receipt" }
+    ] : [
+      { id: "students", label: "Student Directory & Enrollment", category: "Directory", page: "students", keywords: "student list directory search roll call records" }
+    ]),
+    { id: "dissertation", label: "Dissertation & Thesis Supervision", category: "Research", page: "dissertation", keywords: "dissertation thesis supervisor defense chapters research proposal" },
+    { id: "settings_profile", label: "Profile & Personal Information", category: "Settings", page: "settings", tab: "profile", keywords: "profile name email avatar student id photo details" },
+    { id: "settings_security", label: "Security & Registered Devices", category: "Settings", page: "settings", tab: "security", keywords: "security password device recovery fingerprint token 2fa auth" },
+    { id: "settings_preferences", label: "Preferences & Notifications", category: "Settings", page: "settings", tab: "preferences", keywords: "settings theme dark sound push onesignal alerts preferences" }
+  ];
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? searchableItems.filter(item =>
+        item.label.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.keywords.toLowerCase().includes(q)
+      )
+    : searchableItems.slice(0, 7);
+
+  const handleSelect = (item) => {
+    onClose();
+    if (item.tab && onNavigateSettings) {
+      onNavigateSettings(item.tab);
+    } else {
+      setPage(item.page);
+    }
+  };
+
+  return (
+    <div className="search-modal-backdrop" onClick={onClose}>
+      <div className="search-modal-container" onClick={e => e.stopPropagation()}>
+        <div className="search-modal-head">
+          <Search size={18} color="#0a2540" style={{ flexShrink: 0 }} />
+          <input
+            type="search"
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search modules, grades, timetable, services…"
+            className="search-modal-input"
+          />
+          {query ? (
+            <button type="button" className="icon-btn" onClick={() => setQuery("")} title="Clear query">
+              <X size={16} />
+            </button>
+          ) : (
+            <button type="button" className="search-modal-close-btn" onClick={onClose}>
+              Cancel
+            </button>
+          )}
+        </div>
+
+        {!q && (
+          <div className="search-quick-chips">
+            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600', paddingLeft: '4px' }}>POPULAR:</span>
+            {["Modules", "Grades", "Timetable", "Assignments", "Attendance"].map(chip => (
+              <button
+                key={chip}
+                type="button"
+                className="search-chip-btn"
+                onClick={() => setQuery(chip.toLowerCase())}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="search-modal-results">
+          {filtered.length > 0 ? (
+            filtered.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className="search-result-item"
+                onClick={() => handleSelect(item)}
+              >
+                <div className="search-result-badge">{item.category}</div>
+                <div className="search-result-info">
+                  <div className="search-result-title">{item.label}</div>
+                  <div className="search-result-path">Jump to {item.page.toUpperCase()}</div>
+                </div>
+                <ChevronRight size={16} color="#94a3b8" />
+              </button>
+            ))
+          ) : (
+            <div className="search-empty-state">
+              <p>No results found for "<strong>{query}</strong>"</p>
+              <small>Try searching for "Modules", "Grades", "Timetable", or "Attendance".</small>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, setPage, onNavigateSettings, unreadNotifsCount = 0 }) {
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const displayName = profile?.full_name || (role === "lecturer" ? "Lecturer" : "Student");
   const displayId = profile?.student_id || profile?.lecturer_id || (role === "lecturer" ? "Lecturer Portal" : "Student Portal");
   const initials = displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || (role === "lecturer" ? "LT" : "ST");
 
   const titles = {
-    home: "Dashboard",
+    home: "",
     modules: role === "student" ? "Module Registration" : "Modules",
     timetable: "Timetable",
     attendance: "Attendance",
@@ -740,62 +852,88 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
     admin: "System Admin"
   };
 
-  const activeTitle = titles[page] || "EduLink";
+  const activeTitle = titles[page] || "";
 
-  return <header className="topbar">
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-      <button
-        className="icon-btn sidebar-toggle-btn desktop-only"
-        onClick={onToggleSidebar}
-        title={collapsed ? "Expand sidebar menu" : "Toggle sidebar menu"}
-        aria-label="Toggle sidebar menu"
-      >
-        <Menu size={20} />
-      </button>
+  return (
+    <>
+      <QuickSearchModal
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        role={role}
+        setPage={setPage}
+        onNavigateSettings={onNavigateSettings}
+      />
+      <header className="topbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          <button
+            className="icon-btn sidebar-toggle-btn desktop-only"
+            onClick={onToggleSidebar}
+            title={collapsed ? "Expand sidebar menu" : "Toggle sidebar menu"}
+            aria-label="Toggle sidebar menu"
+          >
+            <Menu size={20} />
+          </button>
 
-      {/* Clean Native Mobile Header Title (No logo image, no 'EduLink Portal' text) */}
-      <div className="mobile-header-clean-title">
-        <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#061626', margin: 0, letterSpacing: '-0.3px', lineHeight: 1.2 }}>
-          {activeTitle}
-        </h1>
-      </div>
-    </div>
-
-    <div className="search desktop-only"><Search size={18}/><input placeholder="Search modules, courses, or features..."/></div>
-
-    <div className="top-actions">
-      <button className="icon-btn" title="Notifications" onClick={() => setPage?.("notifications")}>
-        <Bell size={19}/>
-        {unreadNotifsCount > 0 && (
-          <span className="notif-dot">{unreadNotifsCount > 99 ? '99+' : unreadNotifsCount}</span>
-        )}
-      </button>
-      <button className="profile-mini" onClick={()=>setOpen(!open)} aria-label="Profile menu">
-        <div className="avatar" style={{ overflow: 'hidden', padding: 0 }}>
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="Profile Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            initials
-          )}
+          {/* Clean Native Mobile Header Title (hidden on home screen) */}
+          {activeTitle ? (
+            <div className="mobile-header-clean-title">
+              <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#061626', margin: 0, letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+                {activeTitle}
+              </h1>
+            </div>
+          ) : null}
         </div>
-        <div className="profile-text desktop-only">
-          <strong>{displayName}</strong>
-          <span>{displayId}</span>
+
+        <div className="search desktop-only" onClick={() => setSearchOpen(true)} style={{ cursor: 'pointer' }}>
+          <Search size={18}/>
+          <input readOnly placeholder="Search modules, courses, or features..." style={{ cursor: 'pointer' }} />
         </div>
-        <ChevronRight size={16} className="desktop-only"/>
-      </button>
-      {open && <div className="profile-menu">
-        <div className="profile-menu-header mobile-only" style={{ padding: '8px 10px 10px', borderBottom: '1px solid #edf2f7', marginBottom: '6px' }}>
-          <strong style={{ display: 'block', fontSize: '13px', color: '#061626' }}>{displayName}</strong>
-          <small style={{ fontSize: '11px', color: '#718096' }}>{displayId}</small>
+
+        <div className="top-actions">
+          {/* Functional Search Icon Button for Mobile & Desktop */}
+          <button
+            className="icon-btn"
+            title="Search"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search portal"
+          >
+            <Search size={19} />
+          </button>
+
+          <button className="icon-btn" title="Notifications" onClick={() => setPage?.("notifications")}>
+            <Bell size={19}/>
+            {unreadNotifsCount > 0 && (
+              <span className="notif-dot">{unreadNotifsCount > 99 ? '99+' : unreadNotifsCount}</span>
+            )}
+          </button>
+          <button className="profile-mini" onClick={()=>setOpen(!open)} aria-label="Profile menu">
+            <div className="avatar" style={{ overflow: 'hidden', padding: 0 }}>
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                initials
+              )}
+            </div>
+            <div className="profile-text desktop-only">
+              <strong>{displayName}</strong>
+              <span>{displayId}</span>
+            </div>
+            <ChevronRight size={16} className="desktop-only"/>
+          </button>
+          {open && <div className="profile-menu">
+            <div className="profile-menu-header mobile-only" style={{ padding: '8px 10px 10px', borderBottom: '1px solid #edf2f7', marginBottom: '6px' }}>
+              <strong style={{ display: 'block', fontSize: '13px', color: '#061626' }}>{displayName}</strong>
+              <small style={{ fontSize: '11px', color: '#718096' }}>{displayId}</small>
+            </div>
+            <button onClick={() => { onNavigateSettings?.('profile'); setOpen(false); }}><User size={15}/> My Profile</button>
+            <button onClick={() => { onNavigateSettings?.('security'); setOpen(false); }}><ShieldCheck size={15}/> Security & Devices</button>
+            <button onClick={() => { onNavigateSettings?.('preferences'); setOpen(false); }}><Settings size={15}/> Preferences</button>
+            <button onClick={() => { setOpen(false); onLogout(); }} style={{ color: '#dc2626' }}><LogOut size={15}/> Logout</button>
+          </div>}
         </div>
-        <button onClick={() => { onNavigateSettings?.('profile'); setOpen(false); }}><User size={15}/> My Profile</button>
-        <button onClick={() => { onNavigateSettings?.('security'); setOpen(false); }}><ShieldCheck size={15}/> Security & Devices</button>
-        <button onClick={() => { onNavigateSettings?.('preferences'); setOpen(false); }}><Settings size={15}/> Preferences</button>
-        <button onClick={() => { setOpen(false); onLogout(); }} style={{ color: '#dc2626' }}><LogOut size={15}/> Logout</button>
-      </div>}
-    </div>
-  </header>;
+      </header>
+    </>
+  );
 }
 
 function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, onLogout, profile, unreadNotifsCount = 0, unreadMessagesCount = 0 }) {
@@ -804,7 +942,7 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
   const initials = displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || (role === "lecturer" ? "LT" : "ST");
 
   const lecturerItems = [
-    ["home","Dashboard",Home],
+    ["home","Home",Home],
     ["modules","Modules",BookOpen],
     ["timetable","Timetable",Clock3],
     ["attendance","Attendance",CalendarCheck],
@@ -817,7 +955,7 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
   ];
 
   const studentItems = [
-    ["home","Dashboard",Home],
+    ["home","Home",Home],
     ["modules","Module Registration",BookOpen],
     ["timetable","Timetable",Clock3],
     ["attendance","Attendance",CalendarCheck],

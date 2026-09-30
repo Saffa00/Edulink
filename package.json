@@ -17,5 +17,8 @@
     "server": "npm run start --prefix server",
     "test": "node tests/master_test_suite.js",
     "verify": "node scripts/prepare-release.js"
+  },
+  "dependencies": {
+    "vite": "^6.0.5"
   }
 }

@@ -5,10 +5,13 @@ import App from "./App";
 import "./styles.css";
 
 // Instant Auto-Update for Installed Mobile Phone PWA
-const updateSW = registerSW({
+let updateSW;
+updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    updateSW(true);
+    if (typeof updateSW === 'function') {
+      updateSW(true);
+    }
   },
   onRegisteredSW(swScriptUrl, registration) {
     if (registration) {

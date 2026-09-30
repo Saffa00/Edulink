@@ -18,3 +18,5 @@ server/.env.*
 !server/.env.production.example
 
 .DS_Store
+.vercel
+.env*

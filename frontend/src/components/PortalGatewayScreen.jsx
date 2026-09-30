@@ -1,84 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { User, LogIn, ArrowRight, UserPlus, X } from 'lucide-react';
+import React, { useEffect } from 'react';
 
-export default function PortalGatewayScreen({ onLogin, onRegister, onSelectAccount }) {
-  const [lastAccount, setLastAccount] = useState(null);
+export default function PortalGatewayScreen({ onFinish, onLogin }) {
+  const proceedToLogin = onFinish || onLogin;
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('edulink_last_account');
-      if (saved) {
-        setLastAccount(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.warn('Could not parse last account:', e);
-    }
-  }, []);
+    // Automatically transition to the login screen after brief launch presentation
+    const timer = setTimeout(() => {
+      proceedToLogin?.();
+    }, 1900);
 
-  const handleRemoveAccount = (e) => {
-    e.stopPropagation();
-    try {
-      localStorage.removeItem('edulink_last_account');
-      setLastAccount(null);
-    } catch (e) {}
-  };
-
-  const handleQuickLogin = () => {
-    if (lastAccount) {
-      onSelectAccount?.(lastAccount);
-    } else {
-      onLogin?.();
-    }
-  };
-
-  const initials = lastAccount?.name
-    ? lastAccount.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'U';
+    return () => clearTimeout(timer);
+  }, [proceedToLogin]);
 
   return (
     <main
-      className="auth-screen portal-gateway-container"
+      onClick={() => proceedToLogin?.()}
+      className="auth-screen portal-launch-screen"
       style={{
         minHeight: '100dvh',
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 'calc(24px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px)) 20px',
+        padding: 'calc(env(safe-area-inset-top, 24px) + 20px) 24px calc(env(safe-area-inset-bottom, 24px) + 24px)',
         background: '#ffffff',
         boxSizing: 'border-box',
-        maxWidth: '460px',
-        margin: '0 auto',
-        userSelect: 'none'
+        cursor: 'pointer',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        animation: 'launchFadeIn 0.35s ease-out'
       }}
     >
-      {/* Invisible spacer for balanced vertical centering */}
-      <div style={{ height: '24px', width: '100%' }} />
+      {/* Top Balancing Spacer */}
+      <div style={{ height: '32px', width: '100%' }} />
 
-      {/* Center Section: Logo + App Name + Account Card */}
+      {/* Center Focal: App Logo + App Title + Subtle Launch Indicator */}
       <section
         style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '100%',
-          flex: 1,
-          padding: '20px 0'
+          textAlign: 'center',
+          flex: 1
         }}
       >
-        {/* App Logo placed at center */}
         <div
           style={{
-            width: '96px',
-            height: '96px',
-            borderRadius: '24px',
-            boxShadow: '0 12px 32px rgba(10, 37, 64, 0.16)',
+            width: '108px',
+            height: '108px',
+            borderRadius: '26px',
+            boxShadow: '0 16px 40px rgba(10, 37, 64, 0.14)',
             overflow: 'hidden',
-            marginBottom: '16px',
+            marginBottom: '20px',
             background: '#ffffff',
             display: 'grid',
-            placeItems: 'center'
+            placeItems: 'center',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
+            transform: 'scale(1)',
+            transition: 'transform 0.2s ease'
           }}
         >
           <img
@@ -94,241 +75,65 @@ export default function PortalGatewayScreen({ onLogin, onRegister, onSelectAccou
 
         <h1
           style={{
-            fontSize: '28px',
+            fontSize: '30px',
             fontWeight: 800,
             color: '#061626',
-            margin: '0 0 28px 0',
-            letterSpacing: '-0.02em',
-            textAlign: 'center'
+            margin: '0 0 14px 0',
+            letterSpacing: '-0.03em'
           }}
         >
           EduLink
         </h1>
 
-        {/* Facebook-style Returning Account Card */}
-        {lastAccount ? (
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '340px',
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '20px',
-              padding: '20px',
-              boxShadow: '0 10px 30px rgba(10, 37, 64, 0.08)',
-              position: 'relative',
-              animation: 'fadeIn 0.25s ease'
-            }}
-          >
-            {/* Remove account button */}
-            <button
-              type="button"
-              onClick={handleRemoveAccount}
-              title="Remove account from this device"
-              style={{
-                position: 'absolute',
-                top: '12px',
-                right: '12px',
-                background: '#f1f5f9',
-                border: 'none',
-                borderRadius: '50%',
-                width: '26px',
-                height: '26px',
-                display: 'grid',
-                placeItems: 'center',
-                color: '#64748b',
-                cursor: 'pointer',
-                padding: 0
-              }}
-            >
-              <X size={14} />
-            </button>
-
-            {/* Profile Row */}
-            <div
-              onClick={handleQuickLogin}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                cursor: 'pointer',
-                marginBottom: '18px'
-              }}
-            >
-              {lastAccount.avatar ? (
-                <img
-                  src={lastAccount.avatar}
-                  alt={lastAccount.name}
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '2px solid #e2e8f0'
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    background: '#eaf1f8',
-                    color: '#0a2540',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 700,
-                    fontSize: '18px'
-                  }}
-                >
-                  {initials}
-                </div>
-              )}
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: '16px',
-                    fontWeight: 700,
-                    color: '#061626',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {lastAccount.name}
-                </div>
-                <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
-                  {lastAccount.role === 'lecturer' ? 'Lecturer' : 'Student'} ID: <strong>{lastAccount.id}</strong>
-                </div>
-              </div>
-            </div>
-
-            {/* Primary Log In Button */}
-            <button
-              type="button"
-              onClick={handleQuickLogin}
-              style={{
-                width: '100%',
-                height: '48px',
-                background: '#0a2540',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                boxShadow: '0 6px 18px rgba(10, 37, 64, 0.2)'
-              }}
-            >
-              <span>Log In</span>
-              <ArrowRight size={16} />
-            </button>
-
-            {/* Log into another account */}
-            <button
-              type="button"
-              onClick={() => onLogin?.()}
-              style={{
-                width: '100%',
-                background: 'none',
-                border: 'none',
-                color: '#0a2540',
-                fontSize: '13.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                marginTop: '14px',
-                padding: '6px'
-              }}
-            >
-              Log into another account
-            </button>
-          </div>
-        ) : (
-          /* Standard Returning User Options */
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '340px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => onLogin?.()}
-              style={{
-                width: '100%',
-                height: '52px',
-                background: '#0a2540',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '14px',
-                fontSize: '15px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                boxShadow: '0 8px 22px rgba(10, 37, 64, 0.22)'
-              }}
-            >
-              <LogIn size={18} />
-              <span>Log In</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onRegister?.()}
-              style={{
-                width: '100%',
-                height: '48px',
-                background: '#ffffff',
-                border: '1px solid #d7e1ec',
-                borderRadius: '14px',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: '#38516c',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <UserPlus size={16} />
-              <span>Create New Account</span>
-            </button>
-          </div>
-        )}
+        {/* Minimal Launch Pulse Line */}
+        <div
+          style={{
+            width: '44px',
+            height: '3px',
+            borderRadius: '99px',
+            background: 'linear-gradient(90deg, #0a2540 0%, #3b82f6 100%)',
+            opacity: 0.85,
+            animation: 'launchPulse 1.2s ease-in-out infinite'
+          }}
+        />
       </section>
 
-      {/* Bottom Section: Exactly like Facebook "from Meta" */}
+      {/* Bottom Message Anchored firmly */}
       <footer
         style={{
-          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           textAlign: 'center',
-          paddingTop: '16px'
+          paddingBottom: '8px'
         }}
       >
-        <span
+        <p
           style={{
-            fontSize: '13.5px',
+            fontSize: '12px',
+            fontWeight: 700,
+            letterSpacing: '0.8px',
             color: '#64748b',
-            fontWeight: 500,
-            letterSpacing: '0.02em',
-            display: 'inline-block'
+            textTransform: 'uppercase',
+            margin: 0
           }}
         >
           Lecturer and Student Portal
-        </span>
+        </p>
       </footer>
+
+      <style>{`
+        @keyframes launchFadeIn {
+          from { opacity: 0; transform: scale(0.98); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes launchPulse {
+          0% { transform: scaleX(0.7); opacity: 0.5; }
+          50% { transform: scaleX(1.3); opacity: 1; }
+          100% { transform: scaleX(0.7); opacity: 0.5; }
+        }
+      `}</style>
     </main>
   );
 }

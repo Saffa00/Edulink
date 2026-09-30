@@ -73,14 +73,51 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
           <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Step 2 of 2: Registration Payment</span>
         </div>
 
-        {/* Title */}
+        {/* Title & Technical Flow Label */}
         <div style={{ textAlign: 'center', marginBottom: '22px' }}>
-          <h1 style={{ fontSize: '22px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>
-            Select Payment Method
+          <div style={{
+            display: 'inline-block',
+            fontSize: '11px',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.8px',
+            padding: '4px 10px',
+            borderRadius: '99px',
+            background: '#e0f2fe',
+            color: '#0369a1',
+            marginBottom: '8px'
+          }}>
+            Mobile Money USSD Payment Authorization Flow
+          </div>
+          <h1 style={{ fontSize: '24px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>
+            Pay with Mobile Money
           </h1>
           <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
-            Pay your student registration fee with mobile money to instantly activate your account.
+            Select your mobile wallet provider to receive an instant USSD authorization prompt on your phone.
           </p>
+
+          {/* Visual USSD Step Flow */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            marginTop: '12px',
+            fontSize: '11px',
+            color: '#475569',
+            fontWeight: 600,
+            flexWrap: 'wrap'
+          }}>
+            <span>1. Select Provider</span>
+            <span>→</span>
+            <span>2. Enter Phone</span>
+            <span>→</span>
+            <span>📱 3. USSD Prompt</span>
+            <span>→</span>
+            <span>4. Enter PIN</span>
+            <span>→</span>
+            <span style={{ color: '#16a34a' }}>✓ Confirmed</span>
+          </div>
         </div>
 
         {/* Student Fee Summary Card */}

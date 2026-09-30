@@ -53,7 +53,7 @@ export function clearLocalDeviceCredential() {
   localStorage.removeItem(DEVICE_NAME_KEY);
 }
 
-export async function registerCurrentDevice({ role, profileId, deviceName } = {}) {
+export async function registerCurrentDevice({ role, profileId, deviceName, replaceExisting } = {}) {
   const credential = await ensureDeviceCredential();
   setDeviceName(deviceName || detectDeviceName());
 
@@ -71,7 +71,8 @@ export async function registerCurrentDevice({ role, profileId, deviceName } = {}
         role,
         profileId,
         deviceCredential: credential,
-        deviceName: getStoredDeviceName()
+        deviceName: getStoredDeviceName(),
+        replaceExisting: Boolean(replaceExisting)
       })
     });
 

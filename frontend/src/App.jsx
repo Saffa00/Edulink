@@ -84,6 +84,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [deviceRequired, setDeviceRequired] = useState(false);
+  const [pendingRebindAccount, setPendingRebindAccount] = useState(null);
   const [paymentResult, setPaymentResult] = useState(null);
   const [form, setForm] = useState({
     id: initialStudentId || '', password:'', confirmPassword:'', email:'', fullName:'', studentId: initialStudentId || '', phone:'',
@@ -104,7 +105,33 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   }, [initialScreen, initialRole]);
 
   const update = (key, value) => setForm(f => ({...f, [key]: value}));
-  const resetState = () => { setError(''); setMessage(''); setDeviceRequired(false); };
+  const resetState = () => { setError(''); setMessage(''); setDeviceRequired(false); setPendingRebindAccount(null); };
+
+  async function handleRebindDevice() {
+    if (!pendingRebindAccount) return;
+    setBusy(true); setError('');
+    try {
+      await registerCurrentDevice({
+        role: pendingRebindAccount.role,
+        profileId: pendingRebindAccount.profile?.id,
+        replaceExisting: true
+      });
+      const savedAcc = {
+        id: pendingRebindAccount.profile?.student_id || pendingRebindAccount.profile?.lecturer_id || form.id.trim(),
+        name: pendingRebindAccount.profile?.full_name || (pendingRebindAccount.role === 'lecturer' ? 'Lecturer' : 'Student'),
+        role: pendingRebindAccount.role,
+        avatar: pendingRebindAccount.profile?.avatar_url || localStorage.getItem('edulink_active_avatar') || null
+      };
+      if (savedAcc.id) {
+        try { localStorage.setItem('edulink_last_account', JSON.stringify(savedAcc)); } catch (e) {}
+      }
+      onAuthenticated({ role: pendingRebindAccount.role, profile: pendingRebindAccount.profile });
+    } catch (err) {
+      setError(err.message || 'Unable to switch device.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function login(e) {
     e.preventDefault(); resetState(); setBusy(true);
@@ -117,7 +144,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         if (!device.registered) {
           // If the account already has another device registered on a different phone/browser
           if (device.code === 'UNKNOWN_DEVICE' || device.reason === 'UNKNOWN_DEVICE') {
-            throw new Error('Access denied: This account is already bound to another registered device (One device per account policy). To change devices, contact the university administrator.');
+            setPendingRebindAccount({ role, profile: result.profile });
+            throw new Error('Access denied: This account is already bound to another registered device (One device per account policy). To change devices, contact the university administrator or switch your active device below.');
           }
           // If the account does not have a registered device yet, auto-register this current browser
           await registerCurrentDevice({ role, profileId: result.profile?.id });
@@ -707,7 +735,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     );
   }
 
-  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box">{error}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>{onShowOnboarding && <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" className="text-btn" onClick={onShowOnboarding} style={{ fontSize: '12px', color: '#64748b' }}>App Tour & Features</button></div>}</section></main>;
+  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>{onShowOnboarding && <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" className="text-btn" onClick={onShowOnboarding} style={{ fontSize: '12px', color: '#64748b' }}>App Tour & Features</button></div>}</section></main>;
 }
 
 function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }) {

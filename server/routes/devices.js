@@ -78,13 +78,22 @@ router.post('/register', async (req, res) => {
     if (existingError) throw existingError;
 
     if (existing?.length) {
-      const same = existing.some(d => d.id && d.device_label === deviceName);
-      return res.status(409).json({
-        error: 'A registered device already exists for this account.',
-        code: 'DEVICE_ALREADY_BOUND',
-        recoveryRequired: true,
-        devices: existing.map(d => ({ id: d.id, label: d.device_label }))
-      });
+      if (req.body.replaceExisting || req.body.forceRebind) {
+        // Revoke previously active device(s) for this account so the new device can be bound
+        await db
+          .from('devices')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq(ownerField, ownerId)
+          .is('revoked_at', null);
+      } else {
+        const same = existing.some(d => d.id && d.device_label === deviceName);
+        return res.status(409).json({
+          error: 'A registered device already exists for this account.',
+          code: 'DEVICE_ALREADY_BOUND',
+          recoveryRequired: true,
+          devices: existing.map(d => ({ id: d.id, label: d.device_label }))
+        });
+      }
     }
 
     const { data, error } = await db.from('devices').insert({

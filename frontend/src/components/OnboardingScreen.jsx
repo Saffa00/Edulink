@@ -107,11 +107,15 @@ export default function OnboardingScreen({ onFinish }) {
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: 'calc(16px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px)) 20px',
-        background: '#ffffff',
+        backgroundImage: 'url(/onboard-bg.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         boxSizing: 'border-box',
         maxWidth: '460px',
         margin: '0 auto',
-        userSelect: 'none'
+        userSelect: 'none',
+        position: 'relative'
       }}
     >
       {/* Top Header with Skip */}
@@ -126,13 +130,17 @@ export default function OnboardingScreen({ onFinish }) {
         <span
           style={{
             fontSize: '12px',
-            fontWeight: 700,
+            fontWeight: 800,
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
-            color: '#8b9bb4',
-            background: '#f1f5f9',
-            padding: '5px 12px',
-            borderRadius: '99px'
+            color: '#0a2540',
+            background: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            padding: '6px 14px',
+            borderRadius: '99px',
+            boxShadow: '0 4px 12px rgba(10, 37, 64, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.8)'
           }}
         >
           {slide.badge}
@@ -141,21 +149,24 @@ export default function OnboardingScreen({ onFinish }) {
           type="button"
           onClick={() => handleFinish('gateway')}
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#52657c',
-            fontSize: '14px',
-            fontWeight: 600,
+            background: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            color: '#0a2540',
+            fontSize: '13px',
+            fontWeight: 700,
             cursor: 'pointer',
-            padding: '6px 10px',
-            borderRadius: '8px'
+            padding: '6px 14px',
+            borderRadius: '99px',
+            boxShadow: '0 4px 12px rgba(10, 37, 64, 0.08)'
           }}
         >
           Skip
         </button>
       </header>
 
-      {/* Main Slide Content */}
+      {/* Main Slide Content in Glass Card */}
       <section
         style={{
           flex: 1,
@@ -164,34 +175,41 @@ export default function OnboardingScreen({ onFinish }) {
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          padding: '20px 0'
+          padding: '24px 20px',
+          margin: '14px 0',
+          background: 'rgba(255, 255, 255, 0.88)',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          borderRadius: '24px',
+          border: '1.5px solid rgba(255, 255, 255, 0.9)',
+          boxShadow: '0 16px 40px rgba(10, 37, 64, 0.12)'
         }}
       >
         {/* Animated Feature Circle */}
         <div
           style={{
-            width: '110px',
-            height: '110px',
+            width: '100px',
+            height: '100px',
             borderRadius: '50%',
             background: slide.accentBg,
             color: slide.accentColor,
             display: 'grid',
             placeItems: 'center',
-            marginBottom: '32px',
-            boxShadow: `0 14px 34px ${slide.accentBg}`,
+            marginBottom: '24px',
+            boxShadow: `0 12px 28px ${slide.accentBg}`,
             transition: 'all 0.3s ease'
           }}
         >
-          <IconComponent size={52} strokeWidth={2.2} />
+          <IconComponent size={48} strokeWidth={2.2} />
         </div>
 
         {/* Title & Subtitle */}
         <h1
           style={{
-            fontSize: '25px',
+            fontSize: '24px',
             fontWeight: 800,
             color: '#061626',
-            margin: '0 0 12px 0',
+            margin: '0 0 10px 0',
             lineHeight: 1.25,
             letterSpacing: '-0.02em'
           }}
@@ -200,10 +218,10 @@ export default function OnboardingScreen({ onFinish }) {
         </h1>
         <p
           style={{
-            fontSize: '14.5px',
-            color: '#52657c',
-            lineHeight: 1.6,
-            margin: '0 0 28px 0',
+            fontSize: '14px',
+            color: '#475569',
+            lineHeight: 1.55,
+            margin: '0 0 24px 0',
             maxWidth: '340px'
           }}
         >
@@ -294,14 +312,21 @@ export default function OnboardingScreen({ onFinish }) {
         )}
       </section>
 
-      {/* Footer Navigation: Dots & Buttons */}
+      {/* Footer Navigation: Dots & Buttons in Frosted Card */}
       <footer
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px',
+          gap: '16px',
           alignItems: 'center',
-          width: '100%'
+          width: '100%',
+          background: 'rgba(255, 255, 255, 0.88)',
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
+          padding: '16px 18px',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          boxShadow: '0 10px 30px rgba(10, 37, 64, 0.09)'
         }}
       >
         {/* Pagination Dots */}

@@ -24,7 +24,10 @@ export default function PortalGatewayScreen({ onFinish, onLogin }) {
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: 'calc(env(safe-area-inset-top, 24px) + 20px) 24px calc(env(safe-area-inset-bottom, 24px) + 24px)',
-        background: '#ffffff',
+        backgroundImage: 'url(/onboard-bg.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         boxSizing: 'border-box',
         cursor: 'pointer',
         userSelect: 'none',
@@ -43,17 +46,26 @@ export default function PortalGatewayScreen({ onFinish, onLogin }) {
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          flex: 1
+          padding: '36px 40px',
+          background: 'rgba(255, 255, 255, 0.88)',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          borderRadius: '28px',
+          border: '1.5px solid rgba(255, 255, 255, 0.9)',
+          boxShadow: '0 20px 48px rgba(10, 37, 64, 0.12)',
+          maxWidth: '340px',
+          width: '100%',
+          boxSizing: 'border-box'
         }}
       >
         <div
           style={{
-            width: '108px',
-            height: '108px',
-            borderRadius: '26px',
-            boxShadow: '0 16px 40px rgba(10, 37, 64, 0.14)',
+            width: '100px',
+            height: '100px',
+            borderRadius: '24px',
+            boxShadow: '0 12px 30px rgba(10, 37, 64, 0.14)',
             overflow: 'hidden',
-            marginBottom: '20px',
+            marginBottom: '18px',
             background: '#ffffff',
             display: 'grid',
             placeItems: 'center',
@@ -98,7 +110,7 @@ export default function PortalGatewayScreen({ onFinish, onLogin }) {
         />
       </section>
 
-      {/* Bottom Message Anchored firmly */}
+      {/* Bottom Message Anchored firmly in Frosted Pill */}
       <footer
         style={{
           display: 'flex',
@@ -106,7 +118,13 @@ export default function PortalGatewayScreen({ onFinish, onLogin }) {
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          paddingBottom: '8px'
+          padding: '8px 18px',
+          background: 'rgba(255, 255, 255, 0.88)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          borderRadius: '99px',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          boxShadow: '0 4px 16px rgba(10, 37, 64, 0.08)'
         }}
       >
         <p

@@ -11,6 +11,7 @@ import { setOneSignalUser, clearOneSignalUser } from './services/oneSignalServic
 const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCheckout = lazy(() => import('./components/PaymentCheckout'));
 const ResetPasswordScreen = lazy(() => import('./components/ResetPasswordScreen'));
+const OnboardingScreen = lazy(() => import('./components/OnboardingScreen'));
 const PortalGatewayScreen = lazy(() => import('./components/PortalGatewayScreen'));
 const SetPermanentPasswordModal = lazy(() => import('./components/SetPermanentPasswordModal'));
 const AttendanceManagementV39 = lazy(() => import('./components/AttendanceManagementV39'));
@@ -141,7 +142,7 @@ function Logo({ small=false }) {
   );
 }
 
-function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'student', initialStudentId = '' }) {
+function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'student', initialStudentId = '', onShowOnboarding }) {
   const [role, setRole] = useState(initialRole);
   const [screen, setScreen] = useState(initialScreen);
   const [busy, setBusy] = useState(false);
@@ -360,6 +361,19 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             setScreen('login');
           }}
           onLogin={() => {
+            resetState();
+            setScreen('login');
+          }}
+        />
+      </Suspense>
+    );
+  }
+
+  if (screen === 'onboarding') {
+    return (
+      <Suspense fallback={<main className="auth-screen"><div className="loading-panel">Loading EduLink…</div></main>}>
+        <OnboardingScreen
+          onFinish={() => {
             resetState();
             setScreen('login');
           }}
@@ -963,7 +977,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     );
   }
 
-  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><div style={{ position: 'relative', width: '100%' }}><input type={showLoginPassword ? 'text' : 'password'} value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••" style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}/><button type="button" onClick={()=>setShowLoginPassword(p=>!p)} aria-label={showLoginPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }}>{showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p></section></main>;
+  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><div style={{ position: 'relative', width: '100%' }}><input type={showLoginPassword ? 'text' : 'password'} value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••" style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}/><button type="button" onClick={()=>setShowLoginPassword(p=>!p)} aria-label={showLoginPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }}>{showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p><p className="signup" style={{ marginTop: '10px' }}><button type="button" className="text-btn" onClick={() => onShowOnboarding ? onShowOnboarding() : setScreen('onboarding')} style={{ color: '#0284c7', fontSize: '13px', fontWeight: 600 }}>🎓 View App Tour & Onboarding</button></p></section></main>;
 }
 
 function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }) {
@@ -2005,6 +2019,7 @@ export default function App(){
   });
   const [forceAuthScreen, setForceAuthScreen] = useState(null);
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   React.useEffect(() => {
     let mounted = true;
@@ -2254,12 +2269,22 @@ export default function App(){
 
   if (loading) return <main className="auth-screen"><section className="auth-card"><Logo/><div className="loading-panel">Checking secure session…</div></section></main>;
   if (!sessionState) {
+    if (showOnboarding) {
+      return (
+        <Suspense fallback={<main className="auth-screen"><div className="loading-panel">Loading EduLink…</div></main>}>
+          <OnboardingScreen
+            onFinish={() => setShowOnboarding(false)}
+          />
+        </Suspense>
+      );
+    }
     return (
       <Auth
         onAuthenticated={handleAuthenticated}
         initialScreen={forceAuthScreen?.screen || 'gateway'}
         initialRole={forceAuthScreen?.role || 'student'}
         initialStudentId={forceAuthScreen?.studentId || ''}
+        onShowOnboarding={() => setShowOnboarding(true)}
       />
     );
   }

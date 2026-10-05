@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Users, Search, ChevronRight, BookOpen, CalendarCheck, ClipboardList, Award, RefreshCw, X } from 'lucide-react';
 import { getLecturerStudentRoster, getStudent360Dossier } from '../services/academicMasterV41toV55.js';
 
-export default function StudentManagementV48() {
+export default function StudentManagementV48({ scopedModule = null }) {
   const [roster, setRoster] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [dossier, setDossier] = useState(null);
@@ -41,6 +41,12 @@ export default function StudentManagementV48() {
 
   const filtered = roster.filter(item => {
     const s = item.students;
+    if (scopedModule) {
+      const scopedCode = String(scopedModule.code || '').replace(/\s+/g, '').toUpperCase();
+      const itemCode = String(item.modules?.code || '').replace(/\s+/g, '').toUpperCase();
+      const match = item.module_id === scopedModule.id || (scopedCode && (itemCode.includes(scopedCode) || scopedCode.includes(itemCode)));
+      if (!match) return false;
+    }
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return s?.student_id?.toLowerCase().includes(q) || s?.full_name?.toLowerCase().includes(q) || item.modules?.code?.toLowerCase().includes(q);
@@ -58,6 +64,12 @@ export default function StudentManagementV48() {
           <p>Academic profiles and performance tracking for students in your taught modules.</p>
         </div>
       </header>
+
+      {scopedModule && (
+        <div style={{ marginBottom: '14px', fontSize: '13px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '8px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+          <Users size={16} /> Scoped Class Roster: {scopedModule.code} ({scopedModule.title}) — Year 3. {scopedModule.studentsCount || 45} students registered
+        </div>
+      )}
 
       <div className="v-search-box" style={{ maxWidth: '400px' }}>
         <Search size={16} color="#64748b" />

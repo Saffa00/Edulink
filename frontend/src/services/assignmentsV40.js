@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { sendAcademicNotification } from './liveNotificationService.js';
 
 const SUBMISSION_BUCKET = 'assignment-submissions';
 const BRIEF_BUCKET = 'assignment-briefs';
@@ -26,11 +27,11 @@ export async function getCurrentStudent() {
   if (ue || !user) throw ue || new Error('Authentication required.');
   const { data: student, error: se } = await supabase
     .from('students')
-    .select('id, student_id, full_name, email, programme, level, account_status')
+    .select('id, student_id, full_name, email, programme, level, account_status, auth_user_id')
     .eq('auth_user_id', user.id)
     .single();
   if (se || !student) throw se || new Error('Student profile not found.');
-  return student;
+  return { ...student, auth_user_id: student.auth_user_id || user.id };
 }
 
 /**
@@ -177,6 +178,32 @@ export async function createAssignmentWithBrief(payload, briefFile = null) {
     .single();
 
   if (error) throw error;
+
+  // Real-time Notification: When lecturer creates an assignment, notify all enrolled students
+  try {
+    const { data: enrollments } = await supabase
+      .from('student_modules')
+      .select('student_id, students(auth_user_id, full_name)')
+      .eq('module_id', payload.module_id);
+
+    const modCode = data?.modules?.code || 'Module';
+    const dueFormatted = payload.due_at ? new Date(payload.due_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Scheduled';
+
+    for (const enr of (enrollments || [])) {
+      if (enr.students?.auth_user_id) {
+        await sendAcademicNotification({
+          recipientUserId: enr.students.auth_user_id,
+          title: `New Assignment Created: ${modCode}`,
+          body: `Lecturer ${lecturer.full_name} published "${data.title}" for ${modCode}. Due date: ${dueFormatted}.`,
+          category: 'assignment',
+          linkUrl: 'assignments'
+        });
+      }
+    }
+  } catch (notifErr) {
+    console.warn('Assignment creation notification notice:', notifErr?.message);
+  }
+
   return data;
 }
 
@@ -356,6 +383,35 @@ export async function gradeStudentSubmission({ submissionId, mark, comment, stat
     .single();
 
   if (error) throw error;
+
+  // Real-time Academic Notification to Student on Grading
+  try {
+    const { data: subDetail } = await supabase
+      .from('submissions')
+      .select(`
+        id,
+        students(auth_user_id, full_name),
+        assignments(title, max_mark, modules(code, title))
+      `)
+      .eq('id', submissionId)
+      .single();
+
+    if (subDetail?.students?.auth_user_id) {
+      const code = subDetail.assignments?.modules?.code || 'Module';
+      const title = subDetail.assignments?.title || 'Assignment';
+      const max = subDetail.assignments?.max_mark || 100;
+      await sendAcademicNotification({
+        recipientUserId: subDetail.students.auth_user_id,
+        title: `Grade Released: ${code}`,
+        body: `Your assignment "${title}" has been graded: ${numMark != null ? `${numMark}/${max}` : status.toUpperCase()}.${comment ? ` Note: "${comment}"` : ''}`,
+        category: 'grade',
+        linkUrl: 'assignments'
+      });
+    }
+  } catch (notifErr) {
+    console.warn('Assignment grade notification notice:', notifErr?.message);
+  }
+
   return data;
 }
 
@@ -482,6 +538,7 @@ export async function submitStudentAssignment({ assignmentId, file, notes = '' }
     .maybeSingle();
 
   let nextVersion = 1;
+  let submissionResult = null;
 
   if (existing) {
     nextVersion = (existing.version_number || 1) + 1;
@@ -511,7 +568,7 @@ export async function submitStudentAssignment({ assignmentId, file, notes = '' }
       .single();
 
     if (upe) throw upe;
-    return updated;
+    submissionResult = updated;
   } else {
     // Insert new submission
     const { data: inserted, error: ine } = await supabase
@@ -531,8 +588,44 @@ export async function submitStudentAssignment({ assignmentId, file, notes = '' }
       .single();
 
     if (ine) throw ine;
-    return inserted;
+    submissionResult = inserted;
   }
+
+  // Real-time Academic Notification for Assignment Submission
+  try {
+    const { data: asgn } = await supabase
+      .from('assignments')
+      .select('id, title, module_id, lecturer_id, modules(code, title), lecturers(auth_user_id, full_name)')
+      .eq('id', assignmentId)
+      .single();
+
+    const modCode = asgn?.modules?.code || 'Module';
+    const asgnTitle = asgn?.title || assignment.title || 'Assignment';
+
+    // 1. Notify Lecturer of new submission
+    if (asgn?.lecturers?.auth_user_id) {
+      await sendAcademicNotification({
+        recipientUserId: asgn.lecturers.auth_user_id,
+        title: `Assignment Submission: ${modCode}`,
+        body: `Student ${student.full_name} (${student.student_id}) submitted "${asgnTitle}"${isLate ? ' (Late)' : ''}.`,
+        category: 'assignment',
+        linkUrl: 'assignments'
+      });
+    }
+
+    // 2. Notify Student confirmation
+    await sendAcademicNotification({
+      recipientUserId: student.auth_user_id,
+      title: `Submission Recorded: ${modCode}`,
+      body: `Your submission for "${asgnTitle}" was uploaded successfully${isLate ? ' (Late submission)' : ''}.`,
+      category: 'assignment',
+      linkUrl: 'assignments'
+    });
+  } catch (notifErr) {
+    console.warn('Assignment submission notification notice:', notifErr?.message);
+  }
+
+  return submissionResult;
 }
 
 /**

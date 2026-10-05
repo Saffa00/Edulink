@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { KeyRound, ShieldCheck, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { KeyRound, ShieldCheck, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 export default function SetPermanentPasswordModal({ profile, onComplete }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -108,7 +110,7 @@ export default function SetPermanentPasswordModal({ profile, onComplete }) {
               </label>
               <div style={{ position: 'relative' }}>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
@@ -118,7 +120,7 @@ export default function SetPermanentPasswordModal({ profile, onComplete }) {
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
-                    padding: '12px 14px 12px 38px',
+                    padding: '12px 42px 12px 38px',
                     borderRadius: '10px',
                     border: '1px solid #cbd5e1',
                     fontSize: '14px',
@@ -126,6 +128,26 @@ export default function SetPermanentPasswordModal({ profile, onComplete }) {
                   }}
                 />
                 <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '4px'
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
@@ -135,7 +157,7 @@ export default function SetPermanentPasswordModal({ profile, onComplete }) {
               </label>
               <div style={{ position: 'relative' }}>
                 <input
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat new password"
@@ -145,7 +167,7 @@ export default function SetPermanentPasswordModal({ profile, onComplete }) {
                   style={{
                     width: '100%',
                     boxSizing: 'border-box',
-                    padding: '12px 14px 12px 38px',
+                    padding: '12px 42px 12px 38px',
                     borderRadius: '10px',
                     border: '1px solid #cbd5e1',
                     fontSize: '14px',
@@ -153,6 +175,26 @@ export default function SetPermanentPasswordModal({ profile, onComplete }) {
                   }}
                 />
                 <ShieldCheck size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(p => !p)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '4px'
+                  }}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 

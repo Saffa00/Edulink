@@ -61,16 +61,5 @@ export default function LecturerDashboardV37({onNavigate}) {
       </article>)}
       {!data.assignments.length && <p>No assignments yet.</p>}
     </section>
-
-    <section className="lecturer-actions">
-      <button onClick={()=>onNavigate?.('modules')}>📚 Modules</button>
-      <button onClick={()=>onNavigate?.('attendance')}>📍 Attendance</button>
-      <button onClick={()=>onNavigate?.('assignments')}>📝 Assignments</button>
-      <button onClick={()=>onNavigate?.('grades')}>🎓 Publish Grades</button>
-      <button onClick={()=>onNavigate?.('messages')}>💬 Messages</button>
-      <button onClick={()=>onNavigate?.('dissertation')}>📖 Dissertation</button>
-      <button onClick={()=>onNavigate?.('notifications')}>🔔 Notifications</button>
-      <button onClick={()=>onNavigate?.('profile')}>⚙️ Profile & Security</button>
-    </section>
   </main>
 }

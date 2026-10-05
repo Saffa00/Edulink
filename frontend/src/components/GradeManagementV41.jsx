@@ -4,9 +4,15 @@ import { getLecturerModules } from '../services/attendanceV39.js';
 import { getModuleGradeSheet, saveIndividualGrade, publishAllModuleGrades, getGradeAuditLog } from '../services/academicMasterV41toV55.js';
 import { supabase } from '../services/supabase.js';
 
-export default function GradeManagementV41({ initialModuleId = null }) {
+export default function GradeManagementV41({ initialModuleId = null, scopedModule = null }) {
   const [modules, setModules] = useState([]);
-  const [selectedModuleCode, setSelectedModuleCode] = useState('');
+  const [selectedModuleCode, setSelectedModuleCode] = useState(scopedModule?.code || '');
+
+  useEffect(() => {
+    if (scopedModule?.code) {
+      setSelectedModuleCode(scopedModule.code);
+    }
+  }, [scopedModule]);
   const [students, setStudents] = useState([]);
   const [caScores, setCaScores] = useState({});
   const [examScores, setExamScores] = useState({});

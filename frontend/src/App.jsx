@@ -11,7 +11,6 @@ import { setOneSignalUser, clearOneSignalUser } from './services/oneSignalServic
 const PaymentSuccess = lazy(() => import('./components/PaymentSuccess'));
 const PaymentCheckout = lazy(() => import('./components/PaymentCheckout'));
 const ResetPasswordScreen = lazy(() => import('./components/ResetPasswordScreen'));
-const OnboardingScreen = lazy(() => import('./components/OnboardingScreen'));
 const PortalGatewayScreen = lazy(() => import('./components/PortalGatewayScreen'));
 const SetPermanentPasswordModal = lazy(() => import('./components/SetPermanentPasswordModal'));
 const AttendanceManagementV39 = lazy(() => import('./components/AttendanceManagementV39'));
@@ -37,26 +36,91 @@ import './v40-assignments.css';
 import './v41-to-v55-master.css';
 import {
   CAMPUSES,
+  PROGRAMME_TYPES,
+  getProgrammeInfo,
+  getLevelsForProgramme,
+  getDepartmentsByCampus,
   getFacultiesByCampusId,
   getDepartmentsByCampusAndFaculty,
   getProgrammesByCampusAndFaculty,
   getModulesByCampusAndFaculty,
-  getModulesByCampusFacultyDept
+  getModulesByCampusFacultyDept,
+  getCurriculumModules
 } from './data/academicCatalogue.js';
 import {
   Bell, BookOpen, CalendarCheck, ChevronRight, ClipboardList, FileText,
   GraduationCap, Home, LockKeyhole, LogOut, Menu, MessageSquare,
   MoreHorizontal, Plus, Search, Settings, ShieldCheck, User, Users,
-  X, MapPin, Clock3, Award, Upload, Eye, KeyRound, CreditCard, Activity,
-  ChevronLeft, PanelLeftClose, PanelLeftOpen
+  X, MapPin, Clock3, Award, Upload, Eye, EyeOff, KeyRound, CreditCard, Activity,
+  ChevronLeft, PanelLeftClose, PanelLeftOpen, Layers, Radio
 } from "lucide-react";
 
 const modules = [
-  { code: "CSOR 224", title: "Operations Research", students: 22, level: "Level 3" },
-  { code: "C++ 101", title: "C++ Programming", students: 18, level: "Level 2" },
-  { code: "CS 302", title: "Distributed & Concurrent Systems", students: 20, level: "Level 3" },
-  { code: "CS 401", title: "Research Methods in Software Engineering", students: 26, level: "Level 4" }
+  { id: 'mod-bscs-411-oracle', code: "Bscs 411", title: "Oracle", students: 45, level: "Year 3", studentsCount: 45 },
+  { id: 'mod-bscs-412-cpp', code: "Bscs 412", title: "C++", students: 45, level: "Year 3", studentsCount: 45 }
 ];
+
+function TopLeftCapDateTime() {
+  const [now, setNow] = useState(() => new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const dateStr = now.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+
+  const timeStr = now.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  return (
+    <div
+      className="top-left-cap-datetime"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '5px 12px',
+        background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08), rgba(18, 59, 99, 0.04))',
+        border: '1px solid rgba(2, 132, 199, 0.2)',
+        borderRadius: '24px',
+        color: '#0a2540',
+        fontSize: '12px',
+        fontWeight: '600',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.03)'
+      }}
+      title="Current Academic System Date & Time"
+    >
+      <div
+        style={{
+          width: '26px',
+          height: '26px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+          display: 'grid',
+          placeItems: 'center',
+          flexShrink: 0,
+          boxShadow: '0 2px 6px rgba(2, 132, 199, 0.35)'
+        }}
+      >
+        <GraduationCap size={15} color="#ffffff" />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '-0.1px' }}>
+        <span style={{ color: '#0f172a', fontWeight: '600' }}>{dateStr}</span>
+        <span style={{ color: '#94a3b8' }}>•</span>
+        <span style={{ color: '#0284c7', fontWeight: '700', fontFamily: 'monospace', fontSize: '12.5px' }}>{timeStr}</span>
+      </div>
+    </div>
+  );
+}
 
 function Logo({ small=false }) {
   return (
@@ -77,7 +141,7 @@ function Logo({ small=false }) {
   );
 }
 
-function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'student', initialStudentId = '', onShowOnboarding }) {
+function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'student', initialStudentId = '' }) {
   const [role, setRole] = useState(initialRole);
   const [screen, setScreen] = useState(initialScreen);
   const [busy, setBusy] = useState(false);
@@ -86,12 +150,39 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   const [deviceRequired, setDeviceRequired] = useState(false);
   const [pendingRebindAccount, setPendingRebindAccount] = useState(null);
   const [paymentResult, setPaymentResult] = useState(null);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [form, setForm] = useState({
     id: initialStudentId || '', password:'', confirmPassword:'', email:'', fullName:'', studentId: initialStudentId || '', phone:'',
-    facultyId:'', departmentId:'', programmeId:'', programme:'', level:'3',
+    facultyId:'faculty-applied-sciences', departmentId:'dept-computer-science', programmeId:'', programme:'BSc', level:'1',
     academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal',
-    modules:[], teachingArea:'', deviceName:''
+    modules:[], teachingArea:'Department of Computer Science', deviceName:''
   });
+
+  const handleProgrammeSelect = (progCode) => {
+    const prog = getProgrammeInfo(progCode);
+    update('programme', prog.code);
+    const validLevels = prog.levels.map(l => l.value);
+    if (!validLevels.includes(form.level)) {
+      update('level', '1');
+    }
+  };
+
+  const studentCurriculumModules = React.useMemo(() => {
+    if (role !== 'student' || !form.departmentId) return [];
+    return getCurriculumModules({
+      campusId: form.campus,
+      facultyId: form.facultyId,
+      departmentId: form.departmentId,
+      programme: form.programme,
+      level: form.level,
+      semester: form.semester
+    });
+  }, [role, form.campus, form.facultyId, form.departmentId, form.programme, form.level, form.semester]);
+
+  const studentModulesCount = studentCurriculumModules.length || 8;
+  const studentTuition = form.registrationType === 'dissertation' ? 500 : studentModulesCount * 100;
 
   React.useEffect(() => {
     if (initialStudentId) {
@@ -187,11 +278,29 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         if (!form.studentId || !form.fullName || !form.email) {
           throw new Error('Student ID, Full Name, and Email are required.');
         }
-        if (!form.campus || !form.facultyId || !form.departmentId) {
-          throw new Error('Please select your Campus, Faculty, and Department.');
+        if (!form.campus || !form.departmentId) {
+          throw new Error('Please select your Campus and Department.');
         }
-        await registerStudentApplicantAndCheckout(form);
-        setForm(f => ({...f, id: form.studentId}));
+        let resolvedFacultyId = form.facultyId;
+        if (!resolvedFacultyId) {
+          const depts = getDepartmentsByCampus(form.campus);
+          const found = depts.find(d => d.id === form.departmentId);
+          if (found) resolvedFacultyId = found.facultyId;
+        }
+        const applicantData = {
+          ...form,
+          facultyId: resolvedFacultyId,
+          modulesCount: studentModulesCount,
+          modules: studentCurriculumModules.map(m => m.code)
+        };
+        await registerStudentApplicantAndCheckout(applicantData);
+        setForm(f => ({
+          ...f,
+          id: form.studentId,
+          facultyId: resolvedFacultyId,
+          modulesCount: studentModulesCount,
+          modules: studentCurriculumModules.map(m => m.code)
+        }));
         setScreen('checkout');
       } else {
         if (!form.email || !form.password || form.password.length < 8) {
@@ -200,11 +309,17 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         if (form.password !== form.confirmPassword) {
           throw new Error('Passwords do not match. Please re-enter your password.');
         }
-        if (!form.facultyId || !form.departmentId) {
-          throw new Error('Please select both a Faculty and a Department.');
+        let resolvedFacultyId = form.facultyId;
+        if (!resolvedFacultyId && form.campus && form.departmentId) {
+          const depts = getDepartmentsByCampus(form.campus);
+          const found = depts.find(d => d.id === form.departmentId);
+          if (found) resolvedFacultyId = found.facultyId;
         }
-        const result = await signUpLecturer(form);
-        setForm(f => ({...f, id: result.lecturerId}));
+        if (!resolvedFacultyId || !form.departmentId) {
+          throw new Error('Please select both a Campus and a Department.');
+        }
+        const result = await signUpLecturer({ ...form, facultyId: resolvedFacultyId });
+        setForm(f => ({...f, id: result.lecturerId, facultyId: resolvedFacultyId}));
         setMessage(result.session ? `Account created. Your Lecturer ID is ${result.lecturerId}.` : `Account created. Your Lecturer ID is ${result.lecturerId}. Verify your email, then log in.`);
         setScreen('registered');
       }
@@ -322,45 +437,39 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             </select>
           </div>
           <div>
-            <label>Faculty</label>
-            <select
-              value={form.facultyId}
-              onChange={e => {
-                const facId = e.target.value;
-                update('facultyId', facId);
-                update('departmentId', '');
-                update('teachingArea', '');
-                update('modules', []);
-              }}
-              required
-              disabled={!form.campus}
-            >
-              <option value="">{form.campus ? 'Select Faculty' : 'Select Campus First'}</option>
-              {getFacultiesByCampusId(form.campus).map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
             <label>Department</label>
             <select
               value={form.departmentId}
               onChange={e => {
                 const deptId = e.target.value;
-                const depts = getDepartmentsByCampusAndFaculty(form.campus, form.facultyId);
-                const dept = depts.find(d => d.id === deptId);
+                const depts = getDepartmentsByCampus(form.campus);
+                const chosen = depts.find(d => d.id === deptId);
                 update('departmentId', deptId);
-                update('teachingArea', dept ? dept.name : '');
+                update('facultyId', chosen ? chosen.facultyId : '');
+                update('teachingArea', chosen ? chosen.name : '');
                 update('modules', []);
               }}
               required
-              disabled={!form.facultyId}
+              disabled={!form.campus}
             >
-              <option value="">{form.facultyId ? 'Select Department' : 'Select Faculty First'}</option>
-              {getDepartmentsByCampusAndFaculty(form.campus, form.facultyId).map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
+              <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
+              {getFacultiesByCampusId(form.campus).map(fac => {
+                const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
+                if (!deptsInFac.length) return null;
+                return (
+                  <optgroup key={fac.id} label={fac.name}>
+                    {deptsInFac.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
+            {form.departmentId && (
+              <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
+                🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
+              </div>
+            )}
           </div>
           <div>
             <label>Academic Year</label>
@@ -387,7 +496,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             </div>
             {!form.departmentId ? (
               <div style={{ padding: '14px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                Please select a Campus, Faculty, and Department above to see teaching modules.
+                Please select a Campus and Department above to see teaching modules.
               </div>
             ) : (
               <div className="module-select-grid">
@@ -428,7 +537,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                 update('campus', cmp);
                 update('facultyId', '');
                 update('departmentId', '');
-                update('programme', '');
                 update('modules', []);
               }}
               required
@@ -439,60 +547,128 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             </select>
           </div>
           <div>
-            <label>Faculty</label>
+            <label>Department</label>
             <select
-              value={form.facultyId}
+              value={form.departmentId}
               onChange={e => {
-                const facId = e.target.value;
-                update('facultyId', facId);
-                update('departmentId', '');
-                update('programme', '');
+                const deptId = e.target.value;
+                const depts = getDepartmentsByCampus(form.campus);
+                const chosen = depts.find(d => d.id === deptId);
+                update('departmentId', deptId);
+                update('facultyId', chosen ? chosen.facultyId : '');
                 update('modules', []);
               }}
               required
               disabled={!form.campus}
             >
-              <option value="">{form.campus ? 'Select Faculty' : 'Select Campus First'}</option>
-              {getFacultiesByCampusId(form.campus).map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
+              <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
+              {getFacultiesByCampusId(form.campus).map(fac => {
+                const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
+                if (!deptsInFac.length) return null;
+                return (
+                  <optgroup key={fac.id} label={fac.name}>
+                    {deptsInFac.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
+            {form.departmentId && (
+              <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
+                🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
+              </div>
+            )}
           </div>
-          <div>
-            <label>Department</label>
-            <select
-              value={form.departmentId}
-              onChange={e => update('departmentId', e.target.value)}
-              required
-              disabled={!form.facultyId}
-            >
-              <option value="">{form.facultyId ? 'Select Department' : 'Select Faculty First'}</option>
-              {getDepartmentsByCampusAndFaculty(form.campus, form.facultyId).map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Programme</label>
-            <select
-              value={form.programme}
-              onChange={e => update('programme', e.target.value)}
-              required
-              disabled={!form.facultyId}
-            >
-              <option value="">{form.facultyId ? 'Select Programme' : 'Select Faculty First'}</option>
-              {getProgrammesByCampusAndFaculty(form.campus, form.facultyId).map((prog, idx) => (
-                <option key={idx} value={prog}>{prog}</option>
-              ))}
-            </select>
+          <div className="full-span">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ margin: 0 }}>Academic Programme</label>
+              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select BSc, Diploma, or HND</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
+              {PROGRAMME_TYPES.map(prog => {
+                const isSelected = (form.programme || 'BSc').toUpperCase() === prog.code.toUpperCase();
+                return (
+                  <button
+                    key={prog.id}
+                    type="button"
+                    onClick={() => handleProgrammeSelect(prog.code)}
+                    style={{
+                      padding: '12px 10px',
+                      borderRadius: '12px',
+                      border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
+                      background: isSelected ? prog.badgeBg : '#ffffff',
+                      color: isSelected ? prog.badgeColor : '#334155',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.18s ease',
+                      boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
+                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>{prog.duration}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Programme Specification Card */}
+            {(() => {
+              const prog = getProgrammeInfo(form.programme || 'BSc');
+              return (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: '#f8fafc',
+                  border: `1px solid ${prog.badgeColor}40`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Award size={18} color={prog.badgeColor} />
+                      <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{prog.fullName} Specification</strong>
+                    </div>
+                    <span style={{
+                      padding: '3px 9px',
+                      borderRadius: '999px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      background: prog.badgeBg,
+                      color: prog.badgeColor
+                    }}>
+                      {prog.levels.length} Levels ({prog.years[0]} – {prog.years[prog.years.length - 1]})
+                    </span>
+                  </div>
+
+                  <p style={{ margin: '0 0 10px 0', fontSize: '12.5px', color: '#334155', lineHeight: 1.5 }}>
+                    {prog.specification}
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '11.5px', color: '#475569', borderTop: '1px dashed #cbd5e1', paddingTop: '8px' }}>
+                    <div>
+                      <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>Award:</strong>
+                      {prog.award}
+                    </div>
+                    <div>
+                      <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>Entry Requirement:</strong>
+                      {prog.admissionRequirements}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <div>
             <label>Academic Level / Year</label>
-            <select value={form.level} onChange={e=>update('level',e.target.value)}>
-              <option value="1">Year 1</option>
-              <option value="2">Year 2</option>
-              <option value="3">Year 3</option>
-              <option value="4">Year 4</option>
+            <select
+              value={form.level}
+              onChange={e => update('level', e.target.value)}
+              required
+            >
+              {getLevelsForProgramme(form.programme).map(lvl => (
+                <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -512,8 +688,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           <div className="full-span">
             <label>Registration Type</label>
             <select value={form.registrationType} onChange={e=>update('registrationType',e.target.value)}>
-              <option value="normal">Normal Student — SLE 100</option>
-              <option value="dissertation">Dissertation Student — SLE 500</option>
+              <option value="normal">Normal Student — SLE 100 / Module ({studentModulesCount} Modules = SLE {studentModulesCount * 100})</option>
+              <option value="dissertation">Dissertation Student — Flat SLE 500</option>
             </select>
           </div>
           <div className="full-span" style={{
@@ -523,14 +699,21 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             padding: '12px 14px',
             fontSize: '13px',
             color: '#0a2540',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
             marginTop: '4px'
           }}>
-            <BookOpen size={18} color="#0a2540" style={{ flexShrink: 0 }} />
-            <div>
-              <strong>Automated Curriculum Assignment:</strong> All required modules for your selected academic level and programme will be assigned automatically upon completion of registration. You do not need to add modules manually.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <BookOpen size={18} color="#0a2540" style={{ flexShrink: 0 }} />
+              <strong>Official Curriculum Allocation (Level {form.level} {form.level == '2' ? '→ Level 3 Progression' : ''}):</strong>
+            </div>
+            <div style={{ fontSize: '12.5px', color: '#334155', lineHeight: '1.45' }}>
+              {studentCurriculumModules.length > 0 ? (
+                <>
+                  Allocated <b>{studentCurriculumModules.length} official modules</b> for your programme with designated lecturers alone.
+                  Tuition assessment: <b>SLE 100.00 per module</b> • Total payable through mobile money on student's phone: <b style={{ color: '#0369a1' }}>SLE {studentTuition}.00</b>.
+                </>
+              ) : (
+                <>Select your Department and Level above to preview your official 8–9 modules and SLE 100/module tuition assessment.</>
+              )}
             </div>
           </div>
         </>
@@ -539,27 +722,73 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         <>
           <div>
             <label>Password</label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={e=>update('password',e.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-              placeholder="At least 8 characters"
-            />
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input
+                type={showRegisterPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={e=>update('password',e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowRegisterPassword(p => !p)}
+                aria-label={showRegisterPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px'
+                }}
+              >
+                {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <div>
             <label>Confirm Password</label>
-            <input
-              type="password"
-              value={form.confirmPassword}
-              onChange={e=>update('confirmPassword',e.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-              placeholder="Repeat password"
-            />
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                value={form.confirmPassword}
+                onChange={e=>update('confirmPassword',e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="Repeat password"
+                style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(p => !p)}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '4px'
+                }}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -589,9 +818,12 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
       setError('');
       setMessage('');
       try {
-        const identifier = (form.id || form.email || '').trim();
-        const res = await requestPasswordRecovery(identifier, role);
-        setMessage(`Password reset instructions have been sent to your registered email (${res.maskedEmail || 'registered email'}). Please check your inbox and click the reset link.`);
+        const cleanEmail = (form.email || '').trim();
+        if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+          throw new Error('Please enter a valid registered email address.');
+        }
+        const res = await requestPasswordRecovery(cleanEmail, role);
+        setMessage(`Password reset instructions have been sent to your registered email (${res.maskedEmail || cleanEmail}). Please check your inbox and click the reset link.`);
       } catch (err) {
         setError(err.message || 'Unable to send reset instructions. Please try again.');
       } finally {
@@ -659,7 +891,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               Forgot Password
             </h1>
             <p style={{ color: '#52657c', fontSize: '13px', margin: 0, lineHeight: 1.5 }}>
-              Enter your {role === 'lecturer' ? 'Lecturer ID' : 'Student ID'} or registered email to receive a password reset link.
+              Enter your registered email address to receive password reset instructions and a secure reset link.
             </p>
           </div>
 
@@ -693,18 +925,14 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             </div>
           ) : (
             <form onSubmit={handleForgotSubmit}>
-              <label>{role === 'lecturer' ? 'Lecturer ID or Email' : 'Student ID or Email'}</label>
+              <label>Registered Email Address</label>
               <input
-                type="text"
-                value={form.id || form.email}
-                onChange={e => {
-                  const val = e.target.value;
-                  update('id', val);
-                  update('email', val);
-                }}
+                type="email"
+                value={form.email}
+                onChange={e => update('email', e.target.value)}
                 required
-                placeholder={role === 'lecturer' ? 'e.g. LECT-2026-0001 or you@example.com' : 'e.g. 8100 or you@example.com'}
-                autoComplete="username"
+                placeholder="Enter your registered email (e.g. you@example.com)"
+                autoComplete="email"
               />
 
               {error && <div className="error-box" style={{ marginTop: '12px' }}>{error}</div>}
@@ -735,7 +963,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     );
   }
 
-  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><input type="password" value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••"/><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>{onShowOnboarding && <div style={{ textAlign: 'center', marginTop: '12px' }}><button type="button" className="text-btn" onClick={onShowOnboarding} style={{ fontSize: '12px', color: '#64748b' }}>App Tour & Features</button></div>}</section></main>;
+  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><div style={{ position: 'relative', width: '100%' }}><input type={showLoginPassword ? 'text' : 'password'} value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••" style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}/><button type="button" onClick={()=>setShowLoginPassword(p=>!p)} aria-label={showLoginPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }}>{showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p></section></main>;
 }
 
 function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }) {
@@ -849,9 +1077,10 @@ function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }
   );
 }
 
-function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, setPage, onNavigateSettings, unreadNotifsCount = 0 }) {
+function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, setPage, onNavigateSettings, unreadNotifsCount = 0, scopedModule = null, lecturerModulesList = [], onSelectScopedModule }) {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
   const displayName = profile?.full_name || (role === "lecturer" ? "Lecturer" : "Student");
   const displayId = profile?.student_id || profile?.lecturer_id || (role === "lecturer" ? "Lecturer Portal" : "Student Portal");
   const initials = displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || (role === "lecturer" ? "LT" : "ST");
@@ -884,7 +1113,7 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
         onNavigateSettings={onNavigateSettings}
       />
       <header className="topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexWrap: 'wrap' }}>
           <button
             className="icon-btn sidebar-toggle-btn desktop-only"
             onClick={onToggleSidebar}
@@ -893,6 +1122,92 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
           >
             <Menu size={20} />
           </button>
+
+          {/* Top Left: Graduation cap + live current date and time */}
+          <TopLeftCapDateTime />
+
+          {/* Lecturer Scoped Module Switcher Pill in Topbar */}
+          {role === 'lecturer' && scopedModule && (
+            <div className="scoped-module-topbar-pill desktop-only" style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setScopeDropdownOpen(prev => !prev)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  background: '#f0fdf4',
+                  border: '1.5px solid #86efac',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  color: '#166534',
+                  cursor: 'pointer'
+                }}
+                title="Active Teaching Module Workspace - Click to switch"
+              >
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                <span>Scope: <b>{scopedModule.code}</b> ({scopedModule.title})</span>
+                <ChevronRight size={13} style={{ transform: scopeDropdownOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }} />
+              </button>
+              {scopeDropdownOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '6px',
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                    border: '1px solid #e2e8f0',
+                    padding: '6px',
+                    zIndex: 9999,
+                    minWidth: '250px'
+                  }}
+                >
+                  <div style={{ padding: '6px 8px', fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Switch Teaching Assignment
+                  </div>
+                  {(lecturerModulesList && lecturerModulesList.length ? lecturerModulesList : modules).map(m => {
+                    const isSelected = scopedModule?.id === m.id || scopedModule?.code === m.code;
+                    return (
+                      <button
+                        key={m.id || m.code}
+                        type="button"
+                        onClick={() => {
+                          onSelectScopedModule?.(m);
+                          setScopeDropdownOpen(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: isSelected ? '#f0fdf4' : 'transparent',
+                          color: isSelected ? '#166534' : '#1e293b',
+                          fontWeight: isSelected ? '700' : '500',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <div>
+                          <div>{m.code} — {m.title}</div>
+                          <small style={{ color: '#64748b', fontSize: '11px' }}>Year 3 • {m.studentsCount || 45} registered</small>
+                        </div>
+                        {isSelected && <span style={{ color: '#16a34a', fontWeight: 'bold' }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Clean Native Mobile Header Title (hidden on home screen) */}
           {activeTitle ? (
@@ -1144,10 +1459,10 @@ function BottomNav({ page, setPage, role, profile, onNavigateSettings, unreadNot
 
   const msgBadge = unreadMessagesCount > 0 ? (unreadMessagesCount > 99 ? '99+' : unreadMessagesCount) : null;
 
-  // Student: Home | Modules | Grades | Messages | Profile (5 clean spaced dock buttons)
+  // Student: Home | Assignments | Grades | Messages | Profile (5 clean spaced dock buttons)
   const studentItems = [
     ["home", "Home", Home],
-    ["modules", "Modules", BookOpen],
+    ["assignments", "Assignments", ClipboardList],
     ["grades", "Grades", Award],
     ["messages", "Messages", MessageSquare, msgBadge],
     ["settings", "Profile", User]
@@ -1216,97 +1531,254 @@ function Stat({ icon:Icon, title, value, sub }) {
   return <div className="stat-card"><div className="stat-icon"><Icon size={21}/></div><span>{title}</span><strong>{value}</strong><small>{sub}</small></div>
 }
 
-function Dashboard({ setPage }) {
-  return <div className="page">
-    <div className="welcome"><div><p className="eyebrow">LECT-2026-0001</p><h1>Good Morning, Lecturer</h1><p>Here’s an overview of your teaching and academic activities.</p></div><div className="date-chip">Academic Year 2026/2027<br/><strong>First Semester</strong></div></div>
+function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modulesList = [] }) {
+  const activeTeachingModules = modulesList && modulesList.length > 0 ? modulesList : [
+    {
+      id: 'mod-bscs-411-oracle',
+      code: 'Bscs 411',
+      title: 'Oracle',
+      level: 3,
+      semester: 'First Semester',
+      studentsCount: 45
+    },
+    {
+      id: 'mod-bscs-412-cpp',
+      code: 'Bscs 412',
+      title: 'C++',
+      level: 3,
+      semester: 'First Semester',
+      studentsCount: 45
+    }
+  ];
 
-    {/* Campus Services Quick Actions Grid */}
-    <div className="quick-services-section">
-      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h2 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0, letterSpacing: '-0.2px' }}>Lecturer Services</h2>
-        <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Quick Actions</span>
+  const currentScoped = scopedModule || activeTeachingModules[0];
+  const lecturerName = profile?.full_name || 'Peter Saffa';
+  const lecturerId = profile?.lecturer_id || 'LECT-2026-790380';
+  const departmentName = profile?.department || profile?.teaching_area || 'Department of Computer Science';
+
+  return (
+    <div className="page">
+      <div className="welcome">
+        <div>
+          <p className="eyebrow">{lecturerId} • {departmentName}</p>
+          <h1>Good Day, {lecturerName}</h1>
+          <p>Teaching workspace for Level 3 Computer Science degree programmes.</p>
+        </div>
+        <div className="date-chip">Academic Year 2026/2027<br /><strong>First Semester</strong></div>
       </div>
-      <div className="quick-services-grid">
-        <button type="button" className="quick-service-btn" onClick={() => setPage('attendance')}>
-          <div className="quick-service-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
-            <CalendarCheck size={22} />
-          </div>
-          <span className="quick-service-label">Attendance</span>
-        </button>
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('timetable')}>
-          <div className="quick-service-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
-            <Clock3 size={22} />
+      {/* My Teaching Modules Section */}
+      <section className="my-teaching-modules-section" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>
+              My Teaching Modules
+            </h2>
+            <p style={{ margin: '3px 0 0', fontSize: '13px', color: '#64748b' }}>
+              Computer Science Level 3. Select a module to scope all app features.
+            </p>
           </div>
-          <span className="quick-service-label">Timetable</span>
-        </button>
+          <button
+            type="button"
+            className="outline-btn"
+            style={{ fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => setPage('modules')}
+          >
+            <Layers size={15} /> All Catalogue Modules
+          </button>
+        </div>
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('assignments')}>
-          <div className="quick-service-icon" style={{ background: '#fff7ed', color: '#ea580c' }}>
-            <ClipboardList size={22} />
-          </div>
-          <span className="quick-service-label">Assignments</span>
-        </button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+          {activeTeachingModules.map(m => {
+            const isScoped = currentScoped?.id === m.id || currentScoped?.code?.replace(/\s+/g, '').toUpperCase() === m.code?.replace(/\s+/g, '').toUpperCase();
+            const isOracle = m.code?.toLowerCase().includes('411') || m.title?.toLowerCase().includes('oracle');
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('grades')}>
-          <div className="quick-service-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
-            <Award size={22} />
-          </div>
-          <span className="quick-service-label">Grades</span>
-        </button>
+            return (
+              <div
+                key={m.id || m.code}
+                onClick={() => onSelectScopedModule?.(m)}
+                style={{
+                  background: '#ffffff',
+                  border: isScoped ? '2.5px solid #0284c7' : '1px solid #e2e8f0',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  boxShadow: isScoped ? '0 10px 25px rgba(2, 132, 199, 0.16)' : '0 4px 12px rgba(0, 0, 0, 0.04)',
+                  cursor: 'pointer',
+                  transition: 'all 0.25s ease',
+                  position: 'relative'
+                }}
+              >
+                {isScoped && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '14px',
+                    right: '14px',
+                    background: '#ecfdf5',
+                    color: '#059669',
+                    border: '1px solid #a7f3d0',
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                    ACTIVE SCOPE
+                  </div>
+                )}
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('modules')}>
-          <div className="quick-service-icon" style={{ background: '#f0f9ff', color: '#0284c7' }}>
-            <BookOpen size={22} />
-          </div>
-          <span className="quick-service-label">Modules</span>
-        </button>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '14px' }}>
+                  {/* Module Logo */}
+                  <div
+                    style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '14px',
+                      background: isOracle
+                        ? 'linear-gradient(135deg, #ea580c, #c2410c)'
+                        : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: '#ffffff',
+                      fontWeight: '900',
+                      fontSize: '17px',
+                      flexShrink: 0,
+                      boxShadow: isOracle ? '0 6px 16px rgba(234, 88, 12, 0.3)' : '0 6px 16px rgba(37, 99, 235, 0.3)',
+                      letterSpacing: '-0.5px'
+                    }}
+                  >
+                    {isOracle ? 'ORA' : 'C++'}
+                  </div>
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('students')}>
-          <div className="quick-service-icon" style={{ background: '#fdf2f8', color: '#db2777' }}>
-            <Users size={22} />
-          </div>
-          <span className="quick-service-label">Students</span>
-        </button>
+                  <div style={{ minWidth: 0, flex: 1, paddingRight: isScoped ? '110px' : '0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '800', color: isOracle ? '#c2410c' : '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                        {m.code}
+                      </span>
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.3px' }}>
+                      {m.title}
+                    </h3>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
+                      Year 3. {m.studentsCount || 45} student base on module registered
+                    </p>
+                  </div>
+                </div>
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('messages')}>
-          <div className="quick-service-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
-            <MessageSquare size={22} />
-          </div>
-          <span className="quick-service-label">Messages</span>
-        </button>
+                {/* Scoped Actions Toolbar */}
+                <div style={{
+                  borderTop: '1px solid #f1f5f9',
+                  paddingTop: '12px',
+                  marginTop: '10px',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="outline-btn"
+                      style={{ fontSize: '11.5px', padding: '5px 10px', height: 'auto' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectScopedModule?.(m);
+                        setPage('attendance');
+                      }}
+                    >
+                      <CalendarCheck size={13} /> Attendance
+                    </button>
+                    <button
+                      type="button"
+                      className="outline-btn"
+                      style={{ fontSize: '11.5px', padding: '5px 10px', height: 'auto' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectScopedModule?.(m);
+                        setPage('assignments');
+                      }}
+                    >
+                      <ClipboardList size={13} /> Assignments
+                    </button>
+                    <button
+                      type="button"
+                      className="outline-btn"
+                      style={{ fontSize: '11.5px', padding: '5px 10px', height: 'auto' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectScopedModule?.(m);
+                        setPage('grades');
+                      }}
+                    >
+                      <Award size={13} /> Grades
+                    </button>
+                    <button
+                      type="button"
+                      className="outline-btn"
+                      style={{ fontSize: '11.5px', padding: '5px 10px', height: 'auto' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectScopedModule?.(m);
+                        setPage('students');
+                      }}
+                    >
+                      <Users size={13} /> 45 Students
+                    </button>
+                  </div>
 
-        <button type="button" className="quick-service-btn" onClick={() => setPage('notifications')}>
-          <div className="quick-service-icon" style={{ background: '#fef2f2', color: '#dc2626' }}>
-            <Bell size={22} />
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: isScoped ? '#0284c7' : '#64748b' }}>
+                    {isScoped ? 'Active Workspace ✓' : 'Click to Scope →'}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="stats-grid">
+        <Stat icon={Users} title="Total Students" value="90" sub="45 per module (2 modules)" />
+        <Stat icon={BookOpen} title="Teaching Assignments" value="2" sub="Bscs 411 & Bscs 412" />
+        <Stat icon={ClipboardList} title="Active Scope" value={currentScoped?.code || 'Bscs 411'} sub={currentScoped?.title || 'Oracle'} />
+        <Stat icon={Award} title="Programme Level" value="Year 3" sub="Computer Science BSC" />
+      </div>
+
+      <div className="content-grid">
+        <section className="panel">
+          <div className="panel-head">
+            <h2><CalendarCheck /> Recent Attendance ({currentScoped?.code || 'Bscs 411'})</h2>
+            <button className="text-btn" onClick={() => setPage("attendance")}>Manage Attendance</button>
           </div>
-          <span className="quick-service-label">Notices</span>
-        </button>
+          {[
+            `Today • ${currentScoped?.code || 'Bscs 411'} • 43/45 Present`,
+            `Yesterday • ${currentScoped?.code || 'Bscs 411'} • 44/45 Present`,
+            `2 days ago • ${currentScoped?.code || 'Bscs 411'} • 45/45 Present`
+          ].map(x => (
+            <div className="simple-row" key={x}>
+              <span>{x}</span>
+              <b className="status success">Completed</b>
+            </div>
+          ))}
+        </section>
+        <section className="panel">
+          <div className="panel-head">
+            <h2><ClipboardList /> Assignment Submissions</h2>
+            <button className="text-btn" onClick={() => setPage("assignments")}>View All</button>
+          </div>
+          {activeTeachingModules.map((m, i) => (
+            <div className="simple-row" key={m.code}>
+              <span>{m.code} — {m.title}</span>
+              <span>42/45 submissions</span>
+              <b className="badge">{38 + i} Graded</b>
+            </div>
+          ))}
+        </section>
       </div>
     </div>
-    <div className="stats-grid">
-      <Stat icon={Users} title="Total Students" value="86" sub="Across 4 modules"/>
-      <Stat icon={BookOpen} title="Modules Teaching" value="4" sub="View modules"/>
-      <Stat icon={ClipboardList} title="Pending Assignments" value="12" sub="Need review"/>
-      <Stat icon={Award} title="Pending Grades" value="28" sub="Marks to enter"/>
-    </div>
-    <div className="content-grid">
-      <section className="panel"><div className="panel-head"><h2><BookOpen/> My Modules</h2><button className="text-btn" onClick={()=>setPage("modules")}>View All <ChevronRight size={15}/></button></div>
-        <div className="module-list">{modules.map(m=><div className="module-row" key={m.code}><div className="module-code">{m.code}</div><div className="module-info"><strong>{m.title}</strong><span>{m.level} • {m.students} students</span></div><button className="outline-btn" onClick={()=>setPage("modules")}>View</button></div>)}</div>
-      </section>
-      <section className="panel"><div className="panel-head"><h2><Clock3/> Upcoming Classes</h2><button className="text-btn">Calendar</button></div>
-        {[["09:00–11:00","CSOR 224","Room 201"],["11:00–13:00","C++ 101","IT Lab 2"],["14:00–16:00","CS 302","Room 304"]].map(x=><div className="class-row" key={x[1]}><strong>{x[0]}</strong><div><b>{x[1]}</b><span>{x[2]}</span></div><button className="outline-btn" onClick={()=>setPage("attendance")}>Attendance</button></div>)}
-      </section>
-    </div>
-    <div className="content-grid">
-      <section className="panel"><div className="panel-head"><h2><CalendarCheck/> Recent Attendance</h2><button className="text-btn" onClick={()=>setPage("attendance")}>View All</button></div>
-        {["18 Sep • CSOR 224 • 22/22","16 Sep • C++ 101 • 17/18","14 Sep • CS 302 • 19/20","11 Sep • CS 401 • 25/26"].map(x=><div className="simple-row" key={x}><span>{x}</span><b className="status success">Completed</b></div>)}
-      </section>
-      <section className="panel"><div className="panel-head"><h2><ClipboardList/> Assignment Submissions</h2><button className="text-btn" onClick={()=>setPage("assignments")}>View All</button></div>
-        {modules.map((m,i)=><div className="simple-row" key={m.code}><span>{m.code}</span><span>{18-i*2} submissions</span><b className="badge">{4+i}</b></div>)}
-      </section>
-    </div>
-  </div>
+  );
 }
 
 function Modules({ setPage }) {
@@ -1320,15 +1792,15 @@ function Students() {
   return <div className="page"><PageTitle title="Class List" subtitle="Students automatically allocated through registered modules."/><div className="panel"><div className="filter-row"><div className="search inline"><Search size={17}/><input placeholder="Search student ID or name"/></div><button className="outline-btn">Filter Module</button></div><div className="student-list">{students.map(s=><div className="student-row" key={s[0]}><div className="avatar">{s[1].split(" ").map(n=>n[0]).join("").slice(0,2)}</div><div><strong>{s[1]}</strong><span>{s[0]} • {s[2]} • {s[3]}</span></div><button className="icon-btn"><ChevronRight/></button></div>)}</div></div></div>
 }
 
-function Attendance({ role, onNavigate }) {
+function Attendance({ role, onNavigate, scopedModule }) {
   if (role === 'student') {
     return <StudentAttendance />;
   }
-  return <AttendanceManagementV39 onNavigate={onNavigate} />;
+  return <AttendanceManagementV39 onNavigate={onNavigate} scopedModule={scopedModule} />;
 }
 
-function Assignments({ role, onNavigate }) {
-  return <AssignmentManagementV40 role={role} onNavigate={onNavigate} />;
+function Assignments({ role, onNavigate, scopedModule }) {
+  return <AssignmentManagementV40 role={role} onNavigate={onNavigate} scopedModule={scopedModule} />;
 }
 
 function Grades() {
@@ -1351,6 +1823,40 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   const [collapsed,setCollapsed]=useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+
+  const [scopedModule, setScopedModule] = useState(() => {
+    try {
+      const saved = localStorage.getItem('edulink_scoped_module_data');
+      return saved ? JSON.parse(saved) : modules[0];
+    } catch { return modules[0]; }
+  });
+  const [lecturerModulesList, setLecturerModulesList] = useState(modules);
+
+  React.useEffect(() => {
+    if (role === 'lecturer') {
+      import('./services/modules.js').then(({ getMyModules }) => {
+        getMyModules().then(res => {
+          const list = res.modules || [];
+          if (list.length > 0) {
+            setLecturerModulesList(list);
+            const savedId = localStorage.getItem('edulink_scoped_module_id');
+            const match = savedId ? list.find(m => m.id === savedId || m.code === savedId) : null;
+            const chosen = match || list[0];
+            setScopedModule(chosen);
+            try { localStorage.setItem('edulink_scoped_module_data', JSON.stringify(chosen)); } catch {}
+          }
+        }).catch(console.warn);
+      });
+    }
+  }, [role]);
+
+  const handleSelectScopedModule = (mod) => {
+    setScopedModule(mod);
+    try {
+      localStorage.setItem('edulink_scoped_module_id', mod.id || mod.code);
+      localStorage.setItem('edulink_scoped_module_data', JSON.stringify(mod));
+    } catch {}
+  };
 
   const refreshCounts = React.useCallback(async () => {
     try {
@@ -1400,16 +1906,16 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   };
 
   let content;
-  if (page==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage}/>;
-  else if (page==="modules") content = role==="student" ? <ModuleRegistrationV47/> : <ModuleManagement setPage={setPage}/>;
-  else if (page==="timetable") content = <TimetableManagementV43 role={role}/>;
-  else if (page==="attendance") content = <Attendance role={role} onNavigate={setPage}/>;
-  else if (page==="assignments") content = <Assignments role={role} onNavigate={setPage}/>;
-  else if (page==="grades") content = role === "student" ? <StudentGradeInbox /> : <GradeManagementV41/>;
+  if (page==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
+  else if (page==="modules") content = role==="student" ? <ModuleRegistrationV47/> : <ModuleManagement setPage={setPage} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} />;
+  else if (page==="timetable") content = <TimetableManagementV43 role={role} scopedModule={scopedModule}/>;
+  else if (page==="attendance") content = <Attendance role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
+  else if (page==="assignments") content = <Assignments role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
+  else if (page==="grades") content = role === "student" ? <StudentGradeInbox /> : <GradeManagementV41 scopedModule={scopedModule}/>;
   else if (page==="dissertation") content = <DissertationManagementV42 role={role}/>;
   else if (page==="messages") content = <MessagingCenterV44 role={role} profile={profile} onNavigate={setPage}/>;
   else if (page==="notifications") content = <NotificationsCenterV45 onNavigate={setPage}/>;
-  else if (page==="students") content = role==="lecturer" ? <StudentManagementV48/> : <Students/>;
+  else if (page==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <Students/>;
   else if (page==="payments") content = <PaymentCenterV46/>;
   else if (page==="settings" || page==="profile") content = (
     <ProfileSecurityCenterV49
@@ -1458,6 +1964,9 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           setPage={setPage}
           onNavigateSettings={navigateToSettings}
           unreadNotifsCount={unreadNotifsCount}
+          scopedModule={scopedModule}
+          lecturerModulesList={lecturerModulesList}
+          onSelectScopedModule={handleSelectScopedModule}
         />
         <main className="app-main-content">
           <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
@@ -1493,23 +2002,6 @@ export default function App(){
     const hash = window.location.hash || '';
     const search = window.location.search || '';
     return path.includes('reset-password') || hash.includes('type=recovery') || search.includes('type=recovery');
-  });
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const path = window.location.pathname;
-    const hash = window.location.hash || '';
-    const search = window.location.search || '';
-    if (
-      path.includes('payment-success') ||
-      path.includes('reset-password') ||
-      hash.includes('type=recovery') ||
-      search.includes('session_id')
-    ) {
-      return false;
-    }
-    const onboarded = localStorage.getItem('edulink_onboarded');
-    const hasRole = localStorage.getItem('academic_active_role');
-    return !onboarded && !hasRole;
   });
   const [forceAuthScreen, setForceAuthScreen] = useState(null);
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
@@ -1762,25 +2254,12 @@ export default function App(){
 
   if (loading) return <main className="auth-screen"><section className="auth-card"><Logo/><div className="loading-panel">Checking secure session…</div></section></main>;
   if (!sessionState) {
-    if (showOnboarding) {
-      return (
-        <Suspense fallback={<main className="auth-screen"><div className="loading-panel">Loading EduLink…</div></main>}>
-          <OnboardingScreen
-            onFinish={(action) => {
-              setShowOnboarding(false);
-              setForceAuthScreen({ screen: action || 'gateway', role: 'student' });
-            }}
-          />
-        </Suspense>
-      );
-    }
     return (
       <Auth
         onAuthenticated={handleAuthenticated}
         initialScreen={forceAuthScreen?.screen || 'gateway'}
         initialRole={forceAuthScreen?.role || 'student'}
         initialStudentId={forceAuthScreen?.studentId || ''}
-        onShowOnboarding={() => setShowOnboarding(true)}
       />
     );
   }

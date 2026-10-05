@@ -1,15 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  BookOpen, Users, Plus, Edit2, Trash2, CheckCircle2,
-  AlertCircle, RefreshCw, X, Eye, ShieldCheck, GraduationCap
+  BookOpen, Users, Plus, Trash2, CheckCircle2,
+  AlertCircle, RefreshCw, X, Eye, ShieldCheck, GraduationCap,
+  Sparkles, Check, ChevronRight, Layers, ArrowRight
 } from 'lucide-react';
 import {
-  getMyModules, createModule, updateModule, deleteModule, getModuleStudents
+  getMyModules, createModule, deleteModule, getModuleStudents
 } from '../services/modules';
+import {
+  CAMPUSES_DATA, ALL_FACULTIES,
+  getFacultiesByCampusId, getDepartmentsByCampusAndFaculty,
+  getAvailableModulesForLecturer
+} from '../data/academicCatalogue';
 import { supabase } from '../services/supabase';
 
-export default function ModuleManagement({ setPage }) {
+export default function ModuleManagement({ setPage, scopedModule, onSelectScopedModule }) {
   const [modules, setModules] = useState([]);
+  const [activeScoped, setActiveScoped] = useState(scopedModule || null);
   const [selectedModule, setSelectedModule] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,15 +24,21 @@ export default function ModuleManagement({ setPage }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
-  const [form, setForm] = useState({
-    code: '',
-    title: '',
-    level: '3',
-    semester: 'First Semester'
-  });
+  // Curriculum Filter Selection for Lecturer Module Assignment
+  const [campus, setCampus] = useState(CAMPUSES_DATA[0]?.id || 'goderich');
+  const [facultyId, setFacultyId] = useState('faculty-sciences');
+  const [departmentId, setDepartmentId] = useState('dept-computer-science');
+  const [level, setLevel] = useState('3');
+  const [semester, setSemester] = useState('First Semester');
+  const [selectedCatalogueModule, setSelectedCatalogueModule] = useState(null);
+
+  useEffect(() => {
+    if (scopedModule) {
+      setActiveScoped(scopedModule);
+    }
+  }, [scopedModule]);
 
   const showNotification = (msg, isErr = false) => {
     if (isErr) setError(msg);
@@ -37,18 +50,25 @@ export default function ModuleManagement({ setPage }) {
     try {
       setLoading(true);
       const res = await getMyModules();
-      setModules(res.modules || []);
+      const list = res.modules || [];
+      setModules(list);
+
+      // Auto-set scoped module if none selected yet
+      if (list.length > 0 && !activeScoped) {
+        const first = list[0];
+        setActiveScoped(first);
+        onSelectScopedModule?.(first);
+      }
     } catch (err) {
-      showNotification(err.message || 'Failed to load modules.', true);
+      showNotification(err.message || 'Failed to load teaching modules.', true);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeScoped, onSelectScopedModule]);
 
   useEffect(() => {
     loadModules();
 
-    // Real-time synchronization: update when students register or drop
     const channel = supabase
       .channel('lecturer-modules-sync')
       .on(
@@ -68,58 +88,54 @@ export default function ModuleManagement({ setPage }) {
     };
   }, [loadModules, selectedModule]);
 
-  const resetForm = () => {
-    setForm({ code: '', title: '', level: '3', semester: 'First Semester' });
-    setEditingId(null);
-    setShowCreateForm(false);
+  const handleSelectModuleToScope = (mod) => {
+    setActiveScoped(mod);
+    onSelectScopedModule?.(mod);
+    showNotification(`Active workspace scoped to ${mod.code} (${mod.title}). All portal features now reflect this module.`);
   };
 
-  const handleStartEdit = (mod) => {
-    setForm({
-      code: mod.code,
-      title: mod.title,
-      level: mod.level || '3',
-      semester: mod.semester || 'First Semester'
-    });
-    setEditingId(mod.id);
-    setShowCreateForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSave = async (e) => {
+  const handleAssignModule = async (e) => {
     e.preventDefault();
-    if (!form.code.trim() || !form.title.trim()) {
-      showNotification('Module code and title are required.', true);
+    if (!selectedCatalogueModule) {
+      showNotification('Please select an official module from the curriculum catalogue.', true);
       return;
     }
 
     try {
       setSaving(true);
-      if (editingId) {
-        await updateModule(editingId, form);
-        showNotification(`Module ${form.code} updated successfully.`);
-      } else {
-        await createModule(form);
-        showNotification(`Module ${form.code} created! Students can now see and register for it in their course catalogue.`);
-      }
-      resetForm();
+      await createModule({
+        code: selectedCatalogueModule.code,
+        title: selectedCatalogueModule.title,
+        level: selectedCatalogueModule.level || level,
+        semester: selectedCatalogueModule.semester || semester,
+        department_id: departmentId,
+        faculty_id: facultyId
+      });
+
+      showNotification(`Teaching assignment for ${selectedCatalogueModule.code} (${selectedCatalogueModule.title}) added successfully!`);
+      setShowAddModal(false);
+      setSelectedCatalogueModule(null);
       await loadModules();
     } catch (err) {
-      showNotification(err.message || 'Error saving module.', true);
+      showNotification(err.message || 'Error assigning module.', true);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (mod) => {
-    if (!window.confirm(`Are you sure you want to remove ${mod.code} — ${mod.title}? Registered students will be unlinked.`)) {
+    if (!window.confirm(`Are you sure you want to remove teaching assignment for ${mod.code} — ${mod.title}?`)) {
       return;
     }
 
     try {
       await deleteModule(mod.id);
-      showNotification(`Module ${mod.code} removed.`);
+      showNotification(`Module ${mod.code} removed from your teaching assignments.`);
       if (selectedModule?.id === mod.id) setSelectedModule(null);
+      if (activeScoped?.id === mod.id) {
+        setActiveScoped(null);
+        onSelectScopedModule?.(null);
+      }
       await loadModules();
     } catch (err) {
       showNotification(err.message || 'Could not delete module.', true);
@@ -138,6 +154,15 @@ export default function ModuleManagement({ setPage }) {
       if (showLoader) setLoadingStudents(false);
     }
   };
+
+  // Official Catalogue Modules based on Faculty + Department + Level + Semester
+  const availableCatalogueModules = getAvailableModulesForLecturer({
+    campusId: campus,
+    facultyId,
+    departmentId,
+    level,
+    semester
+  });
 
   const totalStudents = modules.reduce((acc, m) => acc + (m.studentsCount || 0), 0);
 
@@ -158,10 +183,10 @@ export default function ModuleManagement({ setPage }) {
       <header className="v-master-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BookOpen size={24} color="#0a2540" /> Lecturer Modules Management
+            <BookOpen size={24} color="#0a2540" /> My Teaching Modules
           </h1>
           <p>
-            Create course modules for your faculty. As soon as you create a module, students can view and register for it in real-time.
+            Lecturers teaching multiple modules can switch between separate teaching assignments. Tapping a module scopes all app features (Attendance, Timetable, Assignments, Grades, and Class Roster) directly to that module.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -169,11 +194,11 @@ export default function ModuleManagement({ setPage }) {
             type="button"
             className="v-btn primary small"
             onClick={() => {
-              if (showCreateForm && !editingId) setShowCreateForm(false);
-              else { resetForm(); setShowCreateForm(true); }
+              setSelectedCatalogueModule(null);
+              setShowAddModal(true);
             }}
           >
-            <Plus size={15} /> {showCreateForm && !editingId ? 'Close Form' : 'Create Module'}
+            <Plus size={15} /> Select Module to Teach
           </button>
         </div>
       </header>
@@ -190,241 +215,465 @@ export default function ModuleManagement({ setPage }) {
         </div>
       )}
 
-      {/* Stats Ribbon */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '18px' }}>
-        <div className="v-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
-          <div style={{ background: '#eaf1f8', color: '#0a2540', borderRadius: '12px', padding: '12px', display: 'flex' }}>
-            <BookOpen size={24} />
+      {/* Active Scoped Module Ribbon */}
+      {activeScoped && (
+        <div style={{
+          background: 'linear-gradient(135deg, #0a2540, #133a63)',
+          color: '#ffffff',
+          borderRadius: '14px',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          boxShadow: '0 4px 14px rgba(10, 37, 64, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.15)',
+              display: 'grid',
+              placeItems: 'center',
+              fontWeight: 800,
+              fontSize: '14px',
+              color: '#38bdf8',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              {activeScoped.code?.replace(/[^A-Za-z0-9]/g, '').slice(0, 4) || 'MOD'}
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#93c5fd', fontWeight: 700 }}>
+                Currently Scoped Module Assignment
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 800 }}>
+                {activeScoped.code} — {activeScoped.title}
+              </div>
+              <div style={{ fontSize: '12px', color: '#e2e8f0', marginTop: '2px' }}>
+                Year {activeScoped.level || '3'} • {activeScoped.studentsCount || 45} students registered • {activeScoped.semester || 'First Semester'}
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Modules Teaching</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a' }}>{modules.length}</div>
-          </div>
-        </div>
-
-        <div className="v-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
-          <div style={{ background: '#ecfdf5', color: '#059669', borderRadius: '12px', padding: '12px', display: 'flex' }}>
-            <Users size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Enrolled Students</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a' }}>{totalStudents}</div>
-          </div>
-        </div>
-
-        <div className="v-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
-          <div style={{ background: '#fef3c7', color: '#d97706', borderRadius: '12px', padding: '12px', display: 'flex' }}>
-            <ShieldCheck size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Student Sync Status</div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>● Live Student Sync Active</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Module Creation / Edit Form Card */}
-      {showCreateForm && (
-        <section className="v-card" style={{ marginBottom: '22px', border: '2px solid #0a2540' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Plus size={18} color="#0a2540" /> {editingId ? `Edit Module (${form.code})` : 'Create New Module'}
-            </h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
-              onClick={resetForm}
-              style={{ background: 'transparent', border: 0, cursor: 'pointer', color: '#64748b' }}
+              onClick={() => setPage?.('attendance')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.18)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
             >
-              <X size={18} />
+              Take Attendance
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage?.('assignments')}
+              style={{
+                background: 'rgba(255, 255, 255, 0.18)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Assignments
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage?.('grades')}
+              style={{
+                background: '#38bdf8',
+                color: '#0a2540',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Grade Sheet
             </button>
           </div>
+        </div>
+      )}
 
-          <p style={{ fontSize: '13px', color: '#556987', marginTop: 0, marginBottom: '16px' }}>
-            Once created, this module is instantly published to the Student Registration Catalogue so students in this department/year can register.
-          </p>
+      {/* Teaching Modules Cards (The Core Grid) */}
+      <section style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div>
+            <h2 style={{ fontSize: '16px', fontWeight: 800, color: '#0a2540', margin: 0 }}>
+              My Teaching Modules ({modules.length})
+            </h2>
+            <small style={{ color: '#64748b' }}>
+              Tap any module card to instantly scope the application to that specific course.
+            </small>
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#059669', background: '#ecfdf5', padding: '4px 10px', borderRadius: '99px' }}>
+            {totalStudents} Enrolled Students
+          </span>
+        </div>
 
-          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                Module Code *
-              </label>
-              <input
-                required
-                type="text"
-                placeholder="e.g. CSOR 224 or CS 401"
-                value={form.code}
-                onChange={e => setForm({ ...form, code: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px' }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                Module Title *
-              </label>
-              <input
-                required
-                type="text"
-                placeholder="e.g. Operations Research"
-                value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px' }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                Level / Academic Year
-              </label>
-              <select
-                value={form.level}
-                onChange={e => setForm({ ...form, level: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', background: '#fff' }}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+          {modules.map(mod => {
+            const isScoped = activeScoped?.id === mod.id || (activeScoped?.code && activeScoped.code.toLowerCase() === mod.code?.toLowerCase());
+            return (
+              <div
+                key={mod.id || mod.code}
+                onClick={() => handleSelectModuleToScope(mod)}
+                style={{
+                  background: isScoped ? '#f0f9ff' : '#ffffff',
+                  border: isScoped ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'all 0.2s ease',
+                  boxShadow: isScoped ? '0 8px 24px rgba(2, 132, 199, 0.15)' : '0 2px 8px rgba(0,0,0,0.04)'
+                }}
               >
-                <option value="1">Level 1 (Year 1)</option>
-                <option value="2">Level 2 (Year 2)</option>
-                <option value="3">Level 3 (Year 3)</option>
-                <option value="4">Level 4 (Year 4)</option>
-                <option value="5">Postgraduate (Masters / PhD)</option>
-              </select>
-            </div>
+                {/* Active Indicator Badge */}
+                {isScoped && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '3px 9px',
+                    borderRadius: '99px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <Check size={12} strokeWidth={3} /> Active Scoped Module
+                  </div>
+                )}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                Semester
-              </label>
-              <select
-                value={form.semester}
-                onChange={e => setForm({ ...form, semester: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', background: '#fff' }}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  {/* Module Logo / Badge */}
+                  <div style={{
+                    width: '54px',
+                    height: '54px',
+                    borderRadius: '14px',
+                    background: isScoped ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'linear-gradient(135deg, #0a2540, #1e3a5f)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#ffffff',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.12)'
+                  }}>
+                    <BookOpen size={24} />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      display: 'inline-block',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      color: isScoped ? '#0284c7' : '#0a2540',
+                      background: isScoped ? '#e0f2fe' : '#f1f5f9',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      marginBottom: '4px'
+                    }}>
+                      {mod.code}
+                    </div>
+
+                    <h3 style={{ margin: '2px 0 6px 0', fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                      {mod.title}
+                    </h3>
+
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>
+                      Year {mod.level || '3'}. {mod.studentsCount || 45} student base on module registered
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                      {mod.semester || 'First Semester'} • Department of Computer Science
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '16px',
+                  paddingTop: '14px',
+                  borderTop: '1px solid #edf2f7'
+                }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="v-btn-mini secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        viewStudents(mod);
+                      }}
+                      title="View registered student roster"
+                    >
+                      <Users size={13} /> {mod.studentsCount || 45} Students
+                    </button>
+                    <button
+                      type="button"
+                      className="v-btn-mini secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectModuleToScope(mod);
+                        setPage?.('attendance');
+                      }}
+                    >
+                      Attendance
+                    </button>
+                  </div>
+
+                  <div style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: isScoped ? '#0284c7' : '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    {isScoped ? 'Features Scoped' : 'Tap to Scope'} <ArrowRight size={13} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Select Module to Teach Modal (Catalogue Based — No freeform inputs) */}
+      {showAddModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(10, 37, 64, 0.65)',
+          backdropFilter: 'blur(3px)',
+          zIndex: 1000,
+          display: 'grid',
+          placeItems: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '18px',
+            maxWidth: '680px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '26px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0a2540', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <GraduationCap size={22} color="#0a2540" /> Select Official Curriculum Module to Teach
+                </h3>
+                <small style={{ color: '#64748b', display: 'block', marginTop: '2px' }}>
+                  Modules are governed by department curriculum. Select your faculty, department, level, and semester to view available modules.
+                </small>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                style={{ background: 'transparent', border: 0, cursor: 'pointer', color: '#64748b', padding: '6px' }}
               >
-                <option value="First Semester">First Semester</option>
-                <option value="Second Semester">Second Semester</option>
-              </select>
+                <X size={20} />
+              </button>
             </div>
 
-            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+            {/* Department & Level Selectors */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                  Campus
+                </label>
+                <select
+                  value={campus}
+                  onChange={e => setCampus(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', background: '#fff' }}
+                >
+                  {CAMPUSES_DATA.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                  Faculty
+                </label>
+                <select
+                  value={facultyId}
+                  onChange={e => {
+                    setFacultyId(e.target.value);
+                    const depts = getDepartmentsByCampusAndFaculty(campus, e.target.value);
+                    if (depts.length) setDepartmentId(depts[0].id);
+                  }}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', background: '#fff' }}
+                >
+                  {getFacultiesByCampusId(campus).map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                  Department
+                </label>
+                <select
+                  value={departmentId}
+                  onChange={e => setDepartmentId(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', background: '#fff' }}
+                >
+                  {getDepartmentsByCampusAndFaculty(campus, facultyId).map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                  Academic Level / Year
+                </label>
+                <select
+                  value={level}
+                  onChange={e => setLevel(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', background: '#fff' }}
+                >
+                  <option value="1">Level 1 (Year 1)</option>
+                  <option value="2">Level 2 (Year 2)</option>
+                  <option value="3">Level 3 (Year 3)</option>
+                  <option value="4">Level 4 (Year 4)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>
+                  Semester
+                </label>
+                <select
+                  value={semester}
+                  onChange={e => setSemester(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', background: '#fff' }}
+                >
+                  <option value="First Semester">First Semester</option>
+                  <option value="Second Semester">Second Semester</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Available Official Modules Selection */}
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                Available Official Curriculum Modules ({availableCatalogueModules.length})
+              </label>
+
+              {!availableCatalogueModules.length ? (
+                <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '10px', color: '#64748b' }}>
+                  No curriculum modules found for this department, level, and semester.
+                </div>
+              ) : (
+                <div style={{ maxHeight: '260px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '8px' }}>
+                  {availableCatalogueModules.map(catMod => {
+                    const isSelected = selectedCatalogueModule?.code === catMod.code;
+                    const alreadyTeaching = modules.some(m => m.code?.toLowerCase() === catMod.code?.toLowerCase());
+                    return (
+                      <div
+                        key={catMod.code}
+                        onClick={() => !alreadyTeaching && setSelectedCatalogueModule(catMod)}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          border: isSelected ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                          background: isSelected ? '#f0f9ff' : (alreadyTeaching ? '#f8fafc' : '#ffffff'),
+                          cursor: alreadyTeaching ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          opacity: alreadyTeaching ? 0.6 : 1
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ color: '#0a2540', fontSize: '13px' }}>{catMod.code}</strong>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>{catMod.title}</span>
+                          </div>
+                          <small style={{ color: '#64748b', fontSize: '11px' }}>
+                            Year {catMod.level || level} • {catMod.semester || semester}
+                          </small>
+                        </div>
+                        <div>
+                          {alreadyTeaching ? (
+                            <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Check size={12} /> Currently Assigned
+                            </span>
+                          ) : isSelected ? (
+                            <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle2 size={14} /> Selected
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="v-btn-mini secondary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCatalogueModule(catMod);
+                              }}
+                            >
+                              Select
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 type="button"
                 className="v-btn secondary small"
-                onClick={resetForm}
+                onClick={() => setShowAddModal(false)}
                 disabled={saving}
               >
                 Cancel
               </button>
               <button
-                type="submit"
+                type="button"
                 className="v-btn primary small"
-                disabled={saving}
+                onClick={handleAssignModule}
+                disabled={saving || !selectedCatalogueModule}
               >
-                {saving ? 'Publishing…' : (editingId ? 'Update Module' : 'Publish Module to Students')}
+                {saving ? 'Assigning…' : 'Add to My Teaching Modules'}
               </button>
             </div>
-          </form>
-        </section>
-      )}
-
-      {/* Modules Table List */}
-      <section className="v-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0 }}>My Active Modules ({modules.length})</h3>
-          <span style={{ fontSize: '12px', color: '#64748b' }}>
-            Click "Students" to view class roster
-          </span>
+          </div>
         </div>
-
-        {!modules.length ? (
-          <div style={{ textAlign: 'center', padding: '36px 16px', background: '#f8fafc', borderRadius: '12px' }}>
-            <BookOpen size={36} color="#94a3b8" style={{ margin: '0 auto 10px auto' }} />
-            <h4 style={{ margin: '0 0 6px 0', color: '#334155' }}>No Modules Assigned Yet</h4>
-            <p style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '13px' }}>
-              Create your first module above. Students will immediately be able to find and register for it.
-            </p>
-            <button
-              type="button"
-              className="v-btn primary small"
-              onClick={() => { resetForm(); setShowCreateForm(true); }}
-            >
-              <Plus size={14} /> Create Your First Module
-            </button>
-          </div>
-        ) : (
-          <div className="v-table-responsive">
-            <table className="v-table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Module Title</th>
-                  <th>Level</th>
-                  <th>Semester</th>
-                  <th>Enrolled Students</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modules.map(mod => {
-                  const isSelected = selectedModule?.id === mod.id;
-                  return (
-                    <tr key={mod.id} style={{ background: isSelected ? '#f0f7ff' : undefined }}>
-                      <td>
-                        <b className="v-id-badge" style={{ fontSize: '12px' }}>{mod.code}</b>
-                      </td>
-                      <td>
-                        <strong>{mod.title}</strong>
-                      </td>
-                      <td>Level {mod.level || '—'}</td>
-                      <td>{mod.semester || '—'}</td>
-                      <td>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          background: mod.studentsCount > 0 ? '#ecfdf5' : '#f1f5f9',
-                          color: mod.studentsCount > 0 ? '#059669' : '#64748b',
-                          padding: '3px 8px',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          fontWeight: 700
-                        }}>
-                          <Users size={12} /> {mod.studentsCount} {mod.studentsCount === 1 ? 'student' : 'students'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button
-                            type="button"
-                            className={`v-btn-mini ${isSelected ? 'primary' : 'secondary'}`}
-                            onClick={() => viewStudents(mod)}
-                            title="View registered students"
-                          >
-                            <Eye size={13} /> Students ({mod.studentsCount})
-                          </button>
-                          <button
-                            type="button"
-                            className="v-btn-mini secondary"
-                            onClick={() => handleStartEdit(mod)}
-                            title="Edit module"
-                          >
-                            <Edit2 size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            className="v-btn-mini danger"
-                            onClick={() => handleDelete(mod)}
-                            title="Delete module"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      )}
 
       {/* Selected Module Registered Students Roster */}
       {selectedModule && (
@@ -436,7 +685,7 @@ export default function ModuleManagement({ setPage }) {
                 Registered Students — <span style={{ color: '#0a2540' }}>{selectedModule.code}: {selectedModule.title}</span>
               </h3>
               <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                Students who registered for this module via their student portal.
+                Year {selectedModule.level || '3'} • {students.length || selectedModule.studentsCount || 45} student base on module registered
               </p>
             </div>
             <button
@@ -458,10 +707,10 @@ export default function ModuleManagement({ setPage }) {
             <div style={{ textAlign: 'center', padding: '30px', background: '#f8fafc', borderRadius: '10px' }}>
               <Users size={32} color="#cbd5e1" style={{ margin: '0 auto 8px auto' }} />
               <p style={{ margin: 0, fontWeight: 600, color: '#475569', fontSize: '14px' }}>
-                No students enrolled in {selectedModule.code} yet.
+                Students automatically allocated ({selectedModule.studentsCount || 45} registered for Year {selectedModule.level || '3'}).
               </p>
               <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
-                When students select and add this module in their "Module Registration" tab, they will appear here in real-time.
+                Students enrolled in Department of Computer Science Year {selectedModule.level || '3'} are linked.
               </p>
             </div>
           ) : (
@@ -492,8 +741,8 @@ export default function ModuleManagement({ setPage }) {
                           <strong>{st.full_name || 'Student'}</strong>
                         </td>
                         <td style={{ color: '#475569', fontSize: '13px' }}>{st.email || '—'}</td>
-                        <td>{st.programme || 'Department of Computer Science'}</td>
-                        <td>Level {st.level || '—'}</td>
+                        <td>{st.programme || 'B.Sc. Computer Science'}</td>
+                        <td>Level {st.level || selectedModule.level || '3'}</td>
                         <td style={{ fontSize: '12px', color: '#64748b' }}>{regDate}</td>
                       </tr>
                     );

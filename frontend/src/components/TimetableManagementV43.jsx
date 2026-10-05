@@ -11,7 +11,7 @@ import {
 import { getLecturerModules } from '../services/attendanceV39.js';
 import { supabase } from '../services/supabase.js';
 
-export default function TimetableManagementV43({ role = 'lecturer' }) {
+export default function TimetableManagementV43({ role = 'lecturer', scopedModule = null }) {
   const [schedules, setSchedules] = useState([]);
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,13 +22,19 @@ export default function TimetableManagementV43({ role = 'lecturer' }) {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'today'
 
   const [form, setForm] = useState({
-    module_id: '',
+    module_id: scopedModule?.id || '',
     day_of_week: 'Monday',
     start_time: '09:00',
     end_time: '11:00',
     location_name: 'Room 201',
     room_code: 'R-201'
   });
+
+  useEffect(() => {
+    if (scopedModule?.id) {
+      setForm(f => ({ ...f, module_id: scopedModule.id }));
+    }
+  }, [scopedModule]);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 

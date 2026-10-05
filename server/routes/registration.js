@@ -123,8 +123,9 @@ router.post('/student-applicant', async (req, res) => {
       console.warn('Curriculum auto-enrollment notice:', modErr.message);
     }
 
-    // Prepare Monime payment checkout
-    const amount = registrationFee(cleanType);
+    // Prepare Monime payment checkout (SLE 100 per module)
+    const modulesCount = Array.isArray(req.body.modules) && req.body.modules.length ? req.body.modules.length : (req.body.modulesCount || 8);
+    const amount = registrationFee(cleanType, modulesCount);
     const reference = `REG-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
     const successRedirect = returnUrl || `${req.protocol}://${req.get('host')}/payment-success`;
     const cancelRedirect = cancelUrl || `${req.protocol}://${req.get('host')}/payment-cancelled`;

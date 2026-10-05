@@ -11,6 +11,7 @@ import {
   getDepartmentAttendanceLogs,
   markStudentAttendance
 } from '../services/studentAttendance';
+import { sendAcademicNotification } from '../services/liveNotificationService';
 
 const getDeviceToken = () => {
   let t = localStorage.getItem('academic_pwa_device_token');
@@ -82,6 +83,16 @@ export default function StudentAttendance() {
 
             const distance = Math.round(res.attendance?.distance_meters || 0);
             setMessage(`✓ Attendance recorded successfully for ${cls.module?.code || 'class'}! (Campus distance: ${distance}m)`);
+
+            // Real-time Academic Notification for Marked Attendance
+            sendAcademicNotification({
+              recipientUserId: profile?.auth_user_id,
+              title: `Attendance Marked: ${cls.module?.code || 'Class'}`,
+              body: `Attendance successfully verified via GPS (${distance}m) for ${cls.module?.code || 'session'} ${cls.module?.title || ''}. Status: ${res.status?.toUpperCase() || 'PRESENT'}.`,
+              category: 'attendance',
+              linkUrl: 'attendance'
+            }).catch(() => {});
+
             await loadData();
           } catch (apiErr) {
             setError(apiErr.message || 'Failed to record attendance verification.');

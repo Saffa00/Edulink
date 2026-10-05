@@ -16,13 +16,31 @@ import {
   calculateHaversineDistance
 } from '../services/attendanceV39';
 
-export default function AttendanceManagementV39({ initialClassId = null, onNavigate }) {
+export default function AttendanceManagementV39({ initialClassId = null, onNavigate, scopedModule = null }) {
   const [activeTab, setActiveTab] = useState('live'); // 'live' | 'history'
   const [modules, setModules] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState(initialClassId);
   const [classDetails, setClassDetails] = useState(null);
   const [historyList, setHistoryList] = useState([]);
+
+  const displayClasses = useMemo(() => {
+    if (!scopedModule) return classes;
+    const scopedCode = String(scopedModule.code || '').replace(/\s+/g, '').toUpperCase();
+    const matched = classes.filter(c => {
+      const cCode = String(c.modules?.code || '').replace(/\s+/g, '').toUpperCase();
+      return c.module_id === scopedModule.id || (scopedCode && (cCode.includes(scopedCode) || scopedCode.includes(cCode)));
+    });
+    return matched.length ? matched : classes;
+  }, [classes, scopedModule]);
+
+  useEffect(() => {
+    if (displayClasses.length > 0) {
+      if (!selectedClassId || !displayClasses.some(c => c.id === selectedClassId)) {
+        setSelectedClassId(displayClasses[0].id);
+      }
+    }
+  }, [displayClasses, scopedModule]);
 
   const [loading, setLoading] = useState(true);
   const [rosterLoading, setRosterLoading] = useState(false);
@@ -230,14 +248,21 @@ export default function AttendanceManagementV39({ initialClassId = null, onNavig
           <section className="v39-card v39-session-hero">
             <div className="v39-session-top">
               <div className="v39-select-box">
-                <label>Select Scheduled Class Session:</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>Select Scheduled Class Session:</label>
+                  {scopedModule && (
+                    <span style={{ fontSize: '11px', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                      Scoped: {scopedModule.code} ({scopedModule.title})
+                    </span>
+                  )}
+                </div>
                 <select
                   value={selectedClassId || ''}
                   onChange={e => setSelectedClassId(e.target.value)}
                   className="v39-class-select"
                 >
-                  {!classes.length && <option value="">No classes scheduled</option>}
-                  {classes.map(c => (
+                  {!displayClasses.length && <option value="">No classes scheduled for {scopedModule ? scopedModule.code : 'this session'}</option>}
+                  {displayClasses.map(c => (
                     <option key={c.id} value={c.id}>
                       {c.modules?.code} — {c.class_date} ({c.start_time} - {c.end_time}) [{c.attendance_status || 'scheduled'}]
                     </option>

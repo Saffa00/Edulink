@@ -121,12 +121,67 @@ export const CAMPUSES_DATA = [
             id: "dept-computer-science",
             name: "Department of Computer Science",
             modules: [
-              { code: "CS 101", title: "Introduction to Computer Systems & Algorithms" },
-              { code: "C++ 101", title: "C++ Object-Oriented Programming" },
-              { code: "CS 201", title: "Data Structures & Database Management Systems" },
-              { code: "CS 302", title: "Distributed & Concurrent Systems" },
-              { code: "CSOR 224", title: "Operations Research & Optimization" },
-              { code: "CS 401", title: "Research Methods in Software Engineering" }
+              // YEAR ONE FIRST SEMESTER (Level 1, First Semester) - 8 modules
+              { code: "BSCS 111", title: "Introduction To Computing & Operating Systems", level: 1, semester: "First Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+              { code: "BSCS 112", title: "Principles Of Programming Languages", level: 1, semester: "First Semester", lecturerName: "Mr. Samuel Bangura", lecturerId: "LECT-2026-1003" },
+              { code: "BSCS 113", title: "Discrete Structure", level: 1, semester: "First Semester", lecturerName: "Mrs. Aminata Conteh", lecturerId: "LECT-2026-1004" },
+              { code: "BSCS 114", title: "System Analysis and Design", level: 1, semester: "First Semester", lecturerName: "Dr. Mohamed Koroma", lecturerId: "LECT-2026-1005" },
+              { code: "MAT 111", title: "General Mathematics I (Pre-Calculus)", level: 1, semester: "First Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "ENG 111", title: "General English", level: 1, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+              { code: "CDS 111", title: "Community Development Studies", level: 1, semester: "First Semester", lecturerName: "Mr. Joseph Kamara", lecturerId: "LECT-2026-1008" },
+              { code: "PHY 111", title: "Physics I", level: 1, semester: "First Semester", lecturerName: "Dr. Edward Cole", lecturerId: "LECT-2026-1009" },
+
+              // YEAR ONE SECOND SEMESTER (Level 1, Second Semester) - 8 modules
+              { code: "BSCS 121", title: "Computer Application Packages", level: 1, semester: "Second Semester", lecturerName: "Mr. Samuel Bangura", lecturerId: "LECT-2026-1003" },
+              { code: "BSCS 122", title: "Programing in vb.net", level: 1, semester: "Second Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+              { code: "STA 121", title: "Linear Statistical Methods", level: 1, semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 123", title: "System Analysis and Design II", level: 1, semester: "Second Semester", lecturerName: "Dr. Mohamed Koroma", lecturerId: "LECT-2026-1005" },
+              { code: "MAT 122", title: "Pre Calculus II", level: 1, semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "ENG 122", title: "General English", level: 1, semester: "Second Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+              { code: "CDS 122", title: "Community Development Studies", level: 1, semester: "Second Semester", lecturerName: "Mr. Joseph Kamara", lecturerId: "LECT-2026-1008" },
+              { code: "PHY 122", title: "Physics II", level: 1, semester: "Second Semester", lecturerName: "Dr. Edward Cole", lecturerId: "LECT-2026-1009" },
+
+              // YEAR TWO FIRST SEMESTER (Level 2, First Semester) - 8 modules
+              { code: "BSCS 211", title: "Data Structure and Algorithm", level: 2, semester: "First Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+              { code: "BSCS 212", title: "Advanced Programming in Vb.Net", level: 2, semester: "First Semester", lecturerName: "Mr. Samuel Bangura", lecturerId: "LECT-2026-1003" },
+              { code: "MAT 211", title: "Technology Mathematics", level: 2, semester: "First Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 213", title: "Programming In C++", level: 2, semester: "First Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+              { code: "BSCS 214", title: "Data Communication & Networking", level: 2, semester: "First Semester", lecturerName: "Mr. Foday Mansaray", lecturerId: "LECT-2026-1010" },
+              { code: "BSCS 215", title: "Database Design and Management I", level: 2, semester: "First Semester", lecturerName: "Mrs. Aminata Conteh", lecturerId: "LECT-2026-1004" },
+              { code: "BSCS 216", title: "Programming Java I", level: 2, semester: "First Semester", lecturerName: "Dr. Mohamed Koroma", lecturerId: "LECT-2026-1005" },
+              { code: "ENG 212", title: "English", level: 2, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+
+              // YEAR TWO SECOND SEMESTER (Level 2, Second Semester) - 10 modules
+              { code: "BSCS 221", title: "Programming in HTML and CSS", level: 2, semester: "Second Semester", lecturerName: "Mr. Samuel Bangura", lecturerId: "LECT-2026-1003" },
+              { code: "BSCS 222", title: "Advanced Programming in C++", level: 2, semester: "Second Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+              { code: "CSOR 224", title: "Operational Research", level: 2, semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 223", title: "Network Security", level: 2, semester: "Second Semester", lecturerName: "Mr. Foday Mansaray", lecturerId: "LECT-2026-1010" },
+              { code: "BSCS 225", title: "Database Design and Management II", level: 2, semester: "Second Semester", lecturerName: "Mrs. Aminata Conteh", lecturerId: "LECT-2026-1004" },
+              { code: "STA 221", title: "Statistical Computing and Algorithms", level: 2, semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 226", title: "Programming In Java II", level: 2, semester: "Second Semester", lecturerName: "Dr. Mohamed Koroma", lecturerId: "LECT-2026-1005" },
+              { code: "BSCS 227", title: "Project Management", level: 2, semester: "Second Semester", lecturerName: "Dr. Mohamed Koroma", lecturerId: "LECT-2026-1005" },
+              { code: "BSCS 228", title: "Cyber Security", level: 2, semester: "Second Semester", lecturerName: "Mr. Foday Mansaray", lecturerId: "LECT-2026-1010" },
+              { code: "BSCS 229", title: "Programming in c++ II", level: 2, semester: "Second Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+
+              // YEAR THREE FIRST SEMESTER (Level 3, First Semester) - 8 modules including BSCS 411 Oracle & BSCS 412 C++
+              { code: "Bscs 411", title: "Oracle", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "Bscs 412", title: "C++", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 311", title: "Software engineering", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 312", title: "Research methodology", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 313", title: "Distributed and concurrent system", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 314", title: "Information and business modeling", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 315", title: "Introduction to artificial intelligence", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 316", title: "Cloud Computing & Architecture", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+
+              // YEAR THREE SECOND SEMESTER (Level 3, Second Semester) - 8 modules
+              { code: "BSCS 321", title: "Computer architecture", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 322", title: "Software engineering II", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 323", title: "Advance database", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 324", title: "Multimedia", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 325", title: "PHP", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "STA 321", title: "SPSS", level: 3, semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 326", title: "Ethics in professionalism", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 328", title: "Final Year Capstone Project", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" }
             ]
           },
           {
@@ -169,9 +224,35 @@ export const CAMPUSES_DATA = [
             id: "dept-public-health",
             name: "Department of Public Health",
             modules: [
-              { code: "PBH 101", title: "Introduction to Epidemiology & Disease Control" },
-              { code: "PBH 201", title: "Environmental Sanitation, Water Quality & Hygiene" },
-              { code: "PBH 202", title: "Health Promotion, Policy & Community Health" }
+              // Year 1 / Level 1 First Semester
+              { code: "PBH 111", title: "Introduction to Public Health & Epidemiology", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 112", title: "Environmental Sanitation & Water Quality", level: 1, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 113", title: "Health Promotion, Policy & Community Hygiene", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 114", title: "Principles of Disease Prevention & Control", level: 1, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "MAT 111", title: "General Mathematics (Pre-Calculus)", level: 1, semester: "First Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "ENG 111", title: "General English", level: 1, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+              { code: "CDS 111", title: "Community Development Studies", level: 1, semester: "First Semester", lecturerName: "Mr. Joseph Kamara", lecturerId: "LECT-2026-1008" },
+              { code: "BIO 111", title: "Biology for Health Sciences", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+
+              // Year 2 / Level 2 First Semester
+              { code: "PBH 211", title: "Infectious Disease Surveillance & Control", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 212", title: "Occupational Safety & Industrial Health", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 213", title: "Maternal, Newborn & Child Health (MNCH)", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 214", title: "Public Health Nutrition & Food Security", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "STA 211", title: "Biostatistics & Health Data Analysis", level: 2, semester: "First Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "PBH 215", title: "Global Health Systems & Policy Planning", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 216", title: "Public Health Microbiology & Parasitology", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "ENG 212", title: "Scientific Writing & Communication", level: 2, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+
+              // Year 3 / Level 3 First Semester (8 modules)
+              { code: "PBH 311", title: "Advanced Applied Epidemiology & Outbreak Response", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 312", title: "Health Economics, Financing & Management", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 313", title: "Health Information Systems & Digital Informatics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 314", title: "Community Health Intervention & Behavioral Science", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 315", title: "Disaster Preparedness & Emergency Health Logistics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 316", title: "Public Health Law, Ethics & Human Rights", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 317", title: "Research Methodology & Applied Bioethics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 318", title: "Public Health Field Practicum & Community Inspection", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" }
             ]
           }
         ],
@@ -510,6 +591,125 @@ export function getCampusCoordinates(campusIdOrLocation) {
 // Flat list of all faculties across all campuses (for fallback)
 export const ALL_FACULTIES = CAMPUSES_DATA.flatMap(c => c.faculties);
 
+// Academic Programme Classifications (BSc, Diploma, HND)
+// Tying academic level strictly with programme:
+// - BSc: Year 1 to 4 only
+// - Diploma: Year 1 to 2 only
+// - HND: Year 1 to 3 only
+// Includes comprehensive official specification details.
+export const PROGRAMME_TYPES = [
+  {
+    id: "bsc",
+    code: "BSc",
+    name: "BSc",
+    label: "BSc",
+    fullName: "Bachelor of Science (BSc)",
+    tag: "Degree",
+    badgeColor: "#0284c7",
+    badgeBg: "#e0f2fe",
+    minYear: 1,
+    maxYear: 4,
+    years: ["Year 1", "Year 2", "Year 3", "Year 4"],
+    levels: [
+      { value: "1", label: "Year 1" },
+      { value: "2", label: "Year 2" },
+      { value: "3", label: "Year 3" },
+      { value: "4", label: "Year 4" }
+    ],
+    duration: "4 Years (8 Semesters)",
+    award: "Bachelor of Science Degree (B.Sc. Hons)",
+    qualification: "4-Year Undergraduate Degree",
+    specification: "4-Year full undergraduate degree programme providing comprehensive academic theories, laboratory coursework, computing, research methodology, and final-year capstone project/dissertation.",
+    admissionRequirements: "Minimum 5 WASSCE / GCE O'Level credits (including English Language & Mathematics) in relevant subjects.",
+    careerPathways: "Senior software engineering, data science, research scholarship, IT systems architecture, and postgraduate study (M.Sc./Ph.D.)."
+  },
+  {
+    id: "diploma",
+    code: "Diploma",
+    name: "Diploma",
+    label: "Diploma",
+    fullName: "National Diploma (Diploma)",
+    tag: "Diploma",
+    badgeColor: "#d97706",
+    badgeBg: "#fef3c7",
+    minYear: 1,
+    maxYear: 2,
+    years: ["Year 1", "Year 2"],
+    levels: [
+      { value: "1", label: "Year 1" },
+      { value: "2", label: "Year 2" }
+    ],
+    duration: "2 Years (4 Semesters)",
+    award: "Undergraduate National Diploma",
+    qualification: "2-Year Technical & Vocational Diploma",
+    specification: "2-Year intensive practical diploma focused on direct vocational competencies, applied technical skills, and immediate industry readiness.",
+    admissionRequirements: "Minimum 4 WASSCE credits with foundational passes in relevant technical or science subjects.",
+    careerPathways: "Technical associate, junior system analyst, IT support specialist, or direct articulation into Year 2/Year 3 of the BSc degree."
+  },
+  {
+    id: "hnd",
+    code: "HND",
+    name: "HND",
+    label: "HND",
+    fullName: "Higher National Diploma (HND)",
+    tag: "HND",
+    badgeColor: "#7c3aed",
+    badgeBg: "#f5f3ff",
+    minYear: 1,
+    maxYear: 3,
+    years: ["Year 1", "Year 2", "Year 3"],
+    levels: [
+      { value: "1", label: "Year 1" },
+      { value: "2", label: "Year 2" },
+      { value: "3", label: "Year 3" }
+    ],
+    duration: "3 Years (6 Semesters)",
+    award: "Higher National Diploma (HND)",
+    qualification: "3-Year Higher Vocational & Applied Diploma",
+    specification: "3-Year advanced technical diploma emphasizing applied laboratory training, industrial attachment, and professional engineering/technology competencies.",
+    admissionRequirements: "Minimum 4–5 WASSCE passes or recognized Ordinary National Diploma (OND) in related fields.",
+    careerPathways: "Senior technical specialist, technical supervisor, operations technologist, or university degree top-up programmes."
+  }
+];
+
+export function getProgrammeInfo(progCodeOrId) {
+  if (!progCodeOrId) return PROGRAMME_TYPES[0];
+  const clean = String(progCodeOrId).trim().toLowerCase();
+  return PROGRAMME_TYPES.find(p =>
+    p.id === clean ||
+    p.code.toLowerCase() === clean ||
+    p.name.toLowerCase() === clean ||
+    clean.startsWith(p.id) ||
+    clean.startsWith(p.code.toLowerCase())
+  ) || PROGRAMME_TYPES[0];
+}
+
+export function getLevelsForProgramme(progCodeOrId) {
+  const prog = getProgrammeInfo(progCodeOrId);
+  return prog ? prog.levels : PROGRAMME_TYPES[0].levels;
+}
+
+// Tie Campus directly with Departments across all faculties
+export function getDepartmentsByCampus(campusId) {
+  const campus = CAMPUSES_DATA.find(c => c.id === campusId);
+  if (!campus) return [];
+  const list = [];
+  campus.faculties.forEach(fac => {
+    fac.departments.forEach(dept => {
+      list.push({
+        id: dept.id,
+        name: dept.name,
+        facultyId: fac.id,
+        facultyName: fac.name,
+        campusId: campus.id,
+        campusName: campus.name,
+        modules: dept.modules || []
+      });
+    });
+  });
+  return list;
+}
+
 // Get faculties under a specific campus
 export function getFacultiesByCampusId(campusId) {
   const campus = CAMPUSES_DATA.find(c => c.id === campusId);
@@ -577,3 +777,85 @@ export function getModulesByDepartmentId(facultyId, departmentId) {
   const dept = depts.find(d => d.id === departmentId);
   return dept ? dept.modules : [];
 }
+
+/**
+ * Returns curriculum modules for a student based on:
+ * faculty + department + program + Level + semester.
+ * Rule: If student fills in level 2 academic information, show all modules for level 3 and lecturers alone.
+ * Provides 8 or 9 modules per semester.
+ */
+export function getCurriculumModules({ campusId, facultyId, departmentId, programme, level, semester } = {}) {
+  // If student fills in level 2 academic information, show level 3 modules
+  const rawLevelNum = Number(level);
+  const effectiveLevel = rawLevelNum === 2 ? 3 : (rawLevelNum || 3);
+  const effectiveSemester = (semester && semester.toLowerCase().includes('second')) ? 'Second Semester' : 'First Semester';
+
+  // Find department across campuses or faculties
+  let allDepts = [];
+  if (campusId && facultyId) {
+    allDepts = getDepartmentsByCampusAndFaculty(campusId, facultyId);
+  } else if (campusId) {
+    allDepts = getDepartmentsByCampus(campusId);
+  } else if (facultyId) {
+    allDepts = getDepartmentsByFacultyId(facultyId);
+  } else {
+    allDepts = ALL_FACULTIES.flatMap(f => f.departments);
+  }
+
+  const dept = allDepts.find(d => d.id === departmentId || (departmentId && d.name.toLowerCase().includes(departmentId.toLowerCase())));
+  const modulesList = dept ? dept.modules : [];
+
+  // Filter modules by effectiveLevel and effectiveSemester
+  let filtered = modulesList.filter(m => {
+    const matchesLevel = m.level ? Number(m.level) === effectiveLevel : true;
+    const matchesSem = m.semester ? m.semester.toLowerCase() === effectiveSemester.toLowerCase() : true;
+    return matchesLevel && matchesSem;
+  });
+
+  // If no level/semester tag on modules or fewer than 8, expand/fallback to department modules
+  if (!filtered.length && modulesList.length) {
+    filtered = modulesList;
+  }
+
+  // Ensure default lecturer assigned if not present
+  return filtered.map((m, idx) => ({
+    ...m,
+    effectiveLevel,
+    effectiveSemester,
+    lecturerName: m.lecturerName || (effectiveLevel === 3 ? 'Peter Saffa' : `Lecturer ${idx + 1}`),
+    lecturerId: m.lecturerId || (effectiveLevel === 3 ? 'LECT-2026-790380' : `LECT-2026-${1000 + idx}`)
+  }));
+}
+
+/**
+ * Returns official available modules for a lecturer to select and teach,
+ * filtered by faculty, department, level, and semester.
+ * Strictly prevents arbitrary freeform module creation.
+ */
+export function getAvailableModulesForLecturer({ campusId, facultyId, departmentId, level, semester } = {}) {
+  let depts = [];
+  if (campusId && facultyId) {
+    depts = getDepartmentsByCampusAndFaculty(campusId, facultyId);
+  } else if (campusId) {
+    depts = getDepartmentsByCampus(campusId);
+  } else if (facultyId) {
+    depts = getDepartmentsByFacultyId(facultyId);
+  } else {
+    depts = ALL_FACULTIES.flatMap(f => f.departments);
+  }
+
+  if (departmentId) {
+    depts = depts.filter(d => d.id === departmentId || d.name.toLowerCase().includes(departmentId.toLowerCase()));
+  }
+
+  const allMods = depts.flatMap(d => d.modules || []);
+  const targetLevel = level ? Number(level) : null;
+  const targetSem = semester ? String(semester).trim().toLowerCase() : null;
+
+  return allMods.filter(m => {
+    if (targetLevel && m.level && Number(m.level) !== targetLevel) return false;
+    if (targetSem && m.semester && !m.semester.toLowerCase().includes(targetSem.includes('second') ? 'second' : 'first')) return false;
+    return true;
+  });
+}
+

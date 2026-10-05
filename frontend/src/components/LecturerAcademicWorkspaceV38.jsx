@@ -34,14 +34,6 @@ export default function LecturerAcademicWorkspaceV38({moduleId,onNavigate}) {
       <article><strong>{published}</strong><span>Published Grades</span></article>
       <article><strong>{missing}</strong><span>Grades Pending</span></article>
       <article><strong>{data.submissions.length}</strong><span>Submissions</span></article>
-      <div className="quick-actions">
-        <button onClick={()=>setTab('students')}>👥 Student Roster</button>
-        <button onClick={()=>setTab('attendance')}>📍 Attendance Register</button>
-        <button onClick={()=>setTab('assignments')}>📝 Mark Submissions</button>
-        <button onClick={()=>setTab('grades')}>🎓 Manage Individual Grades</button>
-        <button onClick={()=>onNavigate?.('messages',data.selectedModule.id)}>💬 Module Messages</button>
-        <button onClick={()=>onNavigate?.('dissertation')}>📖 Dissertation</button>
-      </div>
     </section>}
 
     {tab==='students'&&<section><h2>Student Roster</h2><div className="table-list">

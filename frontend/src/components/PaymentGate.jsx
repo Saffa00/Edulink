@@ -15,8 +15,10 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
   const [ussdSeconds, setUssdSeconds] = useState(4);
 
   const isDissertation = profile?.registration_type === 'dissertation';
-  const feeAmount = isDissertation ? 'SLE 500.00' : 'SLE 100.00';
-  const regTypeLabel = isDissertation ? 'Dissertation Registration' : 'Standard Semester Registration';
+  const modulesCount = profile?.modulesCount || (Array.isArray(profile?.modules) && profile.modules.length) || (isDissertation ? 5 : 8);
+  const totalAmount = isDissertation ? 500 : modulesCount * 100;
+  const feeAmount = `SLE ${totalAmount.toFixed(2)}`;
+  const regTypeLabel = `${modulesCount} Registered Modules • SLE 100 / Module`;
 
   // Automatically check if status has transitioned to 'active'
   const checkStatus = async (notify = true) => {
@@ -235,7 +237,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
             <span style={{ fontSize: '24px', fontWeight: '900', color: '#0a2540' }}>{feeAmount}</span>
           </div>
           <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#64748b' }}>
-            Official university registration fee via Monime mobile money gateway.
+            Official university curriculum assessment: SLE 100 per module paid securely through student mobile phone.
           </p>
 
           {!ussdStep ? (

@@ -11,7 +11,8 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
   const [ussdSeconds, setUssdSeconds] = useState(4);
 
   const isDissertation = applicant?.registrationType === 'dissertation';
-  const amount = isDissertation ? 500 : 100;
+  const modulesCount = applicant?.modulesCount || (Array.isArray(applicant?.modules) && applicant.modules.length) || (isDissertation ? 5 : 8);
+  const amount = isDissertation ? 500 : modulesCount * 100;
   const formattedFee = `SLE ${amount}.00`;
 
   const handleStartPayment = async (e) => {
@@ -132,6 +133,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
             <div>
               <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Applicant</small>
               <div style={{ fontWeight: 700, color: '#061626', fontSize: '14px' }}>{applicant?.fullName || 'Student'}</div>
+              <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                {applicant?.programme || 'BSc'} • Year {applicant?.level || '1'}
+              </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Student ID</small>
@@ -142,9 +146,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <span style={{ fontSize: '13px', color: '#334155', fontWeight: 600 }}>
-                {isDissertation ? 'Dissertation Registration Fee' : 'Semester Registration Fee'}
+                {modulesCount} Registered Curriculum Modules
               </span>
-              <div style={{ fontSize: '11px', color: '#64748b' }}>Includes all Year {applicant?.level || '1'} curriculum modules</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>Assessed at SLE 100.00 per module • Student Phone Payment</div>
             </div>
             <div style={{ fontSize: '22px', fontWeight: 900, color: '#0a2540' }}>
               {formattedFee}

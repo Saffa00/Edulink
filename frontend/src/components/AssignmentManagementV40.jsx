@@ -15,13 +15,20 @@ import {
   getSignedFileUrl
 } from '../services/assignmentsV40';
 
-export default function AssignmentManagementV40({ role = 'lecturer', initialAssignmentId = null, onNavigate }) {
+export default function AssignmentManagementV40({ role = 'lecturer', initialAssignmentId = null, onNavigate, scopedModule = null }) {
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
   const [modules, setModules] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [selectedModuleId, setSelectedModuleId] = useState('');
+  const [selectedModuleId, setSelectedModuleId] = useState(scopedModule?.id || '');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(initialAssignmentId);
   const [reviewData, setReviewData] = useState(null);
+
+  useEffect(() => {
+    if (scopedModule?.id) {
+      setSelectedModuleId(scopedModule.id);
+      setForm(f => ({ ...f, module_id: scopedModule.id }));
+    }
+  }, [scopedModule]);
 
   // Student specific state
   const [studentAssignments, setStudentAssignments] = useState([]);

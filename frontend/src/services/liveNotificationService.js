@@ -301,3 +301,63 @@ export async function fetchLiveUnreadCounts(userId) {
     return { notifications: 0, messages: 0 };
   }
 }
+
+// ============================================================================
+// 7. Authoritative Academic Notification Dispatcher
+// Triggers live notifications for assignment creation, submissions, grading, and attendance
+// ============================================================================
+export async function sendAcademicNotification({
+  recipientUserId,
+  title,
+  body,
+  category = 'general',
+  linkUrl = 'notifications'
+} = {}) {
+  const item = {
+    id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    recipient_user_id: recipientUserId,
+    title,
+    body,
+    category,
+    notification_type: category,
+    link_url: linkUrl,
+    created_at: new Date().toISOString()
+  };
+
+  // 1. Insert into Supabase notifications table
+  try {
+    if (recipientUserId) {
+      await supabase.from('notifications').insert({
+        recipient_user_id: recipientUserId,
+        title,
+        body,
+        category,
+        notification_type: category,
+        link_url: linkUrl
+      }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('DB notification insert notice:', err?.message);
+  }
+
+  // 2. Broadcast via Supabase Realtime Channel
+  try {
+    const channel = activeChannel || supabase.channel('academic-live-notifications-global');
+    channel.send({
+      type: 'broadcast',
+      event: 'academic-notification',
+      payload: { ...item, targetUserId: recipientUserId }
+    }).catch(() => {});
+  } catch (bcErr) {
+    console.warn('Broadcast notification notice:', bcErr?.message);
+  }
+
+  // 3. Play chime & show in-app live toast
+  try {
+    playNotificationChime();
+    emitLiveToast(item);
+  } catch (toastErr) {}
+
+  return item;
+}
+

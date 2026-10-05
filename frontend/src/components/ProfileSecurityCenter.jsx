@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { getMyAccountProfile, updateMyProfile, changePassword } from '../services/profileSecurity'
 import { supabase } from '../services/supabase'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function ProfileSecurityCenter({ role }) {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({ full_name:'', phone:'', photo_url:'' })
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -64,7 +66,23 @@ export default function ProfileSecurityCenter({ role }) {
 
           <form onSubmit={savePassword}>
             <h3>Change Password</h3>
-            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="New password" minLength={8} />
+            <div style={{ position: 'relative', width: '100%', marginBottom: '10px' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e=>setPassword(e.target.value)}
+                placeholder="New password"
+                minLength={8}
+                style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(p => !p)}
+                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <button type="submit">Change Password</button>
           </form>
 

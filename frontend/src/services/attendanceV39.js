@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getCampusCoordinates } from '../data/academicCatalogue.js';
+import { sendAcademicNotification } from './liveNotificationService.js';
 
 /**
  * Haversine formula to compute distance in meters between two GPS coordinates
@@ -355,9 +356,24 @@ export async function updateStudentAttendance({ classId, studentInternalId, stat
       const { error: de } = await supabase.from('attendance').delete().eq('id', existing.id);
       if (de) throw de;
     }
+    // Notify student of marked absent
+    try {
+      const { data: st } = await supabase.from('students').select('auth_user_id').eq('id', studentInternalId).single();
+      const { data: c } = await supabase.from('classes').select('class_date, modules(code)').eq('id', classId).single();
+      if (st?.auth_user_id) {
+        await sendAcademicNotification({
+          recipientUserId: st.auth_user_id,
+          title: `Attendance Updated: ${c?.modules?.code || 'Class'}`,
+          body: `Your attendance for ${c?.modules?.code || 'session'} on ${c?.class_date || 'today'} was marked ABSENT by lecturer.`,
+          category: 'attendance',
+          linkUrl: 'attendance'
+        });
+      }
+    } catch {}
     return { status: 'absent' };
   }
 
+  let record = null;
   if (existing) {
     const { data, error } = await supabase
       .from('attendance')
@@ -371,7 +387,7 @@ export async function updateStudentAttendance({ classId, studentInternalId, stat
       .select()
       .single();
     if (error) throw error;
-    return data;
+    record = data;
   } else {
     const { data, error } = await supabase
       .from('attendance')
@@ -388,8 +404,27 @@ export async function updateStudentAttendance({ classId, studentInternalId, stat
       .select()
       .single();
     if (error) throw error;
-    return data;
+    record = data;
   }
+
+  // Real-time Academic Notification for Marked Attendance
+  try {
+    const { data: st } = await supabase.from('students').select('auth_user_id, full_name').eq('id', studentInternalId).single();
+    const { data: c } = await supabase.from('classes').select('class_date, modules(code, title)').eq('id', classId).single();
+    if (st?.auth_user_id) {
+      await sendAcademicNotification({
+        recipientUserId: st.auth_user_id,
+        title: `Attendance Marked: ${c?.modules?.code || 'Class'}`,
+        body: `Your attendance for ${c?.modules?.code || ''} ${c?.modules?.title || ''} on ${c?.class_date || 'today'} was marked ${status.toUpperCase()}.${notes ? ` Note: "${notes}"` : ''}`,
+        category: 'attendance',
+        linkUrl: 'attendance'
+      });
+    }
+  } catch (notifErr) {
+    console.warn('Attendance notification notice:', notifErr?.message);
+  }
+
+  return record;
 }
 
 /**

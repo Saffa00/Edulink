@@ -105,70 +105,7 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
         </div>
       </div>
 
-      {/* Native Campus Services Quick Actions Grid */}
-      <div className="quick-services-section">
-        <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h2 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0, letterSpacing: '-0.2px' }}>Campus Services</h2>
-          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>All Features</span>
-        </div>
-        <div className="quick-services-grid">
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('attendance')}>
-            <div className="quick-service-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
-              <CalendarCheck size={22} />
-            </div>
-            <span className="quick-service-label">Attendance</span>
-          </button>
 
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('timetable')}>
-            <div className="quick-service-icon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
-              <Clock3 size={22} />
-            </div>
-            <span className="quick-service-label">Timetable</span>
-          </button>
-
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('assignments')}>
-            <div className="quick-service-icon" style={{ background: '#fff7ed', color: '#ea580c' }}>
-              <ClipboardList size={22} />
-            </div>
-            <span className="quick-service-label">Assignments</span>
-          </button>
-
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('grades')}>
-            <div className="quick-service-icon" style={{ background: '#ecfdf5', color: '#059669' }}>
-              <Award size={22} />
-            </div>
-            <span className="quick-service-label">Grades</span>
-          </button>
-
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('modules')}>
-            <div className="quick-service-icon" style={{ background: '#f0f9ff', color: '#0284c7' }}>
-              <BookOpen size={22} />
-            </div>
-            <span className="quick-service-label">Modules</span>
-          </button>
-
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('payments')}>
-            <div className="quick-service-icon" style={{ background: '#fffbeb', color: '#d97706' }}>
-              <CreditCard size={22} />
-            </div>
-            <span className="quick-service-label">Tuition Fees</span>
-          </button>
-
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('messages')}>
-            <div className="quick-service-icon" style={{ background: '#eef2ff', color: '#4f46e5' }}>
-              <MessageSquare size={22} />
-            </div>
-            <span className="quick-service-label">Messages</span>
-          </button>
-
-          <button type="button" className="quick-service-btn" onClick={() => onNavigate?.('notifications')}>
-            <div className="quick-service-icon" style={{ background: '#fef2f2', color: '#dc2626' }}>
-              <Bell size={22} />
-            </div>
-            <span className="quick-service-label">Notices</span>
-          </button>
-        </div>
-      </div>
 
       {/* Primary Key Stats Grid */}
       <div className="stats-grid">
@@ -351,76 +288,6 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
         </section>
       </div>
 
-      {/* Student Quick Action Shortcuts */}
-      <section className="panel">
-        <div className="panel-head">
-          <h2>Quick Actions</h2>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '10px' }}>
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('modules')}
-          >
-            <BookOpen size={18} color="#0a2540" />
-            <span>Module Registration</span>
-          </button>
-
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('timetable')}
-          >
-            <Clock3 size={18} color="#0891b2" />
-            <span>Class Timetable</span>
-          </button>
-
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('attendance')}
-          >
-            <CalendarCheck size={18} color="#25814b" />
-            <span>Mark Attendance</span>
-          </button>
-
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('assignments')}
-          >
-            <ClipboardList size={18} color="#ea580c" />
-            <span>Assignments</span>
-          </button>
-
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('grades')}
-          >
-            <Award size={18} color="#16a34a" />
-            <span>My Grades</span>
-          </button>
-
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('payments')}
-          >
-            <CreditCard size={18} color="#7c3aed" />
-            <span>Payments</span>
-          </button>
-
-          <button
-            className="outline-btn"
-            style={{ padding: '12px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => onNavigate?.('settings')}
-          >
-            <FileText size={18} color="#475569" />
-            <span>Profile &amp; Security</span>
-          </button>
-        </div>
-      </section>
     </div>
   );
 }

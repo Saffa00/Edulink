@@ -1,5 +1,7 @@
 import { supabase } from './supabase.js';
 import { apiUrl } from './apiConfig.js';
+import { getCurriculumModules } from '../data/academicCatalogue.js';
+import { sendAcademicNotification } from './liveNotificationService.js';
 
 // ============================================================================
 // Shared Auth Helpers
@@ -25,7 +27,7 @@ export async function getStudentProfile() {
   const user = await getAuthUser();
   const { data, error } = await supabase
     .from('students')
-    .select('id, student_id, full_name, email, programme, level, academic_year, semester, registration_type, account_status')
+    .select('id, student_id, full_name, email, programme, level, academic_year, semester, registration_type, account_status, faculty_id, department_id')
     .eq('auth_user_id', user.id)
     .single();
   if (error) throw error;
@@ -199,6 +201,23 @@ export async function saveIndividualGrade({ moduleId, studentInternalId, score, 
     });
   }
 
+  // Real-time Academic Notification for Individual Grade Recording
+  try {
+    const { data: st } = await supabase.from('students').select('auth_user_id, full_name').eq('id', studentInternalId).single();
+    const { data: m } = await supabase.from('modules').select('code, title').eq('id', moduleId).single();
+    if (st?.auth_user_id) {
+      await sendAcademicNotification({
+        recipientUserId: st.auth_user_id,
+        title: `Grade Recorded: ${m?.code || 'Module'}`,
+        body: `Your score for ${m?.code || ''} ${m?.title || ''} is: ${numScore} (Grade ${gradeLetter}).${remarks ? ` Remarks: ${remarks}` : ''}`,
+        category: 'grade',
+        linkUrl: 'grades'
+      });
+    }
+  } catch (notifErr) {
+    console.warn('Individual grade notification notice:', notifErr?.message);
+  }
+
   return gradeRecord;
 }
 
@@ -223,19 +242,41 @@ export async function publishAllModuleGrades(moduleId) {
   const { data: updated, error } = await query.select();
   if (error) throw error;
 
-  // Insert notification for all graded students
+  // Insert audit records and notify all graded students
   if (updated && updated.length) {
+    let modInfo = null;
+    try {
+      const { data: m } = await supabase.from('modules').select('code, title').eq('id', moduleId).single();
+      modInfo = m;
+    } catch {}
+
     for (const g of updated) {
       await supabase.from('grade_audits').insert({
         grade_id: g.id,
         module_id: moduleId,
         student_id: g.student_id,
-        lecturer_id: lecturer.id,
+        lecturer_id: lecturer?.id || null,
         new_score: g.score,
         new_grade: g.grade,
         action: 'publish',
         reason: 'Bulk module grade publication'
       });
+
+      // Dispatch live notification to student
+      try {
+        const { data: st } = await supabase.from('students').select('auth_user_id, full_name').eq('id', g.student_id).single();
+        if (st?.auth_user_id) {
+          await sendAcademicNotification({
+            recipientUserId: st.auth_user_id,
+            title: `Official Grade Published: ${modInfo?.code || 'Module'}`,
+            body: `Your final grade for ${modInfo?.code || ''} ${modInfo?.title || ''} is published: Score ${g.score} (Grade ${g.grade}).`,
+            category: 'grade',
+            linkUrl: 'grades'
+          });
+        }
+      } catch (stNotifErr) {
+        console.warn('Grade publish notification notice:', stNotifErr?.message);
+      }
     }
   }
 
@@ -686,48 +727,85 @@ export async function getStudentPaymentHistory() {
 export async function getModuleCatalogue() {
   const student = await getStudentProfile();
 
-  // Fetch all active modules
-  const { data: allModules, error: me } = await supabase
-    .from('modules')
-    .select('id, code, title, level, semester, active, lecturers(full_name, email)')
-    .eq('active', true)
-    .order('code');
-  if (me) throw me;
+  // Rule: If student fill in level 2 academic information, let all modules for level 3 shows and lectures alone.
+  const rawLevelNum = Number(student.level);
+  const effectiveLevel = rawLevelNum === 2 ? 3 : (rawLevelNum || 3);
+  const effectiveSemester = (student.semester && String(student.semester).toLowerCase().includes('second'))
+    ? 'Second Semester'
+    : 'First Semester';
 
-  // Find modules matching student's level or core curriculum
-  const matchingModules = (allModules || []).filter(m => {
-    if (!m.level) return true;
-    return String(m.level) === String(student.level);
+  // 1. Get official curriculum modules (8 or 9 modules base on department, level, semester)
+  const curriculumMods = getCurriculumModules({
+    facultyId: student.faculty_id,
+    departmentId: student.department_id || 'dept-computer-science',
+    programme: student.programme,
+    level: student.level, // internal logic maps level 2 to level 3
+    semester: student.semester
   });
 
-  // Fetch student's currently registered modules
-  const { data: enrolled, error: ee } = await supabase
+  // 2. Fetch all active modules from database
+  const { data: allModules } = await supabase
+    .from('modules')
+    .select('id, code, title, level, semester, active, lecturers(id, lecturer_id, full_name, email)')
+    .eq('active', true)
+    .order('code')
+    .catch(() => ({ data: [] }));
+
+  // 3. Fetch student's currently registered modules
+  const { data: enrolled } = await supabase
     .from('student_modules')
     .select('module_id, registered_at')
-    .eq('student_id', student.id);
-  if (ee) throw ee;
+    .eq('student_id', student.id)
+    .catch(() => ({ data: [] }));
 
   const enrolledSet = new Set((enrolled || []).map(e => e.module_id));
 
-  // Auto-allocate: insert any missing matching curriculum modules
-  const missing = matchingModules.filter(m => !enrolledSet.has(m.id));
-  if (missing.length > 0) {
-    const toInsert = missing.map(m => ({
-      student_id: student.id,
-      module_id: m.id
-    }));
-    await supabase.from('student_modules').insert(toInsert).catch(() => {});
-    missing.forEach(m => enrolledSet.add(m.id));
+  // Merge curriculum modules with DB modules, ensuring 8 or 9 modules with assigned lecturer alone
+  const mergedList = curriculumMods.map((cm, idx) => {
+    const normCode = cm.code.replace(/\s+/g, '').toUpperCase();
+    const dbMod = (allModules || []).find(m => m.code?.replace(/\s+/g, '').toUpperCase() === normCode);
+    const modId = dbMod?.id || `mod-curr-${cm.code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+
+    // Lecturer alone for this module
+    const lecturerFullName = dbMod?.lecturers?.full_name || cm.lecturerName || (effectiveLevel === 3 ? 'Peter Saffa' : 'Academic Staff');
+    const lecturerId = dbMod?.lecturers?.lecturer_id || cm.lecturerId || (effectiveLevel === 3 ? 'LECT-2026-790380' : `LECT-${1000 + idx}`);
+
+    return {
+      id: modId,
+      code: cm.code,
+      title: cm.title,
+      level: effectiveLevel,
+      originalLevel: student.level,
+      semester: effectiveSemester,
+      isEnrolled: true,
+      autoAllocated: true,
+      lecturers: {
+        full_name: lecturerFullName,
+        lecturer_id: lecturerId
+      }
+    };
+  });
+
+  // Background auto-allocate: Link matching DB modules in student_modules
+  try {
+    const toInsert = (allModules || [])
+      .filter(m => {
+        const norm = m.code?.replace(/\s+/g, '').toUpperCase();
+        return curriculumMods.some(cm => cm.code.replace(/\s+/g, '').toUpperCase() === norm) && !enrolledSet.has(m.id);
+      })
+      .map(m => ({
+        student_id: student.id,
+        module_id: m.id
+      }));
+
+    if (toInsert.length > 0) {
+      await supabase.from('student_modules').upsert(toInsert, { onConflict: 'student_id,module_id', ignoreDuplicates: true }).catch(() => {});
+    }
+  } catch (syncErr) {
+    // Non-blocking
   }
 
-  // Return official enrolled modules
-  return (allModules || [])
-    .filter(m => enrolledSet.has(m.id))
-    .map(m => ({
-      ...m,
-      isEnrolled: true,
-      autoAllocated: true
-    }));
+  return mergedList;
 }
 
 export async function addModuleRegistration(moduleId) {

@@ -31,6 +31,8 @@ const AdminOperationsV50 = lazy(() => import('./components/AdminOperationsV50'))
 const StudentDashboardV36 = lazy(() => import('./components/StudentDashboardV36'));
 const StudentGradeInbox = lazy(() => import('./components/StudentGradeInbox'));
 const PaymentGate = lazy(() => import('./components/PaymentGate'));
+import NotificationSubscribeButton from './components/NotificationSubscribeButton';
+import { getTimeBasedGreeting } from './utils/greeting';
 import './v39-attendance.css';
 import './v15-attendance.css';
 import './v40-assignments.css';
@@ -2046,6 +2048,8 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
             <Search size={19} />
           </button>
 
+          <NotificationSubscribeButton compact={true} />
+
           <button className="icon-btn" title="Notifications" onClick={() => setPage?.("notifications")}>
             <Bell size={19}/>
             {unreadNotifsCount > 0 && (
@@ -2372,8 +2376,11 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
       <div className="welcome">
         <div>
           <p className="eyebrow">{lecturerId} • {departmentName}</p>
-          <h1>Good Day, {lecturerName}</h1>
+          <h1>{getTimeBasedGreeting(lecturerName)}</h1>
           <p>Teaching workspace for Level 3 Computer Science degree programmes.</p>
+          <div style={{ marginTop: '10px' }}>
+            <NotificationSubscribeButton />
+          </div>
         </div>
         <div className="date-chip">Academic Year 2026/2027<br /><strong>First Semester</strong></div>
       </div>

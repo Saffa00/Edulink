@@ -108,6 +108,29 @@ router.post('/test', async (req, res) => {
   res.json({ ok: true, dispatched: results });
 });
 
+// 4. POST /api/push/send-user - Dispatch push notification to a specific recipient user
+router.post('/send-user', async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Missing access token.' });
+
+    const client = anonClient();
+    const { data: { user }, error } = await client.auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Invalid access token.' });
+
+    const { userId, payload } = req.body;
+    if (!userId || !payload) {
+      return res.status(400).json({ error: 'Target userId and payload are required.' });
+    }
+
+    const results = await sendPushToUser(userId, payload);
+    return res.json({ ok: true, dispatched: results });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Helper function to dispatch push notifications to a user
 export async function sendPushToUser(userId, payload) {
   if (!userId || !process.env.VAPID_PUBLIC_KEY) return { sent: 0, failed: 0 };
@@ -140,7 +163,9 @@ export async function sendPushToUser(userId, payload) {
       failed++;
       // If subscription has expired or is unsubscribed (410 Gone or 404 Not Found), delete it
       if (err.statusCode === 410 || err.statusCode === 404) {
-        await admin.from('push_subscriptions').delete().eq('id', sub.id).catch(() => {});
+        try {
+          await admin.from('push_subscriptions').delete().eq('id', sub.id);
+        } catch {}
       }
     }
   }

@@ -1,5 +1,6 @@
-import React,{useEffect,useState} from 'react'
-import {getLecturerDashboardSummary} from '../services/lecturerDashboard'
+import React, { useEffect, useState } from 'react'
+import { getLecturerDashboardSummary } from '../services/lecturerDashboard'
+import { getTimeBasedGreeting } from '../utils/greeting'
 
 export default function LecturerDashboardV37({onNavigate}) {
   const [data,setData]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('')
@@ -18,7 +19,7 @@ export default function LecturerDashboardV37({onNavigate}) {
 
   return <main className="lecturer-dashboard-v37">
     <header className="lecturer-hero">
-      <p>Welcome back</p>
+      <p>{getTimeBasedGreeting(data.lecturer.full_name || 'Moses Saffa')}</p>
       <h1>{data.lecturer.full_name}</h1>
       <span>{data.lecturer.lecturer_id} · {data.lecturer.department || data.lecturer.teaching_area || 'Lecturer'}</span>
     </header>

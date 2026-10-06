@@ -11,13 +11,15 @@ async function resolveUserRoleAndProfile(user) {
   // 1. Check students
   const { data: student } = await admin
     .from('students')
-    .select('id, student_id, full_name, email, level, registration_type, auth_user_id, account_status')
+    .select('id, student_id, full_name, email, level, registration_type, auth_user_id, account_status, department_id, programme')
     .or(`auth_user_id.eq.${user.id},email.eq.${user.email}`)
     .maybeSingle();
 
   if (student) {
     if (!student.auth_user_id) {
-      await admin.from('students').update({ auth_user_id: user.id }).eq('id', student.id).catch(() => {});
+      try {
+        await admin.from('students').update({ auth_user_id: user.id }).eq('id', student.id);
+      } catch {}
     }
     return { role: 'student', profile: student };
   }
@@ -25,13 +27,15 @@ async function resolveUserRoleAndProfile(user) {
   // 2. Check lecturers
   const { data: lecturer } = await admin
     .from('lecturers')
-    .select('id, lecturer_id, full_name, email, auth_user_id, active')
+    .select('id, lecturer_id, full_name, email, auth_user_id, active, department_id, teaching_area')
     .or(`auth_user_id.eq.${user.id},email.eq.${user.email}`)
     .maybeSingle();
 
   if (lecturer) {
     if (!lecturer.auth_user_id) {
-      await admin.from('lecturers').update({ auth_user_id: user.id }).eq('id', lecturer.id).catch(() => {});
+      try {
+        await admin.from('lecturers').update({ auth_user_id: user.id }).eq('id', lecturer.id);
+      } catch {}
     }
     return { role: 'lecturer', profile: lecturer };
   }
@@ -95,14 +99,16 @@ router.get('/conversations', async (req, res) => {
           const targetStuId = (role === 'student' ? profile.id : stus?.[0]?.id) || '00000000-0000-0000-0000-000000000001';
 
           if (targetLecId && targetStuId) {
-            await admin.from('conversations').insert({
-              module_id: mod.id,
-              lecturer_id: targetLecId,
-              student_id: targetStuId,
-              student_user_id: user.id,
-              lecturer_user_id: lecs?.[0]?.auth_user_id || user.id,
-              last_message_at: new Date().toISOString()
-            }).catch(() => {});
+            try {
+              await admin.from('conversations').insert({
+                module_id: mod.id,
+                lecturer_id: targetLecId,
+                student_id: targetStuId,
+                student_user_id: user.id,
+                lecturer_user_id: lecs?.[0]?.auth_user_id || user.id,
+                last_message_at: new Date().toISOString()
+              });
+            } catch {}
           }
         }
       }
@@ -290,11 +296,12 @@ router.post('/send', async (req, res) => {
     if (sendErr) throw sendErr;
 
     // Update conversation timestamp
-    await admin
-      .from('conversations')
-      .update({ last_message_at: new Date().toISOString() })
-      .eq('id', conversationId)
-      .catch(() => {});
+    try {
+      await admin
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversationId);
+    } catch {}
 
     // Dispatch in-app notification & push alerts
     try {
@@ -330,21 +337,25 @@ router.post('/send', async (req, res) => {
         }
 
         for (const recipientId of Array.from(recipients).slice(0, 15)) {
-          admin.from('notifications').insert({
-            recipient_user_id: recipientId,
-            title: `${moduleCode}: ${senderName}`,
-            body: cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody,
-            category: 'message',
-            link_url: '/messages',
-            created_at: new Date().toISOString()
-          }).catch(() => {});
+          try {
+            await admin.from('notifications').insert({
+              recipient_user_id: recipientId,
+              title: `${moduleCode}: ${senderName}`,
+              body: cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody,
+              category: 'message',
+              link_url: '/messages',
+              created_at: new Date().toISOString()
+            });
+          } catch {}
 
-          sendPushToUser(recipientId, {
-            title: `${moduleCode}: ${senderName}`,
-            body: cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody,
-            icon: '/edulink-logo.jpg',
-            data: { url: '/messages', category: 'message' }
-          }).catch(() => {});
+          try {
+            await sendPushToUser(recipientId, {
+              title: `${moduleCode}: ${senderName}`,
+              body: cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody,
+              icon: '/edulink-logo.jpg',
+              data: { url: '/messages', category: 'message' }
+            });
+          } catch {}
         }
       }
     } catch (notifErr) {
@@ -425,12 +436,16 @@ router.post('/conversations', async (req, res) => {
         conv = { ...createdGroup, is_group: true, group_title: `${mod?.code} Class Group` };
       }
     } else if (recipientType === 'student') {
-      // Classmate direct chat (Student to Student doing the same module)
+      // Classmate direct chat (Student to Student doing the same module / same department)
       const { data: peerStudent } = await admin
         .from('students')
-        .select('id, auth_user_id, full_name, student_id')
+        .select('id, auth_user_id, full_name, student_id, department_id')
         .eq('id', recipientId)
         .maybeSingle();
+
+      if (profile.department_id && peerStudent?.department_id && profile.department_id !== peerStudent.department_id) {
+        return res.status(403).json({ error: 'Messaging is restricted to students and lecturers in the same department.' });
+      }
 
       const peerUserId = peerStudent?.auth_user_id || '00000000-0000-0000-0000-000000000002';
       const myStuId = role === 'student' ? profile.id : recipientId;
@@ -474,9 +489,16 @@ router.post('/conversations', async (req, res) => {
         conv = createdPeer;
       }
     } else {
-      // Direct student to lecturer consultation
+      // Direct student to lecturer consultation (same department)
       const targetLecId = recipientId || mod?.lecturer_id;
       const targetStuId = role === 'student' ? profile.id : recipientId;
+
+      if (profile.department_id) {
+        const { data: targetLecRecord } = await admin.from('lecturers').select('id, department_id').eq('id', targetLecId).maybeSingle();
+        if (targetLecRecord?.department_id && targetLecRecord.department_id !== profile.department_id) {
+          return res.status(403).json({ error: 'Direct consultation is restricted to students and lecturers in the same department.' });
+        }
+      }
 
       const { data: existingDirect } = await admin
         .from('conversations')
@@ -521,11 +543,13 @@ router.post('/conversations', async (req, res) => {
     }
 
     if (initialMessage && initialMessage.trim() && conv?.id) {
-      await admin.from('messages').insert({
-        conversation_id: conv.id,
-        sender_user_id: user.id,
-        body: initialMessage.trim()
-      }).catch(() => {});
+      try {
+        await admin.from('messages').insert({
+          conversation_id: conv.id,
+          sender_user_id: user.id,
+          body: initialMessage.trim()
+        });
+      } catch {}
     }
 
     return res.json({ ok: true, conversation: conv });
@@ -535,7 +559,7 @@ router.post('/conversations', async (req, res) => {
   }
 });
 
-// 5. GET /api/messages/contacts - Get eligible contacts grouped by module (Groups, Lecturers, Classmates)
+// 5. GET /api/messages/contacts - Get eligible contacts grouped by module (Restricted to same department)
 router.get('/contacts', async (req, res) => {
   try {
     const user = await getAuthenticatedUser(req);
@@ -558,40 +582,51 @@ router.get('/contacts', async (req, res) => {
     }
 
     if (userModuleIds.length === 0) {
-      const { data: allMods } = await admin.from('modules').select('id').eq('active', true);
+      let query = admin.from('modules').select('id').eq('active', true);
+      if (profile.department_id) {
+        query = query.eq('department_id', profile.department_id);
+      }
+      const { data: allMods } = await query;
       userModuleIds = (allMods || []).map(r => r.id);
     }
 
     // 1. Module details
     const { data: modules } = await admin
       .from('modules')
-      .select('id, code, title, level, semester, lecturer_id, lecturers(id, lecturer_id, full_name, email)')
+      .select('id, code, title, level, semester, lecturer_id, department_id, lecturers(id, lecturer_id, full_name, email, department_id)')
       .in('id', userModuleIds);
 
     // 2. Classmates enrolled in these modules
     const { data: enrollments } = await admin
       .from('student_modules')
-      .select('module_id, student_id, students(id, student_id, full_name, email, programme, level)')
+      .select('module_id, student_id, students(id, student_id, full_name, email, programme, level, department_id)')
       .in('module_id', userModuleIds);
 
-    // Group classmates by module
+    // Group classmates by module, filtering by same department if specified
     const classmatesByModule = {};
     const uniqueClassmates = new Map();
     (enrollments || []).forEach(e => {
       const s = e.students;
       if (s && s.id !== profile.id) {
-        if (!classmatesByModule[e.module_id]) classmatesByModule[e.module_id] = [];
-        if (!classmatesByModule[e.module_id].some(c => c.id === s.id)) {
-          classmatesByModule[e.module_id].push(s);
+        // Enforce same department restriction
+        if (!profile.department_id || !s.department_id || s.department_id === profile.department_id) {
+          if (!classmatesByModule[e.module_id]) classmatesByModule[e.module_id] = [];
+          if (!classmatesByModule[e.module_id].some(c => c.id === s.id)) {
+            classmatesByModule[e.module_id].push(s);
+          }
+          uniqueClassmates.set(s.id, s);
         }
-        uniqueClassmates.set(s.id, s);
       }
     });
 
-    // 3. Lecturers for these modules
+    // 3. Lecturers for these modules, restricted to same department
     const uniqueLecturers = new Map();
     (modules || []).forEach(m => {
-      if (m.lecturers) uniqueLecturers.set(m.lecturers.id, m.lecturers);
+      if (m.lecturers) {
+        if (!profile.department_id || !m.lecturers.department_id || m.lecturers.department_id === profile.department_id) {
+          uniqueLecturers.set(m.lecturers.id, m.lecturers);
+        }
+      }
     });
 
     return res.json({

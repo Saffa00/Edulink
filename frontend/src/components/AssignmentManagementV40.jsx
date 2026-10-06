@@ -158,12 +158,35 @@ export default function AssignmentManagementV40({ role = 'lecturer', initialAssi
     }
   };
 
-  // Download Brief or Submission file
-  const handleDownloadFile = async (bucket, filePath, fileName = 'attachment') => {
+  // Download Brief or Submission file - supports mobile Chrome, Safari, and Desktop
+  const handleDownloadFile = async (bucket, filePath, fileName = 'academic_document') => {
     try {
+      setError('');
       const url = await getSignedFileUrl(bucket, filePath);
       if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
+        // 1. Programmatic anchor click for mobile Safari, Chrome & Desktop
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => document.body.removeChild(link), 300);
+
+        // 2. Mobile WebView / Capacitor / Cordova system browser fallback
+        if (window?.cordova?.InAppBrowser) {
+          window.cordova.InAppBrowser.open(url, '_system');
+        } else {
+          // Detect mobile devices to ensure external browser opens
+          const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (isMobile) {
+            const popup = window.open(url, '_system') || window.open(url, '_blank');
+            if (!popup) {
+              window.location.assign(url);
+            }
+          }
+        }
       } else {
         setError('Unable to generate secure download link.');
       }

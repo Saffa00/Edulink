@@ -52,5 +52,10 @@ app.use('/api/messages', messageRouter);
 app.use('/api/calls', callRouter);
 app.use('/api/push', pushRouter);
 
+import { startClassReminderWorker } from './services/classReminder.js';
+
 const port = process.env.PORT || 4000;
-app.listen(port, () => console.log(`Academic PWA production server running on port ${port}`));
+app.listen(port, () => {
+  console.log(`Academic PWA production server running on port ${port}`);
+  startClassReminderWorker();
+});

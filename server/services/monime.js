@@ -50,12 +50,6 @@ export async function createCheckout({
     }
   };
 
-  if (phone) {
-    payload.customer = {
-      phoneNumber: phone
-    };
-  }
-
   const response = await fetch(`${API_BASE}/v1/checkout-sessions`, {
     method: 'POST',
     headers: headers({ 'Idempotency-Key': reference }),
@@ -64,7 +58,12 @@ export async function createCheckout({
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.success) {
-    throw new Error(data?.messages?.join?.('; ') || `Monime returned HTTP ${response.status}`);
+    const detailError = data?.error?.details?.[0]?.errors?.join?.('; ')
+      || data?.error?.message
+      || (Array.isArray(data?.messages) && data.messages.length ? data.messages.join('; ') : '')
+      || `Monime returned HTTP ${response.status}`;
+    console.error('Monime checkout error details:', response.status, JSON.stringify(data));
+    throw new Error(detailError);
   }
   return data.result;
 }

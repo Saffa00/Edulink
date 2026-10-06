@@ -608,11 +608,12 @@ export async function sendChatMessage(conversationId, body) {
 
   if (error) throw error;
 
-  await supabase
-    .from('conversations')
-    .update({ last_message_at: new Date().toISOString() })
-    .eq('id', conversationId)
-    .catch(() => {});
+  try {
+    await supabase
+      .from('conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', conversationId);
+  } catch {}
 
   return data;
 }
@@ -744,19 +745,29 @@ export async function getModuleCatalogue() {
   });
 
   // 2. Fetch all active modules from database
-  const { data: allModules } = await supabase
-    .from('modules')
-    .select('id, code, title, level, semester, active, lecturers(id, lecturer_id, full_name, email)')
-    .eq('active', true)
-    .order('code')
-    .catch(() => ({ data: [] }));
+  let allModules = [];
+  try {
+    const { data } = await supabase
+      .from('modules')
+      .select('id, code, title, level, semester, active, lecturers(id, lecturer_id, full_name, email)')
+      .eq('active', true)
+      .order('code');
+    allModules = data || [];
+  } catch (err) {
+    console.warn('Modules query notice:', err);
+  }
 
   // 3. Fetch student's currently registered modules
-  const { data: enrolled } = await supabase
-    .from('student_modules')
-    .select('module_id, registered_at')
-    .eq('student_id', student.id)
-    .catch(() => ({ data: [] }));
+  let enrolled = [];
+  try {
+    const { data } = await supabase
+      .from('student_modules')
+      .select('module_id, registered_at')
+      .eq('student_id', student.id);
+    enrolled = data || [];
+  } catch (err) {
+    console.warn('Enrolled query notice:', err);
+  }
 
   const enrolledSet = new Set((enrolled || []).map(e => e.module_id));
 
@@ -801,7 +812,7 @@ export async function getModuleCatalogue() {
       }));
 
     if (toInsert.length > 0) {
-      await supabase.from('student_modules').upsert(toInsert, { onConflict: 'student_id,module_id', ignoreDuplicates: true }).catch(() => {});
+      await supabase.from('student_modules').upsert(toInsert, { onConflict: 'student_id,module_id', ignoreDuplicates: true });
     }
   } catch (syncErr) {
     // Non-blocking

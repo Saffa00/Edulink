@@ -124,21 +124,25 @@ router.post('/update-status', async (req, res) => {
           const missedTitle = `Missed ${call.call_type === 'video' ? 'Video' : 'Voice'} Call`;
           const missedBody = `You missed an academic consultation call from ${call.caller_name} (${call.module_code}).`;
 
-          await admin.from('notifications').insert({
-            recipient_user_id: call.receiver_user_id,
-            title: missedTitle,
-            body: missedBody,
-            category: 'call',
-            link_url: '/messages',
-            created_at: new Date().toISOString()
-          }).catch(() => {});
+          try {
+            await admin.from('notifications').insert({
+              recipient_user_id: call.receiver_user_id,
+              title: missedTitle,
+              body: missedBody,
+              category: 'call',
+              link_url: '/messages',
+              created_at: new Date().toISOString()
+            });
+          } catch {}
 
-          sendPushToUser(call.receiver_user_id, {
-            title: missedTitle,
-            body: missedBody,
-            icon: '/edulink-logo.jpg',
-            data: { url: '/messages', category: 'call' }
-          }).catch(() => {});
+          try {
+            await sendPushToUser(call.receiver_user_id, {
+              title: missedTitle,
+              body: missedBody,
+              icon: '/edulink-logo.jpg',
+              data: { url: '/messages', category: 'call' }
+            });
+          } catch {}
         }
       }
     } catch (dbErr) {

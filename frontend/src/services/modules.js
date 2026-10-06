@@ -114,7 +114,7 @@ export async function createModule(payload) {
           student_id: s.id,
           module_id: data.id
         }));
-        await supabase.from('student_modules').insert(enrollments).select().catch(() => {});
+        await supabase.from('student_modules').insert(enrollments);
       }
     } catch (allocErr) {
       console.warn('Auto-enrollment background notice:', allocErr.message);

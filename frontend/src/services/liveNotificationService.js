@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { apiUrl } from './apiConfig.js';
 
 // ============================================================================
 // 1. Web Audio Chime Synthesizer
@@ -334,7 +335,7 @@ export async function sendAcademicNotification({
         category,
         notification_type: category,
         link_url: linkUrl
-      }).catch(() => {});
+      });
     }
   } catch (err) {
     console.warn('DB notification insert notice:', err?.message);
@@ -347,12 +348,36 @@ export async function sendAcademicNotification({
       type: 'broadcast',
       event: 'academic-notification',
       payload: { ...item, targetUserId: recipientUserId }
-    }).catch(() => {});
+    });
   } catch (bcErr) {
     console.warn('Broadcast notification notice:', bcErr?.message);
   }
 
-  // 3. Play chime & show in-app live toast
+  // 3. Dispatch real Web Push / Mobile Push notification to user's device
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (recipientUserId && token) {
+      fetch(apiUrl('/api/push/send-user'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: recipientUserId,
+          payload: {
+            title,
+            body,
+            icon: '/edulink-logo.jpg',
+            data: { url: linkUrl || '/notifications', category }
+          }
+        })
+      }).catch(() => {});
+    }
+  } catch (pushErr) {}
+
+  // 4. Play chime & show in-app live toast
   try {
     playNotificationChime();
     emitLiveToast(item);

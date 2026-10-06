@@ -157,7 +157,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   const [form, setForm] = useState({
     id: initialStudentId || '', password:'', confirmPassword:'', email:'', fullName:'', studentId: initialStudentId || '', phone:'',
     facultyId:'faculty-applied-sciences', departmentId:'dept-computer-science', programmeId:'', programme:'BSc', level:'1',
-    academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal',
+    academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal', selectedModulesCount: 8,
     modules:[], teachingArea:'Department of Computer Science', deviceName:''
   });
 
@@ -182,8 +182,11 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     });
   }, [role, form.campus, form.facultyId, form.departmentId, form.programme, form.level, form.semester]);
 
-  const studentModulesCount = studentCurriculumModules.length || 8;
-  const studentTuition = form.registrationType === 'dissertation' ? 500 : studentModulesCount * 100;
+  const totalDepartmentModules = studentCurriculumModules.length || 8;
+  const activeSelectedModulesCount = form.registrationType === 'dissertation'
+    ? 1
+    : Math.min(Number(form.selectedModulesCount) || totalDepartmentModules, totalDepartmentModules);
+  const studentTuition = form.registrationType === 'dissertation' ? 500 : activeSelectedModulesCount * 100;
 
   React.useEffect(() => {
     if (initialStudentId) {
@@ -288,19 +291,30 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           const found = depts.find(d => d.id === form.departmentId);
           if (found) resolvedFacultyId = found.facultyId;
         }
+        const chosenCount = form.registrationType === 'dissertation' ? 1 : activeSelectedModulesCount;
+        const chosenModules = form.registrationType === 'dissertation'
+          ? ['DISSERTATION-RES']
+          : (studentCurriculumModules.length > 0
+              ? studentCurriculumModules.slice(0, chosenCount).map(m => m.code)
+              : Array.from({ length: chosenCount }, (_, i) => `MOD-${i + 1}`));
+
         const applicantData = {
           ...form,
           facultyId: resolvedFacultyId,
-          modulesCount: studentModulesCount,
-          modules: studentCurriculumModules.map(m => m.code)
+          modulesCount: chosenCount,
+          modules: chosenModules,
+          registrationType: form.registrationType,
+          amount: studentTuition
         };
         await registerStudentApplicantAndCheckout(applicantData);
         setForm(f => ({
           ...f,
           id: form.studentId,
           facultyId: resolvedFacultyId,
-          modulesCount: studentModulesCount,
-          modules: studentCurriculumModules.map(m => m.code)
+          modulesCount: chosenCount,
+          modules: chosenModules,
+          registrationType: form.registrationType,
+          amount: studentTuition
         }));
         setScreen('checkout');
       } else {
@@ -631,17 +645,17 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               const prog = getProgrammeInfo(form.programme || 'BSc');
               return (
                 <div style={{
-                  marginTop: '12px',
-                  padding: '14px 16px',
+                  marginTop: '10px',
+                  padding: '12px 14px',
                   borderRadius: '12px',
                   background: '#f8fafc',
-                  border: `1px solid ${prog.badgeColor}40`,
+                  border: `1px solid ${prog.badgeColor}35`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Award size={18} color={prog.badgeColor} />
-                      <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{prog.fullName} Specification</strong>
+                      <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{prog.fullName}</strong>
                     </div>
                     <span style={{
                       padding: '3px 9px',
@@ -654,20 +668,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                       {prog.levels.length} Levels ({prog.years[0]} – {prog.years[prog.years.length - 1]})
                     </span>
                   </div>
-
-                  <p style={{ margin: '0 0 10px 0', fontSize: '12.5px', color: '#334155', lineHeight: 1.5 }}>
-                    {prog.specification}
-                  </p>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '11.5px', color: '#475569', borderTop: '1px dashed #cbd5e1', paddingTop: '8px' }}>
-                    <div>
-                      <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>Award:</strong>
-                      {prog.award}
-                    </div>
-                    <div>
-                      <strong style={{ color: '#0f172a', display: 'block', marginBottom: '2px' }}>Entry Requirement:</strong>
-                      {prog.admissionRequirements}
-                    </div>
+                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#475569' }}>
+                    <strong style={{ color: '#0f172a' }}>Award: </strong>{prog.award} • {prog.duration}
                   </div>
                 </div>
               );
@@ -699,12 +701,100 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               <option>Second Semester</option>
             </select>
           </div>
-          <div className="full-span">
-            <label>Registration Type</label>
-            <select value={form.registrationType} onChange={e=>update('registrationType',e.target.value)}>
-              <option value="normal">Normal Student — SLE 100 / Module ({studentModulesCount} Modules = SLE {studentModulesCount * 100})</option>
-              <option value="dissertation">Dissertation Student — Flat SLE 500</option>
-            </select>
+          <div className="full-span" style={{ marginTop: '8px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>
+              Choose Module Registration Amount (SLE 100 / Module)
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
+              {(() => {
+                const total = studentCurriculumModules.length || 8;
+                const minCount = Math.max(1, Math.min(3, total));
+                const options = [];
+                for (let c = total; c >= minCount; c--) {
+                  options.push({
+                    type: 'normal',
+                    count: c,
+                    title: c === total ? `${c} Modules (Full Semester)` : `${c} Modules`,
+                    desc: c === total ? 'All curriculum modules in department' : `Register ${c} modules in department`,
+                    fee: c * 100
+                  });
+                }
+                options.push({
+                  type: 'dissertation',
+                  count: 1,
+                  title: 'Dissertation Student',
+                  desc: 'Final year thesis & research only',
+                  fee: 500
+                });
+
+                return options.map((opt) => {
+                  const isChecked = opt.type === 'dissertation'
+                    ? form.registrationType === 'dissertation'
+                    : (form.registrationType !== 'dissertation' && activeSelectedModulesCount === opt.count);
+
+                  return (
+                    <label
+                      key={`${opt.type}-${opt.count}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '11px 14px',
+                        borderRadius: '12px',
+                        border: isChecked ? '2px solid #0284c7' : '1.5px solid #cbd5e1',
+                        background: isChecked ? '#f0f9ff' : '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isChecked ? '0 3px 10px rgba(2, 132, 199, 0.12)' : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <input
+                          type="radio"
+                          name="moduleRegistrationRadio"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (opt.type === 'dissertation') {
+                              update('registrationType', 'dissertation');
+                              update('selectedModulesCount', 1);
+                            } else {
+                              update('registrationType', 'normal');
+                              update('selectedModulesCount', opt.count);
+                            }
+                          }}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            accentColor: '#0284c7',
+                            cursor: 'pointer',
+                            margin: 0
+                          }}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '13px', color: isChecked ? '#0369a1' : '#1e293b' }}>
+                            {opt.title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            {opt.desc}
+                          </div>
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: '12.5px',
+                        fontWeight: 800,
+                        color: isChecked ? '#0369a1' : '#0a2540',
+                        background: isChecked ? '#e0f2fe' : '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        SLE {opt.fee}
+                      </span>
+                    </label>
+                  );
+                });
+              })()}
+            </div>
           </div>
           <div className="full-span" style={{
             background: '#eaf1f8',
@@ -715,19 +805,14 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             color: '#0a2540',
             marginTop: '4px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
               <BookOpen size={18} color="#0a2540" style={{ flexShrink: 0 }} />
-              <strong>Official Curriculum Allocation (Level {form.level} {form.level == '2' ? '→ Level 3 Progression' : ''}):</strong>
+              <strong>
+                Selected Tuition Allocation: {form.registrationType === 'dissertation' ? 'Dissertation (Flat SLE 500)' : `${activeSelectedModulesCount} Modules (SLE 100/module)`}
+              </strong>
             </div>
             <div style={{ fontSize: '12.5px', color: '#334155', lineHeight: '1.45' }}>
-              {studentCurriculumModules.length > 0 ? (
-                <>
-                  Allocated <b>{studentCurriculumModules.length} official modules</b> for your programme with designated lecturers alone.
-                  Tuition assessment: <b>SLE 100.00 per module</b> • Total payable through mobile money on student's phone: <b style={{ color: '#0369a1' }}>SLE {studentTuition}.00</b>.
-                </>
-              ) : (
-                <>Select your Department and Level above to preview your official 8–9 modules and SLE 100/module tuition assessment.</>
-              )}
+              Total payable through mobile money on student's phone: <b style={{ color: '#0369a1', fontSize: '14px' }}>SLE {studentTuition}.00</b>.
             </div>
           </div>
         </>

@@ -305,7 +305,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               </div>
             )}
 
-            {/* Pay Button */}
+            {/* Continue Payment Button */}
             <button
               type="submit"
               disabled={busy}
@@ -313,95 +313,206 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               style={{
                 height: '48px',
                 fontSize: '15px',
+                fontWeight: 700,
                 background: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed'
+                borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
               }}
             >
-              Pay {formattedFee} with {provider === 'orange' ? 'Orange Money' : 'Afrimoney'} <ArrowRight size={17} />
+              Continue Payment <ArrowRight size={17} />
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '14px', color: '#64748b', fontSize: '11px' }}>
               <Lock size={12} />
-              <span>Secured by Monime Mobile Payments Gateway • SSL Encrypted</span>
+              <span>Secured by Monime Mobile Payments Gateway • USSD Dial Authorization</span>
             </div>
           </form>
         )}
 
-        {/* Step: Prompt Sent & Awaiting PIN */}
-        {(step === 'prompt_sent' || step === 'verifying') && (
-          <div style={{
-            background: '#ffffff',
-            border: '1.5px solid #e2e8f0',
-            borderRadius: '16px',
-            padding: '30px 20px',
-            textAlign: 'center'
-          }}>
+        {/* Step: Continue Payment on Phone Dial (SafulPay & Monime USSD Flow) */}
+        {(step === 'prompt_sent' || step === 'verifying') && (() => {
+          const ussdCode = provider === 'orange' ? '*144*4*260460#' : '*161*2*1#';
+          const dialTel = `tel:${encodeURIComponent(ussdCode)}`;
+
+          return (
             <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              background: provider === 'orange' ? '#fff4eb' : '#f5f0ff',
-              color: provider === 'orange' ? '#ff6600' : '#7c3aed',
-              display: 'grid',
-              placeItems: 'center',
-              margin: '0 auto 16px auto'
+              background: '#ffffff',
+              border: '1.5px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '24px 20px',
+              textAlign: 'center'
             }}>
-              <PhoneCall size={30} className="v-spin" />
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: provider === 'orange' ? '#fff4eb' : '#f5f0ff',
+                color: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                display: 'grid',
+                placeItems: 'center',
+                margin: '0 auto 14px auto'
+              }}>
+                <Smartphone size={28} />
+              </div>
+
+              <div style={{
+                display: 'inline-block',
+                background: provider === 'orange' ? '#ff660015' : '#7c3aed15',
+                color: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                fontSize: '11px',
+                fontWeight: 800,
+                padding: '3px 10px',
+                borderRadius: '99px',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                {provider === 'orange' ? 'Orange Money USSD' : 'Afrimoney USSD'}
+              </div>
+
+              <h3 style={{ fontSize: '20px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>
+                Continue Payment on Your Phone
+              </h3>
+
+              <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.5, maxWidth: '440px', margin: '0 auto 16px auto' }}>
+                Use the official Monime code below on your phone <strong>({phone})</strong> and enter your PIN to approve <strong>{formattedFee}</strong>.
+              </p>
+
+              {/* Prominent Dial Code Box */}
+              <div style={{
+                background: '#f8fafc',
+                border: '2px dashed #cbd5e1',
+                borderRadius: '14px',
+                padding: '16px',
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                  Monime USSD Dial Code
+                </span>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: 900,
+                  letterSpacing: '1px',
+                  color: provider === 'orange' ? '#c2410c' : '#6d28d9',
+                  fontFamily: 'monospace',
+                  marginBottom: '12px'
+                }}>
+                  {ussdCode}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <a
+                    href={dialTel}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontSize: '12.5px',
+                      fontWeight: 700,
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      transition: 'opacity 0.15s ease'
+                    }}
+                  >
+                    <PhoneCall size={14} /> Tap to Dial on Phone
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(ussdCode);
+                      alert(`Dial code ${ussdCode} copied to clipboard!`);
+                    }}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      color: '#334155',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📋 Copy Code
+                  </button>
+                </div>
+              </div>
+
+              {/* Step-by-Step Instructions */}
+              <div style={{
+                textAlign: 'left',
+                background: '#f1f5f9',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                fontSize: '12px',
+                color: '#334155',
+                marginBottom: '20px',
+                lineHeight: 1.6
+              }}>
+                <strong style={{ display: 'block', color: '#0f172a', marginBottom: '4px' }}>How to complete on your phone:</strong>
+                <div>1. Dial <b>{ussdCode}</b> on your phone dialer (or click Tap to Dial above).</div>
+                <div>2. When prompted, confirm university merchant payment of <b>{formattedFee}</b>.</div>
+                <div>3. Enter your secret <b>{provider === 'orange' ? 'Orange Money' : 'Afrimoney'} PIN</b> on your mobile screen.</div>
+                <div>4. After receiving your SMS notification, click the button below to continue.</div>
+              </div>
+
+              {/* Status / Awaiting Indicator */}
+              <div style={{
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '10px 14px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#0a2540',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                marginBottom: '18px'
+              }}>
+                <RefreshCw size={15} className="v-spin" />
+                <span>
+                  {step === 'verifying' ? 'Verifying payment and provisioning student portal…' : `Waiting for mobile PIN approval (${ussdSeconds}s)…`}
+                </span>
+              </div>
+
+              {/* Confirmation Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '340px', margin: '0 auto' }}>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  style={{
+                    background: '#0a2540',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '12px 18px',
+                    borderRadius: '10px'
+                  }}
+                  onClick={confirmTransaction}
+                  disabled={step === 'verifying'}
+                >
+                  {step === 'verifying' ? 'Verifying…' : 'I Have Approved Payment on Phone'}
+                </button>
+                <button
+                  type="button"
+                  className="text-btn"
+                  style={{ fontSize: '12px', color: '#64748b' }}
+                  onClick={() => { setStep('select'); setBusy(false); }}
+                  disabled={step === 'verifying'}
+                >
+                  ← Change phone number or provider
+                </button>
+              </div>
             </div>
-
-            <h3 style={{ fontSize: '19px', color: '#061626', margin: '0 0 8px 0', fontWeight: 800 }}>
-              {step === 'verifying' ? 'Verifying Payment…' : `USSD Prompt Sent to ${phone}`}
-            </h3>
-
-            <p style={{ color: '#475569', fontSize: '13px', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 20px auto' }}>
-              Please check your phone screen right now and enter your <strong>{provider === 'orange' ? 'Orange Money' : 'Afrimoney'} PIN</strong> to authorize <strong>{formattedFee}</strong>.
-            </p>
-
-            <div style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '14px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: '#0a2540',
-              fontSize: '13px',
-              fontWeight: 700,
-              marginBottom: '20px'
-            }}>
-              <RefreshCw size={16} className="v-spin" />
-              <span>
-                {step === 'verifying' ? 'Provisioning account credentials…' : `Awaiting mobile approval (${ussdSeconds}s)…`}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>
-              <button
-                type="button"
-                className="primary-btn"
-                style={{
-                  background: '#0a2540',
-                  fontSize: '13px',
-                  padding: '10px 16px'
-                }}
-                onClick={confirmTransaction}
-                disabled={step === 'verifying'}
-              >
-                I have entered my PIN
-              </button>
-              <button
-                type="button"
-                className="text-btn"
-                style={{ fontSize: '12px', color: '#64748b' }}
-                onClick={() => { setStep('select'); setBusy(false); }}
-                disabled={step === 'verifying'}
-              >
-                Change phone number or method
-              </button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </section>
     </main>
   );

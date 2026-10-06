@@ -619,8 +619,8 @@ export const PROGRAMME_TYPES = [
     duration: "4 Years (8 Semesters)",
     award: "Bachelor of Science Degree (B.Sc. Hons)",
     qualification: "4-Year Undergraduate Degree",
-    specification: "4-Year full undergraduate degree programme providing comprehensive academic theories, laboratory coursework, computing, research methodology, and final-year capstone project/dissertation.",
-    admissionRequirements: "Minimum 5 WASSCE / GCE O'Level credits (including English Language & Mathematics) in relevant subjects.",
+    specification: "4-Year full undergraduate degree programme providing comprehensive academic theories, laboratory coursework, computing, and research methodology.",
+    admissionRequirements: "",
     careerPathways: "Senior software engineering, data science, research scholarship, IT systems architecture, and postgraduate study (M.Sc./Ph.D.)."
   },
   {
@@ -642,8 +642,8 @@ export const PROGRAMME_TYPES = [
     duration: "2 Years (4 Semesters)",
     award: "Undergraduate National Diploma",
     qualification: "2-Year Technical & Vocational Diploma",
-    specification: "2-Year intensive practical diploma focused on direct vocational competencies, applied technical skills, and immediate industry readiness.",
-    admissionRequirements: "Minimum 4 WASSCE credits with foundational passes in relevant technical or science subjects.",
+    specification: "2-Year intensive practical diploma focused on direct vocational competencies and applied technical skills.",
+    admissionRequirements: "",
     careerPathways: "Technical associate, junior system analyst, IT support specialist, or direct articulation into Year 2/Year 3 of the BSc degree."
   },
   {
@@ -666,8 +666,8 @@ export const PROGRAMME_TYPES = [
     duration: "3 Years (6 Semesters)",
     award: "Higher National Diploma (HND)",
     qualification: "3-Year Higher Vocational & Applied Diploma",
-    specification: "3-Year advanced technical diploma emphasizing applied laboratory training, industrial attachment, and professional engineering/technology competencies.",
-    admissionRequirements: "Minimum 4–5 WASSCE passes or recognized Ordinary National Diploma (OND) in related fields.",
+    specification: "3-Year advanced technical diploma emphasizing applied laboratory training, industrial attachment, and professional engineering competencies.",
+    admissionRequirements: "",
     careerPathways: "Senior technical specialist, technical supervisor, operations technologist, or university degree top-up programmes."
   }
 ];

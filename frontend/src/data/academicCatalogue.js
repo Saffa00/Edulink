@@ -174,14 +174,70 @@ export const CAMPUSES_DATA = [
               { code: "BSCS 316", title: "Cloud Computing & Architecture", level: 3, semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
 
               // YEAR THREE SECOND SEMESTER (Level 3, Second Semester) - 8 modules
-              { code: "BSCS 321", title: "Computer architecture", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
-              { code: "BSCS 322", title: "Software engineering II", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
-              { code: "BSCS 323", title: "Advance database", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
-              { code: "BSCS 324", title: "Multimedia", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
-              { code: "BSCS 325", title: "PHP", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
-              { code: "STA 321", title: "SPSS", level: 3, semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
-              { code: "BSCS 326", title: "Ethics in professionalism", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
-              { code: "BSCS 328", title: "Final Year Capstone Project", level: 3, semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" }
+              { code: "BSCS 321", title: "Computer architecture", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 322", title: "Software engineering II", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 323", title: "Advance database", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 324", title: "Multimedia", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 325", title: "PHP", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "STA 321", title: "SPSS", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 326", title: "Ethics in professionalism", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 328", title: "Final Year Capstone Project", level: 3, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+
+              // BSC YEAR FOUR (Level 4, BSc) - 8 modules
+              { code: "BSCS 411", title: "Oracle Database Administration & PL/SQL", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 412", title: "Advanced C++ Systems Programming", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+              { code: "BSCS 413", title: "Artificial Intelligence & Deep Learning", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Mohamed Koroma", lecturerId: "LECT-2026-1005" },
+              { code: "BSCS 414", title: "Enterprise Cloud Computing Architecture", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Alusine Jalloh", lecturerId: "LECT-2026-1002" },
+              { code: "BSCS 421", title: "Cybersecurity, Cryptography & Threat Mitigation", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Mr. Foday Mansaray", lecturerId: "LECT-2026-1010" },
+              { code: "BSCS 422", title: "Big Data Analytics & Data Warehousing", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "BSCS 423", title: "Distributed Systems & Microservices", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Mr. Samuel Bangura", lecturerId: "LECT-2026-1003" },
+              { code: "BSCS 428", title: "BSc Senior Honours Dissertation & Defense", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Peter Saffa", lecturerId: "LECT-2026-790380" },
+
+              // DIPLOMA YEAR ONE (Level 1, Diploma) - 8 modules
+              { code: "DCS 111", title: "Introduction to Information Technology & PC Hardware", level: 1, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 112", title: "Productivity Applications & Office Automation", level: 1, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 113", title: "Fundamentals of Web Authoring (HTML/CSS)", level: 1, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 114", title: "Introduction to Computer Programming (Python)", level: 1, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 121", title: "Operating Systems Installation & Troubleshooting", level: 1, programme: "Diploma", semester: "Second Semester" },
+              { code: "DCS 122", title: "Database Fundamentals with MySQL", level: 1, programme: "Diploma", semester: "Second Semester" },
+              { code: "DCS 123", title: "Local Area Networks & Cabling Practice", level: 1, programme: "Diploma", semester: "Second Semester" },
+              { code: "DCS 124", title: "Technical Communication & IT Professional Ethics", level: 1, programme: "Diploma", semester: "Second Semester" },
+
+              // DIPLOMA YEAR TWO (Level 2, Diploma) - 7 modules
+              { code: "DCS 211", title: "Network Administration & Windows Server", level: 2, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 212", title: "Web Application Development (PHP & JavaScript)", level: 2, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 213", title: "Desktop Application Development in .NET", level: 2, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 214", title: "Computer Maintenance & Technical Support Helpdesk", level: 2, programme: "Diploma", semester: "First Semester" },
+              { code: "DCS 221", title: "IT Entrepreneurship & Small Business Computing", level: 2, programme: "Diploma", semester: "Second Semester" },
+              { code: "DCS 222", title: "Supervised Industrial Internship Attachment", level: 2, programme: "Diploma", semester: "Second Semester" },
+              { code: "DCS 223", title: "Diploma Applied Practical IT Project", level: 2, programme: "Diploma", semester: "Second Semester" },
+
+              // HND YEAR ONE (Level 1, HND) - 8 modules
+              { code: "HND 111", title: "Principles of Computer Hardware & Architecture", level: 1, programme: "HND", semester: "First Semester" },
+              { code: "HND 112", title: "Structured Systems Analysis & Object Design", level: 1, programme: "HND", semester: "First Semester" },
+              { code: "HND 113", title: "Java Programming Fundamentals", level: 1, programme: "HND", semester: "First Semester" },
+              { code: "HND 114", title: "Data Communications & Networking Essentials", level: 1, programme: "HND", semester: "First Semester" },
+              { code: "HND 121", title: "Relational Database Design & SQL", level: 1, programme: "HND", semester: "Second Semester" },
+              { code: "HND 122", title: "Linux System Administration", level: 1, programme: "HND", semester: "Second Semester" },
+              { code: "HND 123", title: "Responsive Web Engineering", level: 1, programme: "HND", semester: "Second Semester" },
+              { code: "HND 124", title: "Quantitative Techniques in Computing", level: 1, programme: "HND", semester: "Second Semester" },
+
+              // HND YEAR TWO (Level 2, HND) - 7 modules
+              { code: "HND 211", title: "Advanced Routing & Network Infrastructure", level: 2, programme: "HND", semester: "First Semester" },
+              { code: "HND 212", title: "Server-Side Web Programming", level: 2, programme: "HND", semester: "First Semester" },
+              { code: "HND 213", title: "Information Systems Security & Cryptography", level: 2, programme: "HND", semester: "First Semester" },
+              { code: "HND 214", title: "Software Engineering & Testing Frameworks", level: 2, programme: "HND", semester: "First Semester" },
+              { code: "HND 221", title: "Mobile Application Development", level: 2, programme: "HND", semester: "Second Semester" },
+              { code: "HND 222", title: "Cloud Virtualization & Containers", level: 2, programme: "HND", semester: "Second Semester" },
+              { code: "HND 223", title: "Supervised Industrial Work Experience (SIWES)", level: 2, programme: "HND", semester: "Second Semester" },
+
+              // HND YEAR THREE (Level 3, HND) - 6 modules
+              { code: "HND 311", title: "Enterprise Systems Integration", level: 3, programme: "HND", semester: "First Semester" },
+              { code: "HND 312", title: "Applied Artificial Intelligence & Data Analytics", level: 3, programme: "HND", semester: "First Semester" },
+              { code: "HND 313", title: "Cyber Threat Intelligence & Incident Response", level: 3, programme: "HND", semester: "First Semester" },
+              { code: "HND 314", title: "IT Governance, Audit & Service Management", level: 3, programme: "HND", semester: "First Semester" },
+              { code: "HND 321", title: "Advanced Network Security & Penetration Testing", level: 3, programme: "HND", semester: "Second Semester" },
+              { code: "HND 322", title: "HND Final Technology Dissertation & Defense", level: 3, programme: "HND", semester: "Second Semester" }
             ]
           },
           {
@@ -742,11 +798,89 @@ export function getModulesByCampusAndFaculty(campusId, facultyId) {
   return list;
 }
 
-// Get modules for a specific department
-export function getModulesByCampusFacultyDept(campusId, facultyId, departmentId) {
+// Get modules for a specific department (with optional programme and level filtering)
+export function getModulesByCampusFacultyDept(campusId, facultyId, departmentId, programme, level) {
   const depts = getDepartmentsByCampusAndFaculty(campusId, facultyId);
   const dept = depts.find(d => d.id === departmentId);
-  return dept ? dept.modules : [];
+  const mods = dept ? (dept.modules || []) : [];
+  if (!programme && !level) return mods;
+  return getModulesForLecturerTeaching({ campusId, facultyId, departmentId, programme, level });
+}
+
+/**
+ * Filter official modules specifically for a lecturer's selected Programme & Level.
+ * e.g. Programme: 'BSc', Level: 1 -> only BSc Year 1 modules.
+ */
+export function getModulesForLecturerTeaching({ campusId, facultyId, departmentId, programme = 'BSc', level = '1' } = {}) {
+  let depts = [];
+  if (campusId && facultyId) {
+    depts = getDepartmentsByCampusAndFaculty(campusId, facultyId);
+  } else if (campusId) {
+    depts = getDepartmentsByCampus(campusId);
+  } else if (facultyId) {
+    depts = getDepartmentsByFacultyId(facultyId);
+  } else {
+    depts = ALL_FACULTIES.flatMap(f => f.departments);
+  }
+
+  if (departmentId) {
+    depts = depts.filter(d => d.id === departmentId || d.name.toLowerCase().includes(departmentId.toLowerCase()));
+  }
+
+  const allMods = depts.flatMap(d => d.modules || []);
+  const progClean = String(programme || 'BSc').trim().toUpperCase();
+  const lvlNum = Number(level) || 1;
+
+  let filtered = allMods.filter(m => {
+    // 1. Level match
+    let modLevel = m.level !== undefined && m.level !== null ? Number(m.level) : null;
+    if (modLevel === null) {
+      const match = (m.code || '').match(/\d+/);
+      if (match) {
+        modLevel = Number(match[0][0]);
+      }
+    }
+    if (modLevel !== null && modLevel !== lvlNum) {
+      return false;
+    }
+
+    // 2. Programme match
+    if (m.programme) {
+      if (m.programme.toUpperCase() !== progClean) return false;
+    } else if (Array.isArray(m.programmes)) {
+      if (!m.programmes.some(p => p.toUpperCase() === progClean)) return false;
+    } else {
+      const code = String(m.code || '').toUpperCase();
+      if (code.startsWith('BSCS') || code.startsWith('BSC')) {
+        if (progClean !== 'BSC') return false;
+      } else if (code.startsWith('DCS') || code.startsWith('DIP')) {
+        if (progClean !== 'DIPLOMA') return false;
+      } else if (code.startsWith('HND')) {
+        if (progClean !== 'HND') return false;
+      } else if (progClean === 'DIPLOMA' || progClean === 'HND') {
+        const deptHasDedicated = allMods.some(x => {
+          const c = String(x.code || '').toUpperCase();
+          return progClean === 'DIPLOMA'
+            ? (c.startsWith('DCS') || c.startsWith('DIP') || (x.programme && x.programme.toUpperCase() === 'DIPLOMA'))
+            : (c.startsWith('HND') || (x.programme && x.programme.toUpperCase() === 'HND'));
+        });
+        if (deptHasDedicated) return false;
+      }
+    }
+
+    return true;
+  });
+
+  // If department has generic modules that lack level/programme tags, match by level number
+  if (!filtered.length && allMods.length) {
+    filtered = allMods.filter(m => {
+      const match = (m.code || '').match(/\d+/);
+      const modLevel = match ? Number(match[0][0]) : 1;
+      return modLevel === lvlNum;
+    });
+  }
+
+  return filtered;
 }
 
 // Backwards-compatible wrappers

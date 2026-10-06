@@ -46,7 +46,8 @@ import {
   getProgrammesByCampusAndFaculty,
   getModulesByCampusAndFaculty,
   getModulesByCampusFacultyDept,
-  getCurriculumModules
+  getCurriculumModules,
+  getModulesForLecturerTeaching
 } from './data/academicCatalogue.js';
 import {
   Bell, BookOpen, CalendarCheck, ChevronRight, ClipboardList, FileText,
@@ -157,6 +158,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   const [form, setForm] = useState({
     id: initialStudentId || '', password:'', confirmPassword:'', email:'', fullName:'', studentId: initialStudentId || '', phone:'',
     facultyId:'faculty-applied-sciences', departmentId:'dept-computer-science', programmeId:'', programme:'BSc', level:'1',
+    programmeLecturing: 'BSc', levelLecturing: '1',
     academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal', selectedModulesCount: 8,
     modules:[], teachingArea:'Department of Computer Science', deviceName:''
   });
@@ -170,6 +172,38 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     }
   };
 
+  const getLevelsForLecturerProgramme = (progCode) => {
+    const code = String(progCode || 'BSc').trim().toUpperCase();
+    if (code === 'DIPLOMA') {
+      return [
+        { value: '1', label: 'Year 1' },
+        { value: '2', label: 'Year 2' }
+      ];
+    }
+    if (code === 'HND') {
+      return [
+        { value: '1', label: 'Year 1' },
+        { value: '2', label: 'Year 2' },
+        { value: '3', label: 'Year 3' }
+      ];
+    }
+    return [
+      { value: '1', label: 'Year 1' },
+      { value: '2', label: 'Year 2' },
+      { value: '3', label: 'Year 3' },
+      { value: '4', label: 'Year 4' }
+    ];
+  };
+
+  const handleLecturerProgrammeSelect = (progCode) => {
+    update('programmeLecturing', progCode);
+    const validLevels = getLevelsForLecturerProgramme(progCode).map(l => l.value);
+    if (!validLevels.includes(form.levelLecturing)) {
+      update('levelLecturing', '1');
+    }
+    update('modules', []);
+  };
+
   const studentCurriculumModules = React.useMemo(() => {
     if (role !== 'student' || !form.departmentId) return [];
     return getCurriculumModules({
@@ -181,6 +215,17 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
       semester: form.semester
     });
   }, [role, form.campus, form.facultyId, form.departmentId, form.programme, form.level, form.semester]);
+
+  const lecturerAvailableModules = React.useMemo(() => {
+    if (role !== 'lecturer' || !form.departmentId) return [];
+    return getModulesForLecturerTeaching({
+      campusId: form.campus,
+      facultyId: form.facultyId,
+      departmentId: form.departmentId,
+      programme: form.programmeLecturing || 'BSc',
+      level: form.levelLecturing || '1'
+    });
+  }, [role, form.campus, form.facultyId, form.departmentId, form.programmeLecturing, form.levelLecturing]);
 
   const totalDepartmentModules = studentCurriculumModules.length || 8;
   const activeSelectedModulesCount = form.registrationType === 'dissertation'
@@ -333,7 +378,14 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         if (!resolvedFacultyId || !form.departmentId) {
           throw new Error('Please select both a Campus and a Department.');
         }
-        const result = await signUpLecturer({ ...form, facultyId: resolvedFacultyId });
+        const result = await signUpLecturer({
+          ...form,
+          facultyId: resolvedFacultyId,
+          programme: form.programmeLecturing || 'BSc',
+          level: form.levelLecturing || '1',
+          programmeLecturing: form.programmeLecturing || 'BSc',
+          levelLecturing: form.levelLecturing || '1'
+        });
         setForm(f => ({...f, id: result.lecturerId, facultyId: resolvedFacultyId}));
         setMessage(result.session ? `Account created. Your Lecturer ID is ${result.lecturerId}.` : `Account created. Your Lecturer ID is ${result.lecturerId}. Verify your email, then log in.`);
         setScreen('registered');
@@ -499,6 +551,53 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               </div>
             )}
           </div>
+          <div className="full-span">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ margin: 0 }}>Programme Lecturing</label>
+              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select BSc (Yr 1–4), Diploma (Yr 1–2), or HND (Yr 1–3)</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
+              {PROGRAMME_TYPES.map(prog => {
+                const isSelected = (form.programmeLecturing || 'BSc').toUpperCase() === prog.code.toUpperCase();
+                return (
+                  <button
+                    key={prog.id}
+                    type="button"
+                    onClick={() => handleLecturerProgrammeSelect(prog.code)}
+                    style={{
+                      padding: '12px 10px',
+                      borderRadius: '12px',
+                      border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
+                      background: isSelected ? prog.badgeBg : '#ffffff',
+                      color: isSelected ? prog.badgeColor : '#334155',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.18s ease',
+                      boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
+                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>{prog.duration}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <label>Level Lecturing</label>
+            <select
+              value={form.levelLecturing || '1'}
+              onChange={e => {
+                update('levelLecturing', e.target.value);
+                update('modules', []);
+              }}
+              required
+            >
+              {getLevelsForLecturerProgramme(form.programmeLecturing).map(lvl => (
+                <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label>Academic Year</label>
             <select value={form.academicYear} onChange={e=>update('academicYear',e.target.value)}>
@@ -515,7 +614,9 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           </div>
           <div className="full-span">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ margin: 0 }}>Department Module(s) Teaching</label>
+              <label style={{ margin: 0 }}>
+                Department Module(s) Teaching ({form.programmeLecturing || 'BSc'} • Year {form.levelLecturing || '1'})
+              </label>
               {form.departmentId && (
                 <span style={{ fontSize: '11px', color: '#0a2540', fontWeight: 600 }}>
                   {form.modules.length} selected
@@ -526,9 +627,13 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               <div style={{ padding: '14px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                 Please select a Campus and Department above to see teaching modules.
               </div>
+            ) : lecturerAvailableModules.length === 0 ? (
+              <div style={{ padding: '14px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                No curriculum modules currently listed for {form.programmeLecturing || 'BSc'} Year {form.levelLecturing || '1'} in this department.
+              </div>
             ) : (
               <div className="module-select-grid">
-                {getModulesByCampusFacultyDept(form.campus, form.facultyId, form.departmentId).map(m => (
+                {lecturerAvailableModules.map(m => (
                   <label className="module-check" key={m.code}>
                     <input
                       type="checkbox"
@@ -543,6 +648,11 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                     <span>
                       <strong>{m.code}</strong>
                       {m.title}
+                      {m.semester && (
+                        <small style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '2px' }}>
+                          {m.semester}
+                        </small>
+                      )}
                     </span>
                   </label>
                 ))}

@@ -96,6 +96,10 @@ export async function signUpLecturer(form) {
         department: safeDeptId,
         department_id: safeDeptId,
         department_code: form.departmentId || null,
+        programme_lecturing: form.programmeLecturing || form.programme || 'BSc',
+        level_lecturing: form.levelLecturing || form.level || '1',
+        programme: form.programmeLecturing || form.programme || 'BSc',
+        level: form.levelLecturing || form.level || '1',
         teaching_area: form.teachingArea || null
       }
     }

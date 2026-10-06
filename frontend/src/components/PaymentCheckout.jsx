@@ -179,17 +179,18 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: '#ff6600',
-                    color: '#ffffff',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 900,
-                    fontSize: '18px'
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#000000',
+                    padding: '4px 10px',
+                    borderRadius: '8px'
                   }}>
-                    OM
+                    <img
+                      src="/orange-money-logo.png"
+                      alt="Orange Money"
+                      style={{ height: '30px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                    />
                   </div>
                   <span style={{
                     fontSize: '11px',
@@ -225,17 +226,19 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: '#7c3aed',
-                    color: '#ffffff',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 900,
-                    fontSize: '18px'
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #ede9fe'
                   }}>
-                    AM
+                    <img
+                      src="/afrimoney-logo.png"
+                      alt="Afrimoney"
+                      style={{ height: '24px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                    />
                   </div>
                   <span style={{
                     fontSize: '11px',
@@ -346,16 +349,22 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               textAlign: 'center'
             }}>
               <div style={{
-                width: '60px',
-                height: '60px',
-                borderRadius: '50%',
-                background: provider === 'orange' ? '#fff4eb' : '#f5f0ff',
-                color: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                display: 'grid',
-                placeItems: 'center',
+                height: '56px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 18px',
+                borderRadius: '12px',
+                background: provider === 'orange' ? '#000000' : '#ffffff',
+                border: provider === 'orange' ? 'none' : '1.5px solid #ede9fe',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
                 margin: '0 auto 14px auto'
               }}>
-                <Smartphone size={28} />
+                <img
+                  src={provider === 'orange' ? '/orange-money-logo.png' : '/afrimoney-logo.png'}
+                  alt={provider === 'orange' ? 'Orange Money' : 'Afrimoney'}
+                  style={{ height: '36px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                />
               </div>
 
               <div style={{

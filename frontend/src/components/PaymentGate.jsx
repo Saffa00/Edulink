@@ -254,9 +254,9 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#ff6600', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: '14px' }}>
-                      OM
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ height: '34px', display: 'flex', alignItems: 'center', background: '#000000', padding: '3px 8px', borderRadius: '6px' }}>
+                      <img src="/orange-money-logo.png" alt="Orange Money" style={{ height: '24px', width: 'auto', objectFit: 'contain', display: 'block' }} />
                     </div>
                     <span style={{ fontSize: '10px', fontWeight: 700, background: provider === 'orange' ? '#ff6600' : '#f1f5f9', color: provider === 'orange' ? '#fff' : '#64748b', padding: '2px 6px', borderRadius: '99px' }}>
                       🇸🇱 SL
@@ -278,9 +278,9 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#7c3aed', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: '14px' }}>
-                      AM
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ height: '34px', display: 'flex', alignItems: 'center', background: '#ffffff', padding: '3px 8px', borderRadius: '6px', border: '1px solid #ede9fe' }}>
+                      <img src="/afrimoney-logo.png" alt="Afrimoney" style={{ height: '20px', width: 'auto', objectFit: 'contain', display: 'block' }} />
                     </div>
                     <span style={{ fontSize: '10px', fontWeight: 700, background: provider === 'afrimoney' ? '#7c3aed' : '#f1f5f9', color: provider === 'afrimoney' ? '#fff' : '#64748b', padding: '2px 6px', borderRadius: '99px' }}>
                       🇸🇱 Africell
@@ -342,18 +342,39 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
             return (
               <div style={{ textAlign: 'center', padding: '16px 0' }}>
                 <div style={{
-                  display: 'inline-block',
-                  background: provider === 'orange' ? '#ff660015' : '#7c3aed15',
-                  color: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  padding: '3px 10px',
-                  borderRadius: '99px',
-                  marginBottom: '8px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  height: '52px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px 16px',
+                  borderRadius: '12px',
+                  background: provider === 'orange' ? '#000000' : '#ffffff',
+                  border: provider === 'orange' ? 'none' : '1.5px solid #ede9fe',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                  margin: '0 auto 10px auto'
                 }}>
-                  {provider === 'orange' ? 'Orange Money USSD' : 'Afrimoney USSD'}
+                  <img
+                    src={provider === 'orange' ? '/orange-money-logo.png' : '/afrimoney-logo.png'}
+                    alt={provider === 'orange' ? 'Orange Money' : 'Afrimoney'}
+                    style={{ height: '32px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                  />
+                </div>
+
+                <div>
+                  <span style={{
+                    display: 'inline-block',
+                    background: provider === 'orange' ? '#ff660015' : '#7c3aed15',
+                    color: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '3px 10px',
+                    borderRadius: '99px',
+                    marginBottom: '8px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {provider === 'orange' ? 'Orange Money USSD' : 'Afrimoney USSD'}
+                  </span>
                 </div>
 
                 <strong style={{ display: 'block', fontSize: '18px', color: '#0f172a', marginBottom: '6px' }}>

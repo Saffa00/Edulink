@@ -159,8 +159,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     id: initialStudentId || '', password:'', confirmPassword:'', email:'', fullName:'', studentId: initialStudentId || '', phone:'',
     facultyId:'faculty-applied-sciences', departmentId:'dept-computer-science', programmeId:'', programme:'BSc', level:'1',
     programmeLecturing: 'BSc', levelLecturing: '1',
-    academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal', selectedModulesCount: 8,
-    modules:[], teachingArea:'Department of Computer Science', deviceName:''
+    academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal', selectedModulesCount: 1,
+    selectedModuleCodes: [], modules:[], teachingArea:'Department of Computer Science', deviceName:''
   });
 
   const handleProgrammeSelect = (progCode) => {
@@ -230,7 +230,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   const totalDepartmentModules = studentCurriculumModules.length || 8;
   const activeSelectedModulesCount = form.registrationType === 'dissertation'
     ? 1
-    : Math.min(Number(form.selectedModulesCount) || totalDepartmentModules, totalDepartmentModules);
+    : Math.max(1, Math.min(Number(form.selectedModulesCount) || 1, totalDepartmentModules));
   const studentTuition = form.registrationType === 'dissertation' ? 500 : activeSelectedModulesCount * 100;
 
   React.useEffect(() => {
@@ -243,6 +243,16 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     if (initialScreen) setScreen(initialScreen);
     if (initialRole) setRole(initialRole);
   }, [initialScreen, initialRole]);
+
+  React.useEffect(() => {
+    if (screen === 'student-modules' && role === 'student') {
+      const quota = Number(form.selectedModulesCount) || 1;
+      const currentCodes = Array.isArray(form.selectedModuleCodes) ? form.selectedModuleCodes : [];
+      if (currentCodes.length === 0 && studentCurriculumModules.length > 0) {
+        update('selectedModuleCodes', studentCurriculumModules.slice(0, Math.min(quota, studentCurriculumModules.length)).map(m => m.code));
+      }
+    }
+  }, [screen, role, studentCurriculumModules]);
 
   const update = (key, value) => setForm(f => ({...f, [key]: value}));
   const resetState = () => { setError(''); setMessage(''); setDeviceRequired(false); setPendingRebindAccount(null); };
@@ -385,20 +395,42 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     resetState();
     setBusy(true);
     try {
-      const chosenCount = form.registrationType === 'dissertation' ? 1 : activeSelectedModulesCount;
-      const chosenModules = form.registrationType === 'dissertation'
+      const isDissertation = form.registrationType === 'dissertation';
+      const targetQuota = isDissertation ? 1 : (Number(form.selectedModulesCount) || 1);
+      const selectedCodes = isDissertation
         ? ['DISSERTATION-RES']
-        : (studentCurriculumModules.length > 0
-            ? studentCurriculumModules.slice(0, chosenCount).map(m => m.code)
-            : Array.from({ length: chosenCount }, (_, i) => `MOD-${i + 1}`));
+        : (Array.isArray(form.selectedModuleCodes) ? form.selectedModuleCodes : []);
+
+      if (!isDissertation && selectedCodes.length === 0) {
+        throw new Error('Please select at least 1 module to continue to payment.');
+      }
+      if (!isDissertation && selectedCodes.length < targetQuota) {
+        throw new Error(`Please select ${targetQuota - selectedCodes.length} more ${targetQuota - selectedCodes.length === 1 ? 'module' : 'modules'} to complete your chosen quota of ${targetQuota}.`);
+      }
+
+      const chosenModules = isDissertation ? ['DISSERTATION-RES'] : selectedCodes;
+      const chosenCount = chosenModules.length;
+      const totalAmount = isDissertation ? 500 : chosenCount * 100;
+
+      const chosenModulesData = isDissertation
+        ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', lecturerName: 'Peter Saffa', fee: 500 }]
+        : studentCurriculumModules
+            .filter(m => chosenModules.includes(m.code))
+            .map(m => ({
+              code: m.code,
+              title: m.title,
+              lecturerName: m.lecturerName || 'Department Lecturer',
+              fee: 100
+            }));
 
       const applicantData = {
         ...form,
         id: form.studentId,
         modulesCount: chosenCount,
         modules: chosenModules,
+        modulesData: chosenModulesData,
         registrationType: form.registrationType,
-        amount: studentTuition
+        amount: totalAmount
       };
 
       await registerStudentApplicantAndCheckout(applicantData);
@@ -407,8 +439,9 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         id: form.studentId,
         modulesCount: chosenCount,
         modules: chosenModules,
+        modulesData: chosenModulesData,
         registrationType: form.registrationType,
-        amount: studentTuition
+        amount: totalAmount
       }));
       setScreen('checkout');
     } catch (err) {
@@ -589,32 +622,78 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     const currentFacultyName = currentDept?.facultyName || 'Faculty';
     const currentProg = getProgrammeInfo(form.programme || 'BSc');
 
-    const total = studentCurriculumModules.length || 8;
-    const minCount = Math.max(1, Math.min(3, total));
-    const radioOptions = [];
-    for (let c = total; c >= minCount; c--) {
-      radioOptions.push({
+    const totalAvailable = studentCurriculumModules.length || 8;
+    const isDissertation = form.registrationType === 'dissertation';
+    const targetQuota = isDissertation ? 1 : Math.max(1, Math.min(Number(form.selectedModulesCount) || 1, totalAvailable));
+
+    // Step 1 Quota Options: 1 Module (SLE 100), 2 Modules (SLE 200) ... up to totalAvailable (SLE total * 100)
+    const quotaOptions = [];
+    for (let c = 1; c <= totalAvailable; c++) {
+      quotaOptions.push({
         type: 'normal',
         count: c,
-        title: c === total ? `Full Semester Curriculum (All ${c} Modules)` : `${c} Modules`,
-        desc: c === total
-          ? `All official Year ${form.level || 1} curriculum modules`
-          : `Register ${c} modules in Year ${form.level || 1}`
-      });
-    }
-    const maxYear = currentProg?.levels ? currentProg.levels.length : 4;
-    if (Number(form.level || 1) >= maxYear) {
-      radioOptions.push({
-        type: 'dissertation',
-        count: 1,
-        title: 'Dissertation Student',
-        desc: 'Final year thesis & research project only'
+        title: c === 1 ? '1 Module' : `${c} Modules`,
+        desc: c === totalAvailable ? 'Full Semester Curriculum' : `Pay & register ${c} modules in department`,
+        fee: c * 100
       });
     }
 
+    const maxYear = currentProg?.levels ? currentProg.levels.length : 4;
+    if (Number(form.level || 1) >= maxYear) {
+      quotaOptions.push({
+        type: 'dissertation',
+        count: 1,
+        title: 'Dissertation Student',
+        desc: 'Final year research thesis only',
+        fee: 500
+      });
+    }
+
+    // Selected module codes & objects
+    const selectedCodes = Array.isArray(form.selectedModuleCodes) ? form.selectedModuleCodes : [];
+    const selectedModulesList = studentCurriculumModules.filter(m => selectedCodes.includes(m.code));
+    const totalFee = isDissertation ? 500 : selectedCodes.length * 100;
+
+    const handleSelectQuota = (opt) => {
+      resetState();
+      if (opt.type === 'dissertation') {
+        update('registrationType', 'dissertation');
+        update('selectedModulesCount', 1);
+        update('selectedModuleCodes', ['DISSERTATION-RES']);
+      } else {
+        update('registrationType', 'normal');
+        update('selectedModulesCount', opt.count);
+        if (selectedCodes.includes('DISSERTATION-RES')) {
+          const initialSlice = studentCurriculumModules.slice(0, Math.min(opt.count, studentCurriculumModules.length)).map(m => m.code);
+          update('selectedModuleCodes', initialSlice);
+        } else if (selectedCodes.length > opt.count) {
+          update('selectedModuleCodes', selectedCodes.slice(0, opt.count));
+        } else if (selectedCodes.length === 0 && studentCurriculumModules.length > 0) {
+          update('selectedModuleCodes', studentCurriculumModules.slice(0, Math.min(opt.count, studentCurriculumModules.length)).map(m => m.code));
+        }
+      }
+    };
+
+    const handleToggleModule = (code) => {
+      resetState();
+      if (isDissertation) return;
+
+      if (selectedCodes.includes(code)) {
+        update('selectedModuleCodes', selectedCodes.filter(c => c !== code));
+      } else {
+        if (selectedCodes.length < targetQuota) {
+          update('selectedModuleCodes', [...selectedCodes, code]);
+        } else if (targetQuota === 1) {
+          update('selectedModuleCodes', [code]);
+        } else {
+          setError(`You selected a quota of ${targetQuota} modules. Uncheck one module first or select a higher module count in Step 1.`);
+        }
+      }
+    };
+
     return (
       <main className="auth-screen">
-        <section className="auth-card wide" style={{ maxWidth: '640px', padding: '32px 28px' }}>
+        <section className="auth-card wide" style={{ maxWidth: '680px', padding: '32px 28px' }}>
           <Logo />
 
           {/* Header & Back Link */}
@@ -632,8 +711,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           </div>
 
           <div className="auth-heading" style={{ marginBottom: '18px' }}>
-            <h1>Select Modules to Register</h1>
-            <p>Choose your modules for Year {form.level || 1} before proceeding to mobile-money payment.</p>
+            <h1>Module Registration & Payment</h1>
+            <p>Select how many modules you want to pay for, then choose your modules below.</p>
           </div>
 
           {/* Student Profile Summary Card */}
@@ -642,7 +721,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             border: '1px solid #e2e8f0',
             borderRadius: '14px',
             padding: '14px 18px',
-            marginBottom: '20px',
+            marginBottom: '22px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -693,24 +772,45 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           </div>
 
           <form onSubmit={completeStudentModuleSelection}>
-            {/* 1. Radio Button Module Selection (NO AMOUNTS) */}
-            <div style={{ marginBottom: '22px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>
-                Select Number of Modules
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '10px' }}>
-                {radioOptions.map((opt) => {
+            {/* ========================================================
+                STEP 1 — MODULE PAYMENT (HOW MANY MODULES?)
+               ======================================================== */}
+            <div style={{ marginBottom: '26px' }}>
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    background: '#0284c7',
+                    color: '#ffffff',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: '99px'
+                  }}>
+                    Step 1
+                  </span>
+                  <strong style={{ fontSize: '14.5px', color: '#0f172a' }}>
+                    Select Number of Modules to Pay For
+                  </strong>
+                </div>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                  Choose your module registration tier (SLE 100 / Module).
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                {quotaOptions.map((opt) => {
                   const isChecked = opt.type === 'dissertation'
-                    ? form.registrationType === 'dissertation'
-                    : (form.registrationType !== 'dissertation' && activeSelectedModulesCount === opt.count);
+                    ? isDissertation
+                    : (!isDissertation && targetQuota === opt.count);
 
                   return (
                     <label
                       key={`${opt.type}-${opt.count}`}
+                      onClick={() => handleSelectQuota(opt)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '12px',
+                        justifyContent: 'space-between',
                         padding: '12px 14px',
                         borderRadius: '12px',
                         border: isChecked ? '2px solid #0284c7' : '1.5px solid #cbd5e1',
@@ -720,57 +820,81 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                         boxShadow: isChecked ? '0 3px 10px rgba(2, 132, 199, 0.12)' : 'none'
                       }}
                     >
-                      <input
-                        type="radio"
-                        name="studentModuleRadio"
-                        checked={isChecked}
-                        onChange={() => {
-                          if (opt.type === 'dissertation') {
-                            update('registrationType', 'dissertation');
-                            update('selectedModulesCount', 1);
-                          } else {
-                            update('registrationType', 'normal');
-                            update('selectedModulesCount', opt.count);
-                          }
-                        }}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          accentColor: '#0284c7',
-                          cursor: 'pointer',
-                          margin: 0,
-                          flexShrink: 0
-                        }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '13px', color: isChecked ? '#0369a1' : '#1e293b' }}>
-                          {opt.title}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                          {opt.desc}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <input
+                          type="radio"
+                          name="studentModuleQuotaRadio"
+                          checked={isChecked}
+                          onChange={() => handleSelectQuota(opt)}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            accentColor: '#0284c7',
+                            cursor: 'pointer',
+                            margin: 0,
+                            flexShrink: 0
+                          }}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '13px', color: isChecked ? '#0369a1' : '#1e293b' }}>
+                            {opt.title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                            {opt.desc}
+                          </div>
                         </div>
                       </div>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        color: isChecked ? '#0369a1' : '#0f172a',
+                        background: isChecked ? '#e0f2fe' : '#f1f5f9',
+                        padding: '4px 8px',
+                        borderRadius: '8px',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        SLE {opt.fee}
+                      </span>
                     </label>
                   );
                 })}
               </div>
             </div>
 
-            {/* 2. Official Modules for Year X */}
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ margin: 0, fontWeight: 700, fontSize: '13px' }}>
-                  Year {form.level || 1} Modules ({studentCurriculumModules.length} Available)
-                </label>
+            {/* ========================================================
+                STEP 2 — SHOW ACTUAL MODULES OFFERED (CHECKBOX PICKER)
+               ======================================================== */}
+            <div style={{ marginBottom: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      background: '#0284c7',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '99px'
+                    }}>
+                      Step 2
+                    </span>
+                    <strong style={{ fontSize: '14.5px', color: '#0f172a' }}>
+                      {isDissertation ? 'Select Dissertation' : `Select ${targetQuota} ${targetQuota === 1 ? 'Module' : 'Modules'}`}
+                    </strong>
+                  </div>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                    Check the boxes below to choose the specific modules you wish to take.
+                  </p>
+                </div>
                 <span style={{
                   fontSize: '11.5px',
-                  color: '#0369a1',
-                  background: '#e0f2fe',
-                  padding: '2px 8px',
-                  borderRadius: '99px',
-                  fontWeight: 700
+                  fontWeight: 700,
+                  color: (isDissertation || selectedCodes.length === targetQuota) ? '#15803d' : '#b45309',
+                  background: (isDissertation || selectedCodes.length === targetQuota) ? '#dcfce7' : '#fef3c7',
+                  padding: '3px 10px',
+                  borderRadius: '99px'
                 }}>
-                  {form.registrationType === 'dissertation' ? '1 Dissertation' : `${activeSelectedModulesCount} Selected`}
+                  {isDissertation ? '1 Dissertation' : `${selectedCodes.length} of ${targetQuota} selected`}
                 </span>
               </div>
 
@@ -778,97 +902,165 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                 <div style={{ padding: '18px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                   No curriculum modules currently listed for Year {form.level || 1}.
                 </div>
-              ) : (
-                <div className="module-select-grid" style={{ maxHeight: '280px', overflowY: 'auto', padding: '4px' }}>
-                  {form.registrationType === 'dissertation' ? (
-                    <div style={{
-                      padding: '14px 16px',
-                      background: '#f0f9ff',
-                      border: '1.5px solid #0284c7',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}>
-                      <div style={{
-                        background: '#0284c7',
-                        color: '#ffffff',
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 800,
-                        fontSize: '12px'
-                      }}>
-                        DISSERTATION
+              ) : isDissertation ? (
+                <div style={{
+                  padding: '16px 18px',
+                  background: '#f0f9ff',
+                  border: '1.5px solid #0284c7',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <input type="checkbox" checked readOnly style={{ width: '18px', height: '18px', accentColor: '#0284c7' }} />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
+                        Final Year Honours Dissertation & Defense
                       </div>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>
-                          Final Year Honours Dissertation & Defense
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>
-                          Supervised Academic Research & Dissertation Submission
-                        </div>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                        Supervised Academic Research & Defense • Lecturer: Peter Saffa
                       </div>
                     </div>
-                  ) : (
-                    studentCurriculumModules.map((m, idx) => {
-                      const isIncluded = idx < activeSelectedModulesCount;
-                      return (
-                        <div
-                          key={m.code}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 14px',
-                            borderRadius: '10px',
-                            border: isIncluded ? '1.5px solid #bae6fd' : '1px solid #e2e8f0',
-                            background: isIncluded ? '#f0f9ff' : '#ffffff',
-                            marginBottom: '6px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{
-                              fontWeight: 800,
-                              fontSize: '11.5px',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              background: isIncluded ? '#0284c7' : '#e2e8f0',
-                              color: isIncluded ? '#ffffff' : '#475569',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {m.code}
-                            </span>
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: '12.5px', color: isIncluded ? '#0f172a' : '#64748b' }}>
+                  </div>
+                  <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '13px' }}>
+                    SLE 500
+                  </span>
+                </div>
+              ) : (
+                <div className="module-select-grid" style={{ maxHeight: '320px', overflowY: 'auto', padding: '4px' }}>
+                  {studentCurriculumModules.map((m) => {
+                    const isChecked = selectedCodes.includes(m.code);
+                    return (
+                      <label
+                        key={m.code}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleToggleModule(m.code);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: isChecked ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
+                          background: isChecked ? '#f0f9ff' : '#ffffff',
+                          cursor: 'pointer',
+                          marginBottom: '8px',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isChecked ? '0 2px 8px rgba(2, 132, 199, 0.1)' : 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleToggleModule(m.code)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: '#0284c7',
+                              cursor: 'pointer',
+                              margin: 0,
+                              flexShrink: 0
+                            }}
+                          />
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <strong style={{ color: isChecked ? '#0284c7' : '#0f172a', fontSize: '13.5px' }}>
+                                {m.code}
+                              </strong>
+                              <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: 600 }}>
                                 {m.title}
-                              </div>
-                              {m.lecturerName && (
-                                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                                  Lecturer: {m.lecturerName}
-                                </div>
-                              )}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                              Lecturer: {m.lecturerName || 'Department Lecturer'}
                             </div>
                           </div>
-                          <span style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '99px',
-                            background: isIncluded ? '#dcfce7' : '#f1f5f9',
-                            color: isIncluded ? '#166534' : '#94a3b8'
-                          }}>
-                            {isIncluded ? 'Selected' : 'Available'}
-                          </span>
                         </div>
-                      );
-                    })
-                  )}
+                        <span style={{
+                          fontWeight: 800,
+                          fontSize: '12px',
+                          color: isChecked ? '#0369a1' : '#475569',
+                          background: isChecked ? '#e0f2fe' : '#f1f5f9',
+                          padding: '3px 8px',
+                          borderRadius: '8px',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          SLE 100
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             {error && <div className="error-box" style={{ marginBottom: '16px' }}>{error}</div>}
+
+            {/* ========================================================
+                LIVE SELECTION & PAYMENT SUMMARY
+               ======================================================== */}
+            <div style={{
+              background: '#f8fafc',
+              border: '1.5px solid #0284c7',
+              borderRadius: '14px',
+              padding: '16px 18px',
+              marginBottom: '20px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <strong style={{ fontSize: '14px', color: '#0f172a' }}>
+                  {isDissertation ? '1 Dissertation Selected' : `${selectedCodes.length} ${selectedCodes.length === 1 ? 'Module' : 'Modules'} Selected`}
+                </strong>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: (isDissertation || selectedCodes.length === targetQuota) ? '#15803d' : '#b45309',
+                  background: (isDissertation || selectedCodes.length === targetQuota) ? '#dcfce7' : '#fef3c7',
+                  padding: '3px 9px',
+                  borderRadius: '99px'
+                }}>
+                  {isDissertation || selectedCodes.length === targetQuota
+                    ? 'Quota Ready ✓'
+                    : `Please select ${targetQuota - selectedCodes.length} more`}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                {isDissertation ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#334155' }}>
+                    <span>✓ <strong>DISSERTATION</strong> — Honours Research Dissertation</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>SLE 500</span>
+                  </div>
+                ) : selectedModulesList.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                    No modules selected yet. Check boxes above.
+                  </div>
+                ) : (
+                  selectedModulesList.map(sm => (
+                    <div key={sm.code} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#334155' }}>
+                      <span>✓ <strong style={{ color: '#0284c7' }}>{sm.code}</strong> — {sm.title}</span>
+                      <span style={{ fontWeight: 700, color: '#0f172a' }}>SLE 100</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderTop: '1px solid #e2e8f0',
+                paddingTop: '10px'
+              }}>
+                <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>Total:</span>
+                <span style={{ fontWeight: 900, fontSize: '18px', color: '#0284c7' }}>
+                  SLE {isDissertation ? '500.00' : `${selectedCodes.length * 100}.00`}
+                </span>
+              </div>
+            </div>
 
             <div className="security-note" style={{ marginBottom: '18px' }}>
               <ShieldCheck size={18} />
@@ -878,9 +1070,14 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             <button
               type="submit"
               className="primary-btn full-btn"
-              disabled={busy}
+              disabled={busy || (!isDissertation && selectedCodes.length !== targetQuota)}
+              style={{ height: '48px', fontSize: '15px', fontWeight: 700 }}
             >
-              {busy ? 'Preparing Payment…' : 'Proceed to Registration Payment →'}
+              {busy
+                ? 'Preparing Payment…'
+                : (isDissertation || selectedCodes.length === targetQuota
+                    ? 'Continue to Payment →'
+                    : `Select ${targetQuota - selectedCodes.length} More Module${targetQuota - selectedCodes.length === 1 ? '' : 's'} to Continue`)}
             </button>
           </form>
         </section>

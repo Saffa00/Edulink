@@ -113,8 +113,40 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           </div>
           <h1 style={{ fontSize: '22px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>Payment Confirmed & Account Activated!</h1>
           <p style={{ color: '#15803d', fontSize: '14px', fontWeight: 700, margin: '0 0 14px 0' }}>
-            Payment Successful ✓ SLE {data?.amount || 300}.00 paid • {data?.modulesCount || 3} modules registered
+            Payment Successful ✓ SLE {data?.amount || 100}.00 paid • {data?.modulesCount || 1} {data?.modulesCount === 1 ? 'module' : 'modules'} registered
           </p>
+
+          {Array.isArray(data?.modules) && data.modules.length > 0 && (
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              marginTop: '10px',
+              marginBottom: '14px',
+              textAlign: 'left'
+            }}>
+              <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
+                {data.modules.length} {data.modules.length === 1 ? 'Module' : 'Modules'} Activated
+              </small>
+              {data.modules.map((m, idx) => {
+                const code = typeof m === 'string' ? m : (m.code || `Module ${idx + 1}`);
+                const title = typeof m === 'object' && m.title ? m.title : '';
+                return (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: idx < data.modules.length - 1 ? '1px solid #edf2f7' : 'none', fontSize: '12.5px' }}>
+                    <span>
+                      <strong style={{ color: '#0284c7', marginRight: '6px' }}>{code}</strong>
+                      <span style={{ color: '#475569' }}>{title}</span>
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: '99px' }}>
+                      Active
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -227,7 +259,7 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           style={{ height: '48px', fontSize: '15px' }}
           onClick={() => onProceedToLogin?.({ studentId: data?.studentId })}
         >
-          View Registered Modules & Proceed to Login <ArrowRight size={17} />
+          Go to My Modules <ArrowRight size={17} />
         </button>
       </section>
     </main>

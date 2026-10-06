@@ -214,20 +214,21 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               </div>
             </div>
 
-            {/* Student & Fee Calculation Card */}
+            {/* Confirm Module Payment Table */}
             <div style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: '#ffffff',
+              border: '1.5px solid #e2e8f0',
               borderRadius: '14px',
               padding: '16px 20px',
-              marginBottom: '22px'
+              marginBottom: '22px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid #edf2f7', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #edf2f7', paddingBottom: '10px' }}>
                 <div>
                   <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Applicant</small>
                   <div style={{ fontWeight: 700, color: '#061626', fontSize: '14px' }}>{applicant?.fullName || 'Student'}</div>
                   <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
-                    {applicant?.programme || 'BSc'} • Year {applicant?.level || '1'}
+                    {applicant?.programme || 'BSc'} • Year {applicant?.level || '1'} • {applicant?.semester || 'First Semester'}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -236,15 +237,30 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontSize: '13px', color: '#334155', fontWeight: 600 }}>
-                    {modulesCount} Registered Curriculum {modulesCount === 1 ? 'Module' : 'Modules'}
-                  </span>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>Assessed at SLE 100.00 per module • Mobile Money Payment</div>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '13.5px', color: '#0f172a', fontWeight: 800 }}>Confirm Module Payment</h4>
+
+              <div style={{ width: '100%', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '11.5px', fontWeight: 700, borderBottom: '1.5px solid #e2e8f0', paddingBottom: '6px' }}>
+                  <span>Modules</span>
+                  <span>Fee</span>
                 </div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: '#0a2540' }}>
-                  {formattedFee}
+                {((applicant?.modulesData && applicant.modulesData.length > 0)
+                  ? applicant.modulesData
+                  : isDissertation
+                    ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', fee: 500 }]
+                    : modulesList.map(code => ({ code, title: '', fee: 100 }))
+                ).map((m, idx) => (
+                  <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                    <div>
+                      <strong style={{ color: '#0284c7', marginRight: '6px' }}>{m.code}</strong>
+                      <span style={{ color: '#334155' }}>{m.title || ''}</span>
+                    </div>
+                    <span style={{ fontWeight: 700, color: '#0f172a' }}>SLE {m.fee || 100}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '2px solid #0f172a' }}>
+                  <strong style={{ fontSize: '14px', color: '#0f172a' }}>Total</strong>
+                  <strong style={{ fontSize: '18px', color: '#0284c7' }}>{formattedFee}</strong>
                 </div>
               </div>
             </div>

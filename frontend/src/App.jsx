@@ -54,7 +54,7 @@ import {
   GraduationCap, Home, LockKeyhole, LogOut, Menu, MessageSquare,
   MoreHorizontal, Plus, Search, Settings, ShieldCheck, User, Users,
   X, MapPin, Clock3, Award, Upload, Eye, EyeOff, KeyRound, CreditCard, Activity,
-  ChevronLeft, PanelLeftClose, PanelLeftOpen, Layers, Radio
+  ChevronLeft, PanelLeftClose, PanelLeftOpen, Layers, Radio, Check, Copy, ArrowRight
 } from "lucide-react";
 
 const modules = [
@@ -363,11 +363,17 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         }));
         setScreen('checkout');
       } else {
+        if (!form.fullName || !form.fullName.trim()) {
+          throw new Error('Please enter your Full Name.');
+        }
         if (!form.email || !form.password || form.password.length < 8) {
           throw new Error('Use a valid email and a password of at least 8 characters.');
         }
         if (form.password !== form.confirmPassword) {
           throw new Error('Passwords do not match. Please re-enter your password.');
+        }
+        if (!form.campus || !form.departmentId) {
+          throw new Error('Please select both a Campus and a Department.');
         }
         let resolvedFacultyId = form.facultyId;
         if (!resolvedFacultyId && form.campus && form.departmentId) {
@@ -378,20 +384,55 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         if (!resolvedFacultyId || !form.departmentId) {
           throw new Error('Please select both a Campus and a Department.');
         }
-        const result = await signUpLecturer({
-          ...form,
+        setForm(f => ({
+          ...f,
           facultyId: resolvedFacultyId,
-          programme: form.programmeLecturing || 'BSc',
-          level: form.levelLecturing || '1',
-          programmeLecturing: form.programmeLecturing || 'BSc',
-          levelLecturing: form.levelLecturing || '1'
-        });
-        setForm(f => ({...f, id: result.lecturerId, facultyId: resolvedFacultyId}));
-        setMessage(result.session ? `Account created. Your Lecturer ID is ${result.lecturerId}.` : `Account created. Your Lecturer ID is ${result.lecturerId}. Verify your email, then log in.`);
-        setScreen('registered');
+          programmeLecturing: f.programmeLecturing || 'BSc',
+          levelLecturing: f.levelLecturing || '1'
+        }));
+        setScreen('lecturer-modules');
       }
     } catch (err) { setError(err.message || 'Registration failed.'); }
     finally { setBusy(false); }
+  }
+
+  async function completeLecturerRegistration(e) {
+    if (e) e.preventDefault();
+    resetState();
+    setBusy(true);
+    try {
+      let resolvedFacultyId = form.facultyId;
+      if (!resolvedFacultyId && form.campus && form.departmentId) {
+        const depts = getDepartmentsByCampus(form.campus);
+        const found = depts.find(d => d.id === form.departmentId);
+        if (found) resolvedFacultyId = found.facultyId;
+      }
+      if (!resolvedFacultyId || !form.departmentId) {
+        throw new Error('Please select both a Campus and a Department.');
+      }
+      if (!Array.isArray(form.modules) || form.modules.length === 0) {
+        throw new Error('Please select at least one teaching module for your designated programme and level before generating your Lecturer ID.');
+      }
+      const result = await signUpLecturer({
+        ...form,
+        facultyId: resolvedFacultyId,
+        programme: form.programmeLecturing || 'BSc',
+        level: form.levelLecturing || '1',
+        programmeLecturing: form.programmeLecturing || 'BSc',
+        levelLecturing: form.levelLecturing || '1'
+      });
+      setForm(f => ({ ...f, id: result.lecturerId, facultyId: resolvedFacultyId }));
+      setMessage(
+        result.session
+          ? `Account created. Your official Lecturer ID is ${result.lecturerId}.`
+          : `Account created. Your official Lecturer ID is ${result.lecturerId}. Verify your email, then log in.`
+      );
+      setScreen('registered');
+    } catch (err) {
+      setError(err.message || 'Registration failed.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function registerDevice() {
@@ -480,11 +521,268 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   if (screen === 'registered') return <main className="auth-screen"><section className="auth-card">
     <Logo /><div className="success-panel"><div className="success-circle">✓</div><h1>{role === 'student' ? 'Student Account Created' : 'Lecturer Account Created'}</h1>
       <p>{message}</p>
-      {role === 'lecturer' && <div className="registration-summary"><span>Your Lecturer ID</span><strong>{form.id}</strong></div>}
+      {role === 'lecturer' && (
+        <div className="registration-summary">
+          <span>Your Official Lecturer ID</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
+            <strong style={{ fontSize: '18px', letterSpacing: '0.5px', color: '#0a2540' }}>{form.id}</strong>
+            <button
+              type="button"
+              onClick={() => {
+                if (form.id) {
+                  navigator.clipboard?.writeText(form.id);
+                  alert(`Lecturer ID ${form.id} copied to clipboard!`);
+                }
+              }}
+              style={{
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#334155',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '11.5px',
+                fontWeight: 600
+              }}
+              title="Copy Lecturer ID"
+            >
+              <Copy size={13} /> Copy
+            </button>
+          </div>
+        </div>
+      )}
       {role === 'student' && <button className="primary-btn full-btn" disabled={busy} onClick={continuePayment}>{busy ? 'Opening payment…' : 'Continue to Monime Payment'}</button>}
       <button className="outline-btn full-btn" onClick={()=>{resetState();setScreen('login')}}>Go to Login</button>
     </div>{error && <div className="error-box">{error}</div>}
   </section></main>;
+
+  if (screen === 'lecturer-modules') {
+    const currentDept = form.campus && form.departmentId
+      ? getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)
+      : null;
+    const currentDeptName = currentDept?.name || 'Department';
+    const currentFacultyName = currentDept?.facultyName || 'Faculty';
+
+    return (
+      <main className="auth-screen">
+        <section className="auth-card wide" style={{ maxWidth: '640px', padding: '32px 28px' }}>
+          <Logo />
+          
+          {/* Header & Back Link */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            <button
+              type="button"
+              className="back-link"
+              style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => { resetState(); setScreen('register'); }}
+              disabled={busy}
+            >
+              ← Back to Profile
+            </button>
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Step 2 of 2: Module Assignment</span>
+          </div>
+
+          <div className="auth-heading" style={{ marginBottom: '18px' }}>
+            <h1>Select Teaching Modules</h1>
+            <p>Select your programme, academic year level, and teaching modules before your Lecturer ID is generated.</p>
+          </div>
+
+          {/* Lecturer Profile Summary */}
+          <div style={{
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '14px 18px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '10px'
+          }}>
+            <div>
+              <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Lecturer Profile</small>
+              <div style={{ fontWeight: 800, color: '#061626', fontSize: '15px' }}>{form.fullName}</div>
+              <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600, marginTop: '2px' }}>
+                🏛️ {currentDeptName} • {currentFacultyName}
+              </div>
+            </div>
+            <span style={{
+              background: '#e0f2fe',
+              color: '#0369a1',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              padding: '4px 12px',
+              borderRadius: '99px'
+            }}>
+              ID Generation Pending
+            </span>
+          </div>
+
+          <form onSubmit={completeLecturerRegistration}>
+            {/* 1. Programme Lecturing */}
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ margin: 0, fontWeight: 700, fontSize: '13px' }}>Programme Lecturing</label>
+                <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select BSc, Diploma, or HND</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                {PROGRAMME_TYPES.map(prog => {
+                  const isSelected = (form.programmeLecturing || 'BSc').toUpperCase() === prog.code.toUpperCase();
+                  return (
+                    <button
+                      key={prog.id}
+                      type="button"
+                      onClick={() => handleLecturerProgrammeSelect(prog.code)}
+                      style={{
+                        padding: '12px 10px',
+                        borderRadius: '12px',
+                        border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
+                        background: isSelected ? prog.badgeBg : '#ffffff',
+                        color: isSelected ? prog.badgeColor : '#334155',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.18s ease',
+                        boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
+                      <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>{prog.duration}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Level Lecturing, Academic Year & Semester */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+              <div>
+                <label style={{ fontWeight: 700, fontSize: '13px' }}>Level Lecturing</label>
+                <select
+                  value={form.levelLecturing || '1'}
+                  onChange={e => {
+                    update('levelLecturing', e.target.value);
+                    update('modules', []);
+                  }}
+                  required
+                >
+                  {getLevelsForLecturerProgramme(form.programmeLecturing).map(lvl => (
+                    <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontWeight: 700, fontSize: '13px' }}>Academic Year</label>
+                <select value={form.academicYear} onChange={e => update('academicYear', e.target.value)}>
+                  <option>2026/2027</option>
+                  <option>2025/2026</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontWeight: 700, fontSize: '13px' }}>Semester</label>
+                <select value={form.semester} onChange={e => update('semester', e.target.value)}>
+                  <option>First Semester</option>
+                  <option>Second Semester</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 3. Department Module(s) Teaching Checkboxes */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ margin: 0, fontWeight: 700, fontSize: '13px' }}>
+                  Teaching Module(s) ({form.programmeLecturing || 'BSc'} • Year {form.levelLecturing || '1'})
+                </label>
+                <span style={{
+                  fontSize: '11.5px',
+                  color: form.modules.length > 0 ? '#166534' : '#64748b',
+                  background: form.modules.length > 0 ? '#dcfce7' : '#f1f5f9',
+                  padding: '2px 8px',
+                  borderRadius: '99px',
+                  fontWeight: 700
+                }}>
+                  {form.modules.length} selected
+                </span>
+              </div>
+
+              {lecturerAvailableModules.length === 0 ? (
+                <div style={{ padding: '18px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                  No curriculum modules currently listed for {form.programmeLecturing || 'BSc'} Year {form.levelLecturing || '1'} in this department.
+                </div>
+              ) : (
+                <div className="module-select-grid" style={{ maxHeight: '280px', overflowY: 'auto', padding: '4px' }}>
+                  {lecturerAvailableModules.map(m => {
+                    const isChecked = form.modules.includes(m.code);
+                    return (
+                      <label
+                        className="module-check"
+                        key={m.code}
+                        style={{
+                          border: isChecked ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
+                          background: isChecked ? '#f0f9ff' : '#ffffff',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={e => {
+                            const next = e.target.checked
+                              ? [...form.modules, m.code]
+                              : form.modules.filter(x => x !== m.code);
+                            update('modules', next);
+                          }}
+                        />
+                        <span>
+                          <strong>{m.code}</strong>
+                          {m.title}
+                          {m.semester && (
+                            <small style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '2px' }}>
+                              {m.semester}
+                            </small>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {error && <div className="error-box" style={{ marginBottom: '16px' }}>{error}</div>}
+
+            <div className="security-note" style={{ marginBottom: '18px', background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
+              <ShieldCheck size={18} color="#16a34a" />
+              <span>Your official Lecturer ID (LECT-YYYY-XXXXXX) will be generated and linked to your selected modules upon clicking below.</span>
+            </div>
+
+            <button
+              type="submit"
+              className="primary-btn full-btn"
+              disabled={busy}
+              style={{
+                height: '48px',
+                fontSize: '15px',
+                fontWeight: 700,
+                background: '#0a2540',
+                borderColor: '#0a2540',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              {busy ? 'Generating Lecturer ID…' : 'Generate Lecturer ID & Complete Registration ✓'}
+            </button>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
 
 
   if (screen === 'register') return <main className="auth-screen"><section className="auth-card wide"><Logo />
@@ -548,114 +846,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             {form.departmentId && (
               <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
                 🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
-              </div>
-            )}
-          </div>
-          <div className="full-span">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label style={{ margin: 0 }}>Programme Lecturing</label>
-              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select BSc (Yr 1–4), Diploma (Yr 1–2), or HND (Yr 1–3)</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
-              {PROGRAMME_TYPES.map(prog => {
-                const isSelected = (form.programmeLecturing || 'BSc').toUpperCase() === prog.code.toUpperCase();
-                return (
-                  <button
-                    key={prog.id}
-                    type="button"
-                    onClick={() => handleLecturerProgrammeSelect(prog.code)}
-                    style={{
-                      padding: '12px 10px',
-                      borderRadius: '12px',
-                      border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
-                      background: isSelected ? prog.badgeBg : '#ffffff',
-                      color: isSelected ? prog.badgeColor : '#334155',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.18s ease',
-                      boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
-                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>{prog.duration}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <label>Level Lecturing</label>
-            <select
-              value={form.levelLecturing || '1'}
-              onChange={e => {
-                update('levelLecturing', e.target.value);
-                update('modules', []);
-              }}
-              required
-            >
-              {getLevelsForLecturerProgramme(form.programmeLecturing).map(lvl => (
-                <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Academic Year</label>
-            <select value={form.academicYear} onChange={e=>update('academicYear',e.target.value)}>
-              <option>2026/2027</option>
-              <option>2025/2026</option>
-            </select>
-          </div>
-          <div>
-            <label>Semester</label>
-            <select value={form.semester} onChange={e=>update('semester',e.target.value)}>
-              <option>First Semester</option>
-              <option>Second Semester</option>
-            </select>
-          </div>
-          <div className="full-span">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ margin: 0 }}>
-                Department Module(s) Teaching ({form.programmeLecturing || 'BSc'} • Year {form.levelLecturing || '1'})
-              </label>
-              {form.departmentId && (
-                <span style={{ fontSize: '11px', color: '#0a2540', fontWeight: 600 }}>
-                  {form.modules.length} selected
-                </span>
-              )}
-            </div>
-            {!form.departmentId ? (
-              <div style={{ padding: '14px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                Please select a Campus and Department above to see teaching modules.
-              </div>
-            ) : lecturerAvailableModules.length === 0 ? (
-              <div style={{ padding: '14px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                No curriculum modules currently listed for {form.programmeLecturing || 'BSc'} Year {form.levelLecturing || '1'} in this department.
-              </div>
-            ) : (
-              <div className="module-select-grid">
-                {lecturerAvailableModules.map(m => (
-                  <label className="module-check" key={m.code}>
-                    <input
-                      type="checkbox"
-                      checked={form.modules.includes(m.code)}
-                      onChange={e => {
-                        const next = e.target.checked
-                          ? [...form.modules, m.code]
-                          : form.modules.filter(x => x !== m.code);
-                        update('modules', next);
-                      }}
-                    />
-                    <span>
-                      <strong>{m.code}</strong>
-                      {m.title}
-                      {m.semester && (
-                        <small style={{ display: 'block', fontSize: '10.5px', color: '#64748b', marginTop: '2px' }}>
-                          {m.semester}
-                        </small>
-                      )}
-                    </span>
-                  </label>
-                ))}
               </div>
             )}
           </div>
@@ -1015,7 +1205,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
       </div>
     )}
     <button className="primary-btn full-btn" disabled={busy}>
-      {busy ? 'Processing…' : (role === 'student' ? 'Proceed to Registration Payment' : 'Create Lecturer Account')}
+      {busy ? 'Processing…' : (role === 'student' ? 'Proceed to Registration Payment' : 'Continue to Teaching Modules →')}
     </button></form>
     <p className="signup">Already registered? <button type="button" className="text-btn" onClick={()=>setScreen('login')}>Login</button></p>
   </section></main>;

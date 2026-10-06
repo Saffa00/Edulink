@@ -157,7 +157,10 @@ router.post('/student-applicant', async (req, res) => {
         currency: 'SLE',
         returnUrl: `${successRedirect}?session_id=${reference}&student_id=${cleanStudentId}`,
         cancelUrl: cancelRedirect,
-        registrationType: cleanType
+        registrationType: cleanType,
+        phone: studentRecord.phone,
+        provider: 'monime',
+        modulesCount
       });
     }
 

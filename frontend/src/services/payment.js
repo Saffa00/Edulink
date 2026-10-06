@@ -78,3 +78,68 @@ export async function openRegistrationCheckout(options) {
   if (!checkoutUrl) throw new Error('Payment checkout URL was not returned.');
   window.location.assign(checkoutUrl);
 }
+
+// First-class Monime Mobile Money USSD / Push Payment Flow
+export async function initiateMobileMoneyPayment({
+  studentId,
+  phone,
+  provider,
+  modules = [],
+  modulesCount,
+  registrationType = 'normal'
+}) {
+  try {
+    const response = await fetch(apiUrl('/api/payments/initiate-momo'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentId,
+        phone,
+        provider,
+        modules,
+        modulesCount,
+        registrationType
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Failed to initiate mobile money payment.');
+    return data;
+  } catch (err) {
+    if (err.message === 'Failed to fetch' || err.message?.includes('Failed to fetch')) {
+      throw new Error('Payment server unreachable. Please check connection and try again.');
+    }
+    throw err;
+  }
+}
+
+export async function checkMobileMoneyPaymentStatus(paymentId) {
+  try {
+    const response = await fetch(apiUrl(`/api/payments/status-check/${encodeURIComponent(paymentId)}`));
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Failed to check transaction status.');
+    return data;
+  } catch (err) {
+    if (err.message === 'Failed to fetch' || err.message?.includes('Failed to fetch')) {
+      throw new Error('Status polling network check failed.');
+    }
+    throw err;
+  }
+}
+
+export async function simulateMobileMoneyApproval({ paymentId, studentId }) {
+  try {
+    const response = await fetch(apiUrl('/api/payments/simulate-momo-approval'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentId, studentId })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Mobile money approval confirmation failed.');
+    return data;
+  } catch (err) {
+    if (err.message === 'Failed to fetch' || err.message?.includes('Failed to fetch')) {
+      throw new Error('Payment server unreachable.');
+    }
+    throw err;
+  }
+}

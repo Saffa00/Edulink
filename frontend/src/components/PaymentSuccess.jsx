@@ -111,10 +111,24 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           }}>
             <CheckCircle2 size={32} />
           </div>
-          <h1 style={{ fontSize: '22px', color: '#061626', margin: '0 0 6px 0' }}>Payment Confirmed & Account Activated!</h1>
-          <p style={{ color: '#52657c', fontSize: '13px', margin: 0 }}>
-            Welcome to EduLink University Portal, <strong>{data?.fullName}</strong>.
+          <h1 style={{ fontSize: '22px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>Payment Confirmed & Account Activated!</h1>
+          <p style={{ color: '#15803d', fontSize: '14px', fontWeight: 700, margin: '0 0 14px 0' }}>
+            Payment Successful ✓ SLE {data?.amount || 300}.00 paid • {data?.modulesCount || 3} modules registered
           </p>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: '#f1f5f9',
+            padding: '5px 12px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: '#475569',
+            fontFamily: 'monospace'
+          }}>
+            <span>Transaction ID:</span>
+            <strong>{data?.transactionId || data?.reference || 'REG-CONFIRMED'}</strong>
+          </div>
         </div>
 
         {/* Student Credential Card */}
@@ -213,7 +227,7 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           style={{ height: '48px', fontSize: '15px' }}
           onClick={() => onProceedToLogin?.({ studentId: data?.studentId })}
         >
-          Proceed to Student Login <ArrowRight size={17} />
+          View Registered Modules & Proceed to Login <ArrowRight size={17} />
         </button>
       </section>
     </main>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { BookOpen, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, GraduationCap, Users } from 'lucide-react';
+import { BookOpen, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, GraduationCap, Users, Clock } from 'lucide-react';
 import { getModuleCatalogue } from '../services/academicMasterV41toV55.js';
 import { supabase } from '../services/supabase';
 
@@ -153,19 +153,20 @@ export default function ModuleRegistrationV47() {
                       )}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '5px',
-                          background: '#ecfdf5',
-                          color: '#059669',
-                          padding: '3px 8px',
+                          background: m.isPaid ? '#ecfdf5' : '#fff7ed',
+                          color: m.isPaid ? '#059669' : '#c2410c',
+                          padding: '3px 9px',
                           borderRadius: '12px',
                           fontSize: '11px',
-                          fontWeight: 700
+                          fontWeight: 800
                         }}>
-                          <CheckCircle2 size={12} /> Auto-Enrolled
+                          {m.isPaid ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                          {m.isPaid ? 'PAID / ACTIVE' : 'PENDING PAYMENT'}
                         </span>
                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
                           SLE 100.00

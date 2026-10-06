@@ -779,6 +779,8 @@ export async function getModuleCatalogue() {
       semester: effectiveSemester,
       isEnrolled: true,
       autoAllocated: true,
+      accountStatus: student.account_status,
+      isPaid: student.account_status === 'active',
       lecturers: {
         full_name: lecturerFullName,
         lecturer_id: lecturerId

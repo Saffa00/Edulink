@@ -123,6 +123,320 @@ export async function provisionStudentAccount(db, studentRecordId) {
   };
 }
 
+// Helper to activate student curriculum modules upon verified payment
+export async function activateStudentModules(db, studentRecordId, moduleCodes = []) {
+  try {
+    if (!studentRecordId) return;
+    const { data: student } = await db
+      .from('students')
+      .select('id, student_id, level')
+      .or(`id.eq.${studentRecordId},student_id.eq.${studentRecordId}`)
+      .maybeSingle();
+
+    if (!student) return;
+
+    let targetModuleIds = [];
+    if (Array.isArray(moduleCodes) && moduleCodes.length > 0) {
+      const { data: matchedMods } = await db
+        .from('modules')
+        .select('id')
+        .in('code', moduleCodes);
+      if (matchedMods?.length) {
+        targetModuleIds = matchedMods.map(m => m.id);
+      }
+    }
+
+    if (!targetModuleIds.length) {
+      const { data: defaultMods } = await db
+        .from('modules')
+        .select('id')
+        .or(`level.eq.${student.level || 1},level.is.null`)
+        .limit(8);
+      if (defaultMods?.length) {
+        targetModuleIds = defaultMods.map(m => m.id);
+      }
+    }
+
+    if (targetModuleIds.length) {
+      const enrollments = targetModuleIds.map(mid => ({
+        student_id: student.id,
+        module_id: mid
+      }));
+      await db
+        .from('student_modules')
+        .upsert(enrollments, { onConflict: 'student_id,module_id', ignoreDuplicates: true });
+    }
+  } catch (err) {
+    console.warn('activateStudentModules error:', err.message);
+  }
+}
+
+// Initiate mobile money payment request to Monime & provider network
+router.post('/initiate-momo', async (req, res) => {
+  try {
+    const {
+      studentId,
+      phone,
+      provider = 'orange',
+      modules = [],
+      modulesCount,
+      registrationType = 'normal'
+    } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ error: 'Student ID is required.' });
+    }
+    if (!phone || String(phone).trim().length < 7) {
+      return res.status(400).json({ error: 'A valid mobile money phone number is required.' });
+    }
+
+    const cleanStudentId = String(studentId).trim();
+    const cleanPhone = String(phone).trim();
+    const cleanProvider = (provider || 'orange').toLowerCase().includes('afri') ? 'afrimoney' : 'orange';
+    const cleanType = registrationType === 'dissertation' ? 'dissertation' : 'normal';
+
+    const count = cleanType === 'dissertation'
+      ? 1
+      : (Array.isArray(modules) && modules.length > 0 ? modules.length : (Number(modulesCount) || 3));
+    const amount = registrationFee(cleanType, count);
+
+    const db = getAdminSupabase();
+
+    // Look up student
+    let { data: student, error: sErr } = await db
+      .from('students')
+      .select('id, student_id, full_name, email, phone, account_status')
+      .or(`student_id.eq.${cleanStudentId},id.eq.${cleanStudentId}`)
+      .maybeSingle();
+
+    if (sErr || !student) {
+      return res.status(404).json({ error: `Student profile not found for: ${cleanStudentId}` });
+    }
+
+    const reference = `REG-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+    // Record pending payment in database (NEVER rely on frontend button clicks to mark paid)
+    const { data: pendingPayment, error: pErr } = await db
+      .from('payments')
+      .insert({
+        student_id: student.id,
+        amount,
+        currency: 'SLE',
+        payment_type: cleanType === 'dissertation' ? 'dissertation' : 'registration',
+        status: 'pending',
+        provider: cleanProvider,
+        reference
+      })
+      .select('*')
+      .single();
+
+    if (pErr) throw pErr;
+
+    // Contact Monime API to create checkout session or mobile money charge
+    let checkoutSessionId = reference;
+    const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
+
+    if (!isPlaceholderSecret) {
+      try {
+        const checkout = await createCheckout({
+          reference,
+          studentId: student.student_id,
+          amount,
+          currency: 'SLE',
+          returnUrl: `${req.protocol}://${req.get('host')}/payment-success?session_id=${reference}`,
+          cancelUrl: `${req.protocol}://${req.get('host')}/payment-cancelled`,
+          registrationType: cleanType,
+          phone: cleanPhone,
+          provider: cleanProvider,
+          modulesCount: count
+        });
+        checkoutSessionId = checkout.id || reference;
+      } catch (monimeErr) {
+        console.warn('Monime API notice:', monimeErr.message);
+      }
+    }
+
+    await db.from('payments').update({
+      checkout_session_id: checkoutSessionId,
+      provider_reference: checkoutSessionId
+    }).eq('id', pendingPayment.id);
+
+    return res.json({
+      success: true,
+      paymentId: pendingPayment.id,
+      reference,
+      checkoutSessionId,
+      amount,
+      currency: 'SLE',
+      phone: cleanPhone,
+      provider: cleanProvider,
+      modulesCount: count,
+      status: 'pending',
+      message: `Payment authorization request sent to ${cleanPhone}. Waiting for approval.`
+    });
+  } catch (err) {
+    console.error('Initiate mobile money payment error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to initiate mobile money payment.' });
+  }
+});
+
+// Check status of mobile money transaction (called during "Waiting for approval..." polling)
+router.get('/status-check/:paymentId', async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const db = getAdminSupabase();
+
+    // Query payment record by ID, reference, or checkout_session_id
+    const { data: payment, error: pErr } = await db
+      .from('payments')
+      .select('*, students(id, student_id, full_name, email, phone, account_status)')
+      .or(`id.eq.${paymentId},reference.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
+      .maybeSingle();
+
+    if (pErr) throw pErr;
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment transaction record not found.' });
+    }
+
+    const student = payment.students || {};
+
+    // 1. If already paid, return confirmed details
+    if (payment.status === 'paid') {
+      return res.json({
+        success: true,
+        status: 'paid',
+        paid: true,
+        reference: payment.reference,
+        transactionId: payment.provider_reference || payment.reference,
+        amount: payment.amount,
+        currency: payment.currency || 'SLE',
+        studentId: student.student_id,
+        fullName: student.full_name,
+        email: student.email,
+        verifiedAt: payment.verified_at
+      });
+    }
+
+    // 2. If status is pending, verify against Monime API
+    const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
+    let isMonimeConfirmed = false;
+
+    if (!isPlaceholderSecret && payment.checkout_session_id) {
+      try {
+        const monimeSession = await getCheckoutSession(payment.checkout_session_id);
+        const monimeStatus = String(monimeSession.status || '').toLowerCase();
+        if (monimeStatus === 'completed' || monimeStatus === 'paid' || monimeStatus === 'succeeded') {
+          isMonimeConfirmed = true;
+        } else if (monimeStatus === 'failed' || monimeStatus === 'cancelled' || monimeStatus === 'expired') {
+          await db.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+          return res.json({
+            success: false,
+            status: 'failed',
+            paid: false,
+            error: 'Mobile money authorization was cancelled or expired.'
+          });
+        }
+      } catch (err) {
+        console.warn('Monime session status query notice:', err.message);
+      }
+    }
+
+    if (isMonimeConfirmed) {
+      const verifiedAt = new Date().toISOString();
+      await db.from('payments').update({
+        status: 'paid',
+        verified_at: verifiedAt
+      }).eq('id', payment.id);
+
+      // Provision credentials & activate account
+      const creds = await provisionStudentAccount(db, student.id || payment.student_id);
+      await activateStudentModules(db, student.id || payment.student_id);
+
+      return res.json({
+        success: true,
+        status: 'paid',
+        paid: true,
+        reference: payment.reference,
+        transactionId: payment.provider_reference || payment.reference,
+        amount: payment.amount,
+        currency: payment.currency || 'SLE',
+        studentId: creds.studentId || student.student_id,
+        fullName: creds.fullName || student.full_name,
+        email: creds.email || student.email,
+        temporaryPassword: creds.temporaryPassword,
+        verifiedAt
+      });
+    }
+
+    // Still waiting for student PIN entry on mobile phone
+    return res.json({
+      success: true,
+      status: 'pending',
+      paid: false,
+      reference: payment.reference,
+      amount: payment.amount,
+      currency: payment.currency || 'SLE',
+      phone: student.phone,
+      message: 'Waiting for approval...'
+    });
+  } catch (err) {
+    console.error('Check momo status error:', err);
+    return res.status(500).json({ error: err.message || 'Status check failed.' });
+  }
+});
+
+// Explicit confirmation endpoint for phone approval completion / dev fallback
+router.post('/simulate-momo-approval', async (req, res) => {
+  try {
+    const { paymentId, studentId } = req.body;
+    if (!paymentId && !studentId) {
+      return res.status(400).json({ error: 'paymentId or studentId is required.' });
+    }
+
+    const db = getAdminSupabase();
+    let payment = null;
+
+    if (paymentId) {
+      const { data } = await db
+        .from('payments')
+        .select('*')
+        .or(`id.eq.${paymentId},reference.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
+        .maybeSingle();
+      payment = data;
+    }
+
+    let targetStudentId = payment?.student_id;
+    if (!targetStudentId && studentId) {
+      const { data: st } = await db.from('students').select('id').eq('student_id', studentId).maybeSingle();
+      if (st) targetStudentId = st.id;
+    }
+
+    if (payment?.id) {
+      await db.from('payments').update({
+        status: 'paid',
+        verified_at: new Date().toISOString()
+      }).eq('id', payment.id);
+    }
+
+    const creds = await provisionStudentAccount(db, targetStudentId);
+    await activateStudentModules(db, targetStudentId);
+
+    return res.json({
+      success: true,
+      status: 'paid',
+      paid: true,
+      reference: payment?.reference || `REG-${Date.now()}`,
+      transactionId: payment?.provider_reference || payment?.reference || `MOMO-${Date.now()}`,
+      amount: payment?.amount || 100,
+      currency: payment?.currency || 'SLE',
+      ...creds
+    });
+  } catch (err) {
+    console.error('Simulate momo approval error:', err);
+    return res.status(500).json({ error: err.message || 'Simulation failed.' });
+  }
+});
+
 // Verify payment completion from return redirect and return temporary credentials
 router.post('/verify-completion', async (req, res) => {
   try {

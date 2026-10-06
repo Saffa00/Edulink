@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CreditCard, Clock, CheckCircle2, AlertCircle, RefreshCw, LogOut, ShieldAlert, Sparkles } from 'lucide-react';
 import { supabase } from '../services/supabase';
-import { openRegistrationCheckout } from '../services/payment';
+import { initiateMobileMoneyPayment, checkMobileMoneyPaymentStatus, simulateMobileMoneyApproval } from '../services/payment';
 
 export default function PaymentGate({ profile, onActivated, onLogout }) {
   const [busy, setBusy] = useState(false);
@@ -12,10 +12,11 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
   const [provider, setProvider] = useState('orange');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [ussdStep, setUssdStep] = useState(false);
-  const [ussdSeconds, setUssdSeconds] = useState(4);
+  const [paymentId, setPaymentId] = useState(null);
+  const pollingRef = useRef(null);
 
   const isDissertation = profile?.registration_type === 'dissertation';
-  const modulesCount = profile?.modulesCount || (Array.isArray(profile?.modules) && profile.modules.length) || (isDissertation ? 5 : 8);
+  const modulesCount = profile?.modulesCount || (Array.isArray(profile?.modules) && profile.modules.length) || (isDissertation ? 1 : 3);
   const totalAmount = isDissertation ? 500 : modulesCount * 100;
   const feeAmount = `SLE ${totalAmount.toFixed(2)}`;
   const regTypeLabel = `${modulesCount} Registered Modules • SLE 100 / Module`;
@@ -41,7 +42,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
           onActivated?.({ ...profile, ...data, role: 'student' });
         }, 800);
       } else if (notify) {
-        setMessage('Status checked: Payment is still pending. If you just completed payment, please wait a moment and check again.');
+        setMessage('Status checked: Payment is still pending. If you just approved on your phone, please wait a moment.');
       }
     } catch (err) {
       if (notify) setError(err.message || 'Could not verify payment status.');
@@ -51,63 +52,79 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
   };
 
   useEffect(() => {
-    // Check once on mount in case webhook already arrived
     checkStatus(false);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
 
-  const handlePay = () => {
+  // Polling backend while USSD prompt is active
+  useEffect(() => {
+    if (!ussdStep || !paymentId) return;
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await checkMobileMoneyPaymentStatus(paymentId);
+        if (res?.paid || res?.status === 'paid') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setMessage('Payment confirmed by mobile carrier! Activating student portal…');
+          setTimeout(() => {
+            onActivated?.({ ...profile, account_status: 'active', role: 'student' });
+          }, 800);
+        }
+      } catch (e) {
+        // Polling retry
+      }
+    }, 2500);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [ussdStep, paymentId, profile, onActivated]);
+
+  const handlePay = async () => {
     if (!phone || phone.trim().length < 7) {
       setError('Please enter a valid mobile money number.');
       return;
     }
 
+    setBusy(true);
     setError('');
     setMessage('');
-    setUssdStep(true);
+    try {
+      const res = await initiateMobileMoneyPayment({
+        studentId: profile.student_id || profile.id,
+        phone: phone.trim(),
+        provider,
+        modulesCount,
+        registrationType: profile.registration_type || 'normal'
+      });
+      setPaymentId(res.paymentId);
+      setUssdStep(true);
+    } catch (err) {
+      setError(err.message || 'Could not send payment authorization request.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const confirmUssdPayment = async () => {
     setChecking(true);
     setError('');
     try {
-      const { data, error: updateErr } = await supabase
-        .from('students')
-        .update({ account_status: 'active' })
-        .eq('id', profile.id)
-        .select('*')
-        .maybeSingle();
+      const pId = paymentId || profile.student_id;
+      const res = await simulateMobileMoneyApproval({
+        paymentId: pId,
+        studentId: profile.student_id
+      });
 
-      if (updateErr) throw updateErr;
+      if (pollingRef.current) clearInterval(pollingRef.current);
       setMessage('Payment confirmed! Activating your student workspace…');
       setTimeout(() => {
-        onActivated?.({ ...profile, ...(data || {}), account_status: 'active', role: 'student' });
+        onActivated?.({ ...profile, ...(res || {}), account_status: 'active', role: 'student' });
       }, 700);
     } catch (err) {
       setError(err.message || 'Payment confirmation failed.');
-      setChecking(false);
-    }
-  };
-
-  // Dev mode activation helper for testing when Monime webhook is not accessible locally
-  const handleDevActivate = async () => {
-    setChecking(true);
-    setError('');
-    try {
-      const { data, error: updateErr } = await supabase
-        .from('students')
-        .update({ account_status: 'active' })
-        .eq('id', profile.id)
-        .select('*')
-        .maybeSingle();
-
-      if (updateErr) throw updateErr;
-      setMessage('Account successfully activated!');
-      setTimeout(() => {
-        onActivated?.({ ...profile, ...(data || {}), account_status: 'active', role: 'student' });
-      }, 500);
-    } catch (err) {
-      setError(err.message || 'Could not activate in dev mode.');
-    } finally {
       setChecking(false);
     }
   };
@@ -562,7 +579,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
               cursor: 'pointer'
             }}
             disabled={checking || busy}
-            onClick={handleDevActivate}
+            onClick={confirmUssdPayment}
             title="Simulate payment confirmation for local testing"
           >
             <Sparkles size={14} color="#6366f1" /> Dev Mode: Activate Account Immediately

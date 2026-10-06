@@ -918,46 +918,38 @@ export function getModulesByDepartmentId(facultyId, departmentId) {
  * Rule: If student fills in level 2 academic information, show all modules for level 3 and lecturers alone.
  * Provides 8 or 9 modules per semester.
  */
-export function getCurriculumModules({ campusId, facultyId, departmentId, programme, level, semester } = {}) {
-  // If student fills in level 2 academic information, show level 3 modules
-  const rawLevelNum = Number(level);
-  const effectiveLevel = rawLevelNum === 2 ? 3 : (rawLevelNum || 3);
-  const effectiveSemester = (semester && semester.toLowerCase().includes('second')) ? 'Second Semester' : 'First Semester';
+export function getCurriculumModules({ campusId, facultyId, departmentId, programme = 'BSc', level = 1, semester = 'First Semester' } = {}) {
+  const lvlNum = Number(String(level || '1').replace(/\D/g, '')) || 1;
+  const effectiveSemester = (semester && String(semester).toLowerCase().includes('second')) ? 'Second Semester' : 'First Semester';
+  const progClean = programme || 'BSc';
 
-  // Find department across campuses or faculties
-  let allDepts = [];
-  if (campusId && facultyId) {
-    allDepts = getDepartmentsByCampusAndFaculty(campusId, facultyId);
-  } else if (campusId) {
-    allDepts = getDepartmentsByCampus(campusId);
-  } else if (facultyId) {
-    allDepts = getDepartmentsByFacultyId(facultyId);
-  } else {
-    allDepts = ALL_FACULTIES.flatMap(f => f.departments);
-  }
-
-  const dept = allDepts.find(d => d.id === departmentId || (departmentId && d.name.toLowerCase().includes(departmentId.toLowerCase())));
-  const modulesList = dept ? dept.modules : [];
-
-  // Filter modules by effectiveLevel and effectiveSemester
-  let filtered = modulesList.filter(m => {
-    const matchesLevel = m.level ? Number(m.level) === effectiveLevel : true;
-    const matchesSem = m.semester ? m.semester.toLowerCase() === effectiveSemester.toLowerCase() : true;
-    return matchesLevel && matchesSem;
+  // Strictly query modules designated for this programme and level
+  let filtered = getModulesForLecturerTeaching({
+    campusId,
+    facultyId,
+    departmentId,
+    programme: progClean,
+    level: lvlNum
   });
 
-  // If no level/semester tag on modules or fewer than 8, expand/fallback to department modules
-  if (!filtered.length && modulesList.length) {
-    filtered = modulesList;
+  // Filter by semester if semester is tagged on the modules
+  const semFiltered = filtered.filter(m => {
+    if (!m.semester) return true;
+    const s = String(m.semester).toLowerCase();
+    return effectiveSemester === 'Second Semester' ? s.includes('second') : s.includes('first');
+  });
+
+  if (semFiltered.length > 0) {
+    filtered = semFiltered;
   }
 
   // Ensure default lecturer assigned if not present
   return filtered.map((m, idx) => ({
     ...m,
-    effectiveLevel,
+    effectiveLevel: lvlNum,
     effectiveSemester,
-    lecturerName: m.lecturerName || (effectiveLevel === 3 ? 'Peter Saffa' : `Lecturer ${idx + 1}`),
-    lecturerId: m.lecturerId || (effectiveLevel === 3 ? 'LECT-2026-790380' : `LECT-2026-${1000 + idx}`)
+    lecturerName: m.lecturerName || (lvlNum === 3 ? 'Peter Saffa' : `Lecturer ${idx + 1}`),
+    lecturerId: m.lecturerId || (lvlNum === 3 ? 'LECT-2026-790380' : `LECT-2026-${1000 + idx}`)
   }));
 }
 

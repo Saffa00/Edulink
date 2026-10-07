@@ -587,6 +587,27 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 >
                   <PhoneCall size={13} /> Tap to Dial on Phone
                 </a>
+                {paymentInfo?.checkoutUrl && (
+                  <a
+                    href={paymentInfo.checkoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: '#0284c7',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      padding: '7px 14px',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    🌐 Open Monime Checkout
+                  </a>
+                )}
               </div>
             </div>
 

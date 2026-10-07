@@ -5,7 +5,7 @@ import { createCheckout, getCheckoutSession } from '../services/monime.js';
 import { getAdminSupabase, getAuthenticatedUser } from '../services/supabase.js';
 import { verifyMonimeWebhook } from '../services/webhook-security.js';
 import { sendStudentCredentialsEmail } from '../services/email.js';
-import { findPayment, markPaymentPaid } from '../services/paymentsStore.js';
+import { findPayment, markPaymentPaid, recordPayment } from '../services/paymentsStore.js';
 
 const router = Router();
 
@@ -123,15 +123,84 @@ export async function provisionStudentAccount(db, studentRecordId) {
   };
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function lookupStudent(db, identifier) {
+  if (!identifier) return null;
+  const clean = String(identifier).trim();
+
+  // Try student_id first (e.g. "2003", "8100", "8409")
+  const { data: byCode, error: cErr } = await db
+    .from('students')
+    .select('id, student_id, full_name, email, phone, account_status, level, registration_type')
+    .eq('student_id', clean)
+    .maybeSingle();
+
+  if (byCode && !cErr) return byCode;
+
+  // If valid UUID, search by id
+  if (UUID_REGEX.test(clean)) {
+    const { data: byId } = await db
+      .from('students')
+      .select('id, student_id, full_name, email, phone, account_status, level, registration_type')
+      .eq('id', clean)
+      .maybeSingle();
+    if (byId) return byId;
+  }
+
+  // Fallback: search by email if contains @
+  if (clean.includes('@')) {
+    const { data: byEmail } = await db
+      .from('students')
+      .select('id, student_id, full_name, email, phone, account_status, level, registration_type')
+      .eq('email', clean.toLowerCase())
+      .maybeSingle();
+    if (byEmail) return byEmail;
+  }
+
+  return null;
+}
+
+export async function lookupPayment(db, identifier) {
+  if (!identifier) return null;
+  const clean = String(identifier).trim();
+
+  // 1. If valid UUID, search payments.id
+  if (UUID_REGEX.test(clean)) {
+    const { data: byId } = await db
+      .from('payments')
+      .select('*, students(id, student_id, full_name, email, phone, account_status)')
+      .eq('id', clean)
+      .maybeSingle();
+    if (byId) return byId;
+  }
+
+  // 2. Search reference
+  const { data: byRef } = await db
+    .from('payments')
+    .select('*, students(id, student_id, full_name, email, phone, account_status)')
+    .eq('reference', clean)
+    .maybeSingle();
+  if (byRef) return byRef;
+
+  // 3. Search checkout_session_id or provider_reference
+  const { data: bySession } = await db
+    .from('payments')
+    .select('*, students(id, student_id, full_name, email, phone, account_status)')
+    .or(`checkout_session_id.eq.${clean},provider_reference.eq.${clean}`)
+    .maybeSingle();
+  if (bySession) return bySession;
+
+  // 4. Fallback to paymentsStore
+  const local = await findPayment(db, { sessionId: clean });
+  return local || null;
+}
+
 // Helper to activate student curriculum modules upon verified payment
 export async function activateStudentModules(db, studentRecordId, moduleCodes = []) {
   try {
     if (!studentRecordId) return;
-    const { data: student } = await db
-      .from('students')
-      .select('id, student_id, level')
-      .or(`id.eq.${studentRecordId},student_id.eq.${studentRecordId}`)
-      .maybeSingle();
+    const student = await lookupStudent(db, studentRecordId);
 
     if (!student) return;
 
@@ -202,38 +271,29 @@ router.post('/initiate-momo', async (req, res) => {
 
     const db = getAdminSupabase();
 
-    // Look up student
-    let { data: student, error: sErr } = await db
-      .from('students')
-      .select('id, student_id, full_name, email, phone, account_status')
-      .or(`student_id.eq.${cleanStudentId},id.eq.${cleanStudentId}`)
-      .maybeSingle();
+    // Look up student safely (supports studentId, UUID, or email without 22P02 error)
+    const student = await lookupStudent(db, cleanStudentId);
 
-    if (sErr || !student) {
+    if (!student) {
       return res.status(404).json({ error: `Student profile not found for: ${cleanStudentId}` });
     }
 
     const reference = `REG-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-    // Record pending payment in database (NEVER rely on frontend button clicks to mark paid)
-    const { data: pendingPayment, error: pErr } = await db
-      .from('payments')
-      .insert({
-        student_id: student.id,
-        amount,
-        currency: 'SLE',
-        payment_type: cleanType === 'dissertation' ? 'dissertation' : 'registration',
-        status: 'pending',
-        provider: cleanProvider,
-        reference
-      })
-      .select('*')
-      .single();
-
-    if (pErr) throw pErr;
+    // Record pending payment in database/store (NEVER rely on frontend button clicks to mark paid)
+    const pendingPayment = await recordPayment(db, {
+      student_id: student.id,
+      amount,
+      currency: 'SLE',
+      payment_type: cleanType === 'dissertation' ? 'dissertation' : 'registration',
+      status: 'pending',
+      provider: cleanProvider,
+      reference
+    });
 
     // Contact Monime API to create checkout session or mobile money charge
     let checkoutSessionId = reference;
+    let checkoutUrl = null;
     const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
 
     if (!isPlaceholderSecret) {
@@ -251,21 +311,25 @@ router.post('/initiate-momo', async (req, res) => {
           modulesCount: count
         });
         checkoutSessionId = checkout.id || reference;
+        checkoutUrl = checkout.redirectUrl || null;
       } catch (monimeErr) {
         console.warn('Monime API notice:', monimeErr.message);
       }
     }
 
-    await db.from('payments').update({
-      checkout_session_id: checkoutSessionId,
-      provider_reference: checkoutSessionId
-    }).eq('id', pendingPayment.id);
+    if (pendingPayment?.id) {
+      await db.from('payments').update({
+        checkout_session_id: checkoutSessionId,
+        provider_reference: checkoutSessionId
+      }).eq('id', pendingPayment.id).catch(() => {});
+    }
 
     return res.json({
       success: true,
       paymentId: pendingPayment.id,
       reference,
       checkoutSessionId,
+      checkoutUrl,
       amount,
       currency: 'SLE',
       phone: cleanPhone,
@@ -286,14 +350,9 @@ router.get('/status-check/:paymentId', async (req, res) => {
     const { paymentId } = req.params;
     const db = getAdminSupabase();
 
-    // Query payment record by ID, reference, or checkout_session_id
-    const { data: payment, error: pErr } = await db
-      .from('payments')
-      .select('*, students(id, student_id, full_name, email, phone, account_status)')
-      .or(`id.eq.${paymentId},reference.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
-      .maybeSingle();
+    // Query payment record by ID, reference, or checkout_session_id safely
+    const payment = await lookupPayment(db, paymentId);
 
-    if (pErr) throw pErr;
     if (!payment) {
       return res.status(404).json({ error: 'Payment transaction record not found.' });
     }
@@ -397,12 +456,7 @@ router.post('/simulate-momo-approval', async (req, res) => {
     let payment = null;
 
     if (paymentId) {
-      const { data } = await db
-        .from('payments')
-        .select('*')
-        .or(`id.eq.${paymentId},reference.eq.${paymentId},checkout_session_id.eq.${paymentId}`)
-        .maybeSingle();
-      payment = data;
+      payment = await lookupPayment(db, paymentId);
     }
 
     let targetStudentId = payment?.student_id;

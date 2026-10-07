@@ -199,7 +199,7 @@ export default function GradeManagementV41({ initialModuleId = null, scopedModul
         if (mounted) {
           const validList = list && list.length > 0 ? list : [
             {
-              id: 'mod-bscs-411',
+              id: 'ea906b5e-be88-41e8-9cb3-aca4128247f8',
               code: 'BSCS411',
               title: 'Oracle',
               level: 4,
@@ -228,7 +228,7 @@ export default function GradeManagementV41({ initialModuleId = null, scopedModul
         if (mounted) {
           setModules([
             {
-              id: 'mod-bscs-411',
+              id: 'ea906b5e-be88-41e8-9cb3-aca4128247f8',
               code: 'BSCS411',
               title: 'Oracle',
               level: 4,
@@ -248,7 +248,7 @@ export default function GradeManagementV41({ initialModuleId = null, scopedModul
   // Current active module
   const currentModule = useMemo(() => {
     if (!modules || modules.length === 0) {
-      return { id: 'mod-bscs-411', code: 'BSCS411', title: 'Oracle', semester: 'First Semester' };
+      return { id: 'ea906b5e-be88-41e8-9cb3-aca4128247f8', code: 'BSCS411', title: 'Oracle', semester: 'First Semester' };
     }
     const found = modules.find(m => m.code === selectedModuleCode);
     return found || modules[0];

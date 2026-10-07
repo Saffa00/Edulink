@@ -11,8 +11,15 @@ export async function getLecturerWorkspace(moduleId) {
 
   let moduleQuery=supabase.from('modules')
     .select('id,code,title,level,semester,active')
-    .eq('lecturer_id',lecturer.id)
-  if (moduleId) moduleQuery=moduleQuery.eq('id',moduleId)
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (moduleId) {
+    if (UUID_REGEX.test(String(moduleId).trim())) {
+      moduleQuery = moduleQuery.eq('id', moduleId);
+    } else {
+      const cleanCode = String(moduleId).replace(/^mod-/, '').replace(/-.*$/, '').replace(/\s+/g, '').toUpperCase();
+      moduleQuery = moduleQuery.or(`code.eq.${moduleId},code.ilike.%${cleanCode}%`);
+    }
+  }
   const {data: modules,error:me}=await moduleQuery.order('code')
   if(me) throw me
   const selected=modules?.[0]

@@ -69,7 +69,8 @@ export async function getLecturerAssignments(moduleId = null) {
     .eq('lecturer_id', lecturer.id)
     .order('created_at', { ascending: false });
 
-  if (moduleId) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (moduleId && UUID_REGEX.test(String(moduleId).trim())) {
     query = query.eq('module_id', moduleId);
   }
 

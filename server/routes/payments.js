@@ -318,10 +318,14 @@ router.post('/initiate-momo', async (req, res) => {
     }
 
     if (pendingPayment?.id) {
-      await db.from('payments').update({
-        checkout_session_id: checkoutSessionId,
-        provider_reference: checkoutSessionId
-      }).eq('id', pendingPayment.id).catch(() => {});
+      try {
+        await db.from('payments').update({
+          checkout_session_id: checkoutSessionId,
+          provider_reference: checkoutSessionId
+        }).eq('id', pendingPayment.id);
+      } catch (updErr) {
+        console.warn('Payment record update notice:', updErr.message);
+      }
     }
 
     return res.json({

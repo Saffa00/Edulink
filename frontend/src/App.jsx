@@ -60,8 +60,8 @@ import {
 } from "lucide-react";
 
 const modules = [
-  { id: 'mod-bscs-411-oracle', code: "Bscs 411", title: "Oracle", students: 45, level: "Year 3", studentsCount: 45 },
-  { id: 'mod-bscs-412-cpp', code: "Bscs 412", title: "C++", students: 45, level: "Year 3", studentsCount: 45 }
+  { id: 'ea906b5e-be88-41e8-9cb3-aca4128247f8', code: "BSCS411", title: "Oracle", students: 45, level: "Year 3", studentsCount: 45 },
+  { id: 'mod-bscs-412-cpp', code: "BSCS412", title: "C++", students: 45, level: "Year 3", studentsCount: 45 }
 ];
 
 function TopLeftCapDateTime() {
@@ -2383,8 +2383,8 @@ function Stat({ icon:Icon, title, value, sub }) {
 function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modulesList = [] }) {
   const activeTeachingModules = modulesList && modulesList.length > 0 ? modulesList : [
     {
-      id: 'mod-bscs-411-oracle',
-      code: 'Bscs 411',
+      id: 'ea906b5e-be88-41e8-9cb3-aca4128247f8',
+      code: 'BSCS411',
       title: 'Oracle',
       level: 3,
       semester: 'First Semester',
@@ -2392,7 +2392,7 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
     },
     {
       id: 'mod-bscs-412-cpp',
-      code: 'Bscs 412',
+      code: 'BSCS412',
       title: 'C++',
       level: 3,
       semester: 'First Semester',

@@ -782,35 +782,6 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
         "✅ Well prepared submission."
       ];
 
-  // Filter conversations
-  const filteredConversations = conversations.filter(c => {
-    const q = searchQuery.toLowerCase().trim();
-    const party = getOtherParty(c);
-    const otherName = party.name || '';
-    const modCode = c.modules?.code || '';
-    const modTitle = c.modules?.title || '';
-    const last = c.lastMessage || '';
-
-    const matchesSearch = !q ||
-      otherName.toLowerCase().includes(q) ||
-      modCode.toLowerCase().includes(q) ||
-      modTitle.toLowerCase().includes(q) ||
-      last.toLowerCase().includes(q);
-
-    if (!matchesSearch) return false;
-
-    if (filterMode === 'unread') return (c.unreadCount || 0) > 0;
-    if (filterMode === 'modules') return !modCode.includes('401') && !modTitle.toLowerCase().includes('dissert');
-    if (filterMode === 'dissertation') {
-      return modCode.includes('401') ||
-             modTitle.toLowerCase().includes('dissert') ||
-             String(c.students?.registration_type || '') === 'dissertation';
-    }
-    return true;
-  });
-
-  const activeConv = conversations.find(c => c.id === activeConvId);
-
   // Participant helper
   const getOtherParty = (conv) => {
     if (!conv) return { name: 'Academic Contact', code: 'Coursework', moduleTitle: '', roleTag: 'Academic', userId: null };
@@ -877,6 +848,34 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
     }
   };
 
+  // Filter conversations
+  const filteredConversations = conversations.filter(c => {
+    const q = searchQuery.toLowerCase().trim();
+    const party = getOtherParty(c);
+    const otherName = party.name || '';
+    const modCode = c.modules?.code || '';
+    const modTitle = c.modules?.title || '';
+    const last = c.lastMessage || '';
+
+    const matchesSearch = !q ||
+      otherName.toLowerCase().includes(q) ||
+      modCode.toLowerCase().includes(q) ||
+      modTitle.toLowerCase().includes(q) ||
+      last.toLowerCase().includes(q);
+
+    if (!matchesSearch) return false;
+
+    if (filterMode === 'unread') return (c.unreadCount || 0) > 0;
+    if (filterMode === 'modules') return !modCode.includes('401') && !modTitle.toLowerCase().includes('dissert');
+    if (filterMode === 'dissertation') {
+      return modCode.includes('401') ||
+             modTitle.toLowerCase().includes('dissert') ||
+             String(c.students?.registration_type || '') === 'dissertation';
+    }
+    return true;
+  });
+
+  const activeConv = conversations.find(c => c.id === activeConvId);
   const other = getOtherParty(activeConv);
 
   // Filter messages in thread if searching inside chat

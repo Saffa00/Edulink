@@ -18,8 +18,10 @@ if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json({
+  limit: '25mb',
   verify: (req, _res, buf) => { req.rawBody = Buffer.from(buf); }
 }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
 app.get('/', (_req, res) => {
   res.json({

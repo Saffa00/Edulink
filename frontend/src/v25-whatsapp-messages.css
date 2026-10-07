@@ -1512,3 +1512,115 @@
 .wa-contact-done-btn:hover {
   background: #1e3a5f;
 }
+
+/* ==========================================================================
+   Voice Note Live Recorder & Playback Styles
+   ========================================================================== */
+.wa-composer-recording-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--wa-bg-header, #202c33);
+  border-top: 1px solid var(--wa-border-subtle, rgba(255, 255, 255, 0.08));
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeInRecord 0.2s ease-out;
+}
+
+@keyframes fadeInRecord {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wa-recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wa-recording-pulsing-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulseDot 1s infinite alternate ease-in-out;
+  display: inline-block;
+}
+
+@keyframes pulseDot {
+  from { transform: scale(0.85); opacity: 0.5; box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+  to { transform: scale(1.15); opacity: 1; box-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
+}
+
+.wa-recording-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wa-text-primary, #e9edef);
+}
+
+.wa-recording-timer {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ef4444;
+  min-width: 36px;
+}
+
+.wa-recording-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  flex: 1;
+  max-width: 200px;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.wa-rec-bar {
+  width: 3px;
+  background: #00a884;
+  border-radius: 2px;
+  transition: height 0.15s ease;
+  min-height: 6px;
+}
+
+.wa-recording-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wa-recording-cancel-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.wa-recording-cancel-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.wa-voicenote-card .wa-waveform-bar.playing {
+  background: #53bdeb !important;
+  opacity: 1 !important;
+  animation: wavePlaying 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes wavePlaying {
+  0% { transform: scaleY(0.7); }
+  100% { transform: scaleY(1.3); }
+}
+

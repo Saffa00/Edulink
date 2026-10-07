@@ -191,9 +191,13 @@ router.get('/conversations', async (req, res) => {
         .is('read_at', null);
 
       const latest = msgs?.[0] || null;
+      let previewText = latest?.body || 'No messages yet';
+      if (previewText.includes('🎙️ [Academic Voice Note')) {
+        previewText = previewText.split('\n')[0] || '🎙️ Voice Note';
+      }
       return {
         ...c,
-        lastMessage: latest?.body || 'No messages yet',
+        lastMessage: previewText,
         lastMessageTime: latest?.created_at || c.last_message_at,
         unreadCount: unreadCount || 0
       };
@@ -336,12 +340,16 @@ router.post('/send', async (req, res) => {
           recipients.add(conv.student_user_id);
         }
 
+        const notifBody = cleanBody.includes('🎙️ [Academic Voice Note')
+          ? (cleanBody.split('\n')[0] || '🎙️ Academic Voice Note')
+          : (cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody);
+
         for (const recipientId of Array.from(recipients).slice(0, 15)) {
           try {
             await admin.from('notifications').insert({
               recipient_user_id: recipientId,
               title: `${moduleCode}: ${senderName}`,
-              body: cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody,
+              body: notifBody,
               category: 'message',
               link_url: '/messages',
               created_at: new Date().toISOString()
@@ -351,7 +359,7 @@ router.post('/send', async (req, res) => {
           try {
             await sendPushToUser(recipientId, {
               title: `${moduleCode}: ${senderName}`,
-              body: cleanBody.length > 100 ? cleanBody.slice(0, 97) + '...' : cleanBody,
+              body: notifBody,
               icon: '/edulink-logo.jpg',
               data: { url: '/messages', category: 'message' }
             });

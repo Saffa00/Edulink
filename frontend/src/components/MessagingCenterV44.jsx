@@ -70,9 +70,16 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Voice note simulation state
+  // Voice note real recording and playback state
   const [recordingVoice, setRecordingVoice] = useState(false);
+  const [voiceRecordDuration, setVoiceRecordDuration] = useState(0);
   const [playingVoiceId, setPlayingVoiceId] = useState(null);
+
+  const mediaRecorderRef = useRef(null);
+  const audioStreamRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const voiceTimerRef = useRef(null);
+  const audioPlayerRef = useRef(null);
 
   // Live Audio & Video Call State
   const [activeCall, setActiveCall] = useState(null); // { id, type: 'audio' | 'video', status: 'calling' | 'connected', duration: 0, recipientName, moduleCode, peerConnection }
@@ -116,6 +123,18 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
     return () => {
       stopRingtone();
       if (callTimerRef.current) clearInterval(callTimerRef.current);
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      if (audioPlayerRef.current) {
+        try { audioPlayerRef.current.pause(); } catch {}
+        audioPlayerRef.current = null;
+      }
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(t => t.stop());
+        audioStreamRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try { mediaRecorderRef.current.stop(); } catch {}
+      }
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
       if (localStreamRef.current) {
@@ -687,42 +706,297 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
     loadData(false);
   };
 
-  // Send message handler
+  // Send message handler (optimistic instant feedback + backend persistence)
+  const handleSend = async () => {
+    const text = inputText.trim();
+    if (!text || !activeConvId || sending) return;
+
+    let finalBody = text;
+    if (replyingTo) {
+      const replyAuthor = replyingTo.sender_name || (replyingTo.sender_user_id === currentUserId ? 'You' : 'Class Member');
+      const snippet = (replyingTo.body || '').split('\n').pop()?.slice(0, 60) || '';
+      finalBody = `[Replying to ${replyAuthor}: "${snippet}"]\n${text}`;
+    }
+
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+      id: tempId,
+      conversation_id: activeConvId,
+      sender_user_id: currentUserId,
+      body: finalBody,
+      created_at: new Date().toISOString(),
+      read_at: null,
+      is_mine: true,
+      sender_name: 'You'
+    };
+
+    setInputText('');
+    setReplyingTo(null);
+    setSending(true);
+
+    // Optimistically show in UI immediately
+    setMessages(prev => [...prev, optimisticMsg]);
+    setTimeout(() => {
+      scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 40);
+
+    try {
+      const saved = await sendChatMessage(activeConvId, finalBody);
+      if (saved?.id) {
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...saved, is_mine: true, sender_name: 'You' } : m));
+      }
+      loadData(false);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      showToast('Send failed: ' + (err.message || 'Please check network'));
+    } finally {
+      setSending(false);
+      setTimeout(() => {
+        inputRef.current?.focus();
+        scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    }
+  };
+
   const handleSendAction = async (e) => {
     e?.preventDefault();
     handleSend();
   };
 
-  // Voice note simulation
-  const handleVoiceNoteClick = async () => {
+  // Start recording real microphone audio
+  const handleStartVoiceRecord = async () => {
     if (!activeConvId) return;
-    setRecordingVoice(true);
-    showToast('Recording academic voice memo…');
 
-    setTimeout(async () => {
-      setRecordingVoice(false);
-      const voiceBody = `🎙️ [Academic Voice Note - 0:14]`;
-      const tempId = `temp-voice-${Date.now()}`;
-      const voiceMsg = {
-        id: tempId,
-        conversation_id: activeConvId,
-        sender_user_id: currentUserId,
-        body: voiceBody,
-        created_at: new Date().toISOString(),
-        read_at: null,
-        isVoice: true
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      showToast('Microphone access is not supported on this browser or device.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      audioChunksRef.current = [];
+
+      let mimeType = '';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+          mimeType = 'audio/ogg';
+        }
+      }
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
       };
 
-      setMessages(prev => [...prev, voiceMsg]);
-      setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      recorder.start(250);
+      setRecordingVoice(true);
+      setVoiceRecordDuration(0);
 
-      try {
-        await sendChatMessage(activeConvId, voiceBody);
-        loadData(false);
-      } catch (err) {
-        console.warn('Voice send error:', err);
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceRecordDuration(prev => prev + 1);
+      }, 1000);
+
+      showToast('🎙️ Recording voice note… Speak now');
+    } catch (err) {
+      console.warn('Microphone permission error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showToast('Microphone permission denied. Please allow mic access.');
+      } else {
+        showToast('Could not access microphone: ' + (err.message || 'Error'));
       }
-    }, 2000);
+    }
+  };
+
+  // Cancel / Discard voice note
+  const handleCancelVoiceRecord = () => {
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+    mediaRecorderRef.current = null;
+
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+
+    audioChunksRef.current = [];
+    setRecordingVoice(false);
+    setVoiceRecordDuration(0);
+    showToast('Voice note discarded');
+  };
+
+  // Finish and send recorded voice note
+  const handleFinishAndSendVoiceRecord = async () => {
+    if (!mediaRecorderRef.current || !activeConvId) {
+      handleCancelVoiceRecord();
+      return;
+    }
+
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+
+    const durationSec = voiceRecordDuration || 1;
+    const mins = Math.floor(durationSec / 60);
+    const secs = durationSec % 60;
+    const formattedDuration = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    const recorder = mediaRecorderRef.current;
+
+    recorder.onstop = async () => {
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
+      }
+
+      const mimeType = recorder.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = null;
+      setRecordingVoice(false);
+      setVoiceRecordDuration(0);
+
+      if (audioBlob.size < 400 && durationSec < 1) {
+        showToast('Voice note too short');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const audioDataUrl = reader.result;
+        const voiceBody = `🎙️ [Academic Voice Note - ${formattedDuration}]\n${audioDataUrl}`;
+        const tempId = `temp-voice-${Date.now()}`;
+
+        const optimisticVoiceMsg = {
+          id: tempId,
+          conversation_id: activeConvId,
+          sender_user_id: currentUserId,
+          body: voiceBody,
+          created_at: new Date().toISOString(),
+          read_at: null,
+          is_mine: true,
+          sender_name: 'You',
+          isVoice: true
+        };
+
+        setMessages(prev => [...prev, optimisticVoiceMsg]);
+        setTimeout(() => scrollRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+        try {
+          const saved = await sendChatMessage(activeConvId, voiceBody);
+          if (saved?.id) {
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...saved, is_mine: true, sender_name: 'You' } : m));
+          }
+          loadData(false);
+        } catch (err) {
+          console.warn('Voice send error:', err);
+          showToast('Failed to send voice note: ' + (err.message || ''));
+        }
+      };
+      reader.readAsDataURL(audioBlob);
+    };
+
+    try {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    } catch (err) {
+      console.warn('Error stopping recorder:', err);
+      handleCancelVoiceRecord();
+    }
+  };
+
+  // Synthetic tone preview fallback for legacy notes or sound cards
+  const playSyntheticAudioFallback = (msgId) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) {
+        setPlayingVoiceId(null);
+        return;
+      }
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 1.2);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.5);
+      setPlayingVoiceId(msgId);
+      setTimeout(() => {
+        setPlayingVoiceId(null);
+        ctx.close().catch(() => {});
+      }, 1500);
+    } catch {
+      setPlayingVoiceId(null);
+    }
+  };
+
+  // Play / Pause voice note audio
+  const handleTogglePlayVoice = (msgId, audioSrc) => {
+    if (playingVoiceId === msgId) {
+      if (audioPlayerRef.current) {
+        try { audioPlayerRef.current.pause(); } catch {}
+        audioPlayerRef.current = null;
+      }
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    if (audioPlayerRef.current) {
+      try { audioPlayerRef.current.pause(); } catch {}
+      audioPlayerRef.current = null;
+    }
+
+    const cleanSrc = (audioSrc || '').trim();
+    if (cleanSrc && (cleanSrc.startsWith('data:audio') || cleanSrc.startsWith('http') || cleanSrc.startsWith('blob:'))) {
+      try {
+        const audio = new Audio(cleanSrc);
+        audioPlayerRef.current = audio;
+        setPlayingVoiceId(msgId);
+
+        audio.onended = () => {
+          setPlayingVoiceId(null);
+          audioPlayerRef.current = null;
+        };
+        audio.onerror = (e) => {
+          console.warn('Audio play error, falling back:', e);
+          playSyntheticAudioFallback(msgId);
+        };
+        audio.play().catch(e => {
+          console.warn('Audio play rejection:', e);
+          playSyntheticAudioFallback(msgId);
+        });
+      } catch {
+        playSyntheticAudioFallback(msgId);
+      }
+    } else {
+      playSyntheticAudioFallback(msgId);
+    }
   };
 
   // File attachment handler
@@ -1678,6 +1952,10 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                   const isAttachment = m.body?.includes('📄 [Attached Document');
                   const isCallLog = m.body?.includes('📞') || m.body?.includes('📹');
 
+                  const voiceMatch = isVoice ? m.body?.match(/🎙️ \[Academic Voice Note\s*-\s*([0-9:]+)\](?:\n([\s\S]+))?/) : null;
+                  const voiceDuration = voiceMatch?.[1] || '0:14';
+                  const voiceAudioSrc = voiceMatch?.[2]?.trim() || null;
+
                   return (
                     <div key={m.id} className={`wa-msg-row ${isMine ? 'outgoing' : 'incoming'}`}>
                       <div className={`wa-bubble ${isMine ? 'outgoing' : 'incoming'}`} style={isCallLog ? { background: '#f1f5f9', border: '1px solid #cbd5e1' } : {}}>
@@ -1762,7 +2040,8 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                             <button
                               type="button"
                               className="wa-play-btn"
-                              onClick={() => setPlayingVoiceId(playingVoiceId === m.id ? null : m.id)}
+                              onClick={() => handleTogglePlayVoice(m.id, voiceAudioSrc)}
+                              title={playingVoiceId === m.id ? "Pause voice note" : "Play voice note"}
                             >
                               {playingVoiceId === m.id ? <Pause size={18} color="#00a884" /> : <Play size={18} color="#00a884" />}
                             </button>
@@ -1770,7 +2049,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                               {[12, 18, 14, 22, 10, 16, 24, 15, 19, 12, 16].map((h, i) => (
                                 <div
                                   key={i}
-                                  className="wa-waveform-bar"
+                                  className={`wa-waveform-bar ${playingVoiceId === m.id ? 'playing' : ''}`}
                                   style={{
                                     height: `${h}px`,
                                     background: playingVoiceId === m.id ? '#53bdeb' : '#8696a0',
@@ -1779,7 +2058,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                                 />
                               ))}
                             </div>
-                            <span style={{ fontSize: '11px', color: '#8696a0', minWidth: '28px' }}>0:18</span>
+                            <span style={{ fontSize: '11px', color: '#8696a0', minWidth: '28px' }}>{voiceDuration}</span>
 
                             {/* Speaker avatar with micro mic badge */}
                             <div className="wa-voice-avatar-wrap">
@@ -1941,63 +2220,117 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
               accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg"
             />
 
-            {/* Bottom Composer (WhatsApp Input Bar) */}
-            <form onSubmit={handleSendAction} className="wa-composer">
-              {/* Attach Button (+) */}
-              <button
-                type="button"
-                className="wa-composer-action-btn"
-                title="Attach"
-                onClick={() => setShowAttachMenu(prev => !prev)}
-              >
-                <Plus size={22} />
-              </button>
+            {/* Bottom Composer (WhatsApp Input Bar or Live Voice Recording Bar) */}
+            {recordingVoice ? (
+              <div className="wa-composer-recording-bar">
+                <div className="wa-recording-indicator">
+                  <span className="wa-recording-pulsing-dot" />
+                  <span className="wa-recording-label">Recording Voice Memo</span>
+                  <span className="wa-recording-timer">
+                    {Math.floor(voiceRecordDuration / 60)}:{((voiceRecordDuration % 60)).toString().padStart(2, '0')}
+                  </span>
+                </div>
 
-              {/* Emoji Smiley Button */}
-              <button
-                type="button"
-                className="wa-composer-action-btn"
-                title="Emoji"
-                onClick={() => {
-                  setInputText(prev => prev + ' 👍');
-                  inputRef.current?.focus();
-                }}
-              >
-                <Smile size={22} />
-              </button>
+                {/* Animated sound equalizer bars */}
+                <div className="wa-recording-wave">
+                  {[10, 18, 12, 22, 16, 26, 14, 20, 12, 24, 15, 18].map((h, idx) => (
+                    <span
+                      key={idx}
+                      className="wa-rec-bar"
+                      style={{
+                        animationDelay: `${idx * 0.08}s`,
+                        height: `${Math.min(26, Math.max(8, h + ((voiceRecordDuration * 7 + idx * 5) % 18)))}px`
+                      }}
+                    />
+                  ))}
+                </div>
 
-              <div className="wa-input-pill">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Type a message"
-                  value={inputText}
-                  onChange={e => setInputText(e.target.value)}
-                  disabled={sending || recordingVoice}
-                />
+                <div className="wa-recording-actions">
+                  {/* Cancel / Discard button */}
+                  <button
+                    type="button"
+                    className="wa-recording-cancel-btn"
+                    title="Discard recording"
+                    onClick={handleCancelVoiceRecord}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+
+                  {/* Send recorded audio */}
+                  <button
+                    type="button"
+                    className="wa-send-btn"
+                    title="Send voice note"
+                    onClick={handleFinishAndSendVoiceRecord}
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
               </div>
-
-              {/* Send or Voice Note Button */}
-              {inputText.trim().length > 0 ? (
-                <button
-                  type="submit"
-                  disabled={sending}
-                  className="wa-send-btn"
-                  title="Send message"
-                >
-                  {sending ? <RefreshCw size={18} className="v-spin" /> : <Send size={18} />}
-                </button>
-              ) : (
+            ) : (
+              <form onSubmit={handleSendAction} className="wa-composer">
+                {/* Attach Button (+) */}
                 <button
                   type="button"
-                  className={`wa-send-btn mic ${recordingVoice ? 'recording' : ''}`}
-                  title="Voice message"
-                  onClick={handleVoiceNoteClick}
+                  className="wa-composer-action-btn"
+                  title="Attach"
+                  onClick={() => setShowAttachMenu(prev => !prev)}
                 >
-                  {recordingVoice ? <RefreshCw size={18} className="v-spin" /> : <Mic size={20} />}
+                  <Plus size={22} />
                 </button>
-              )}
-            </form>
+
+                {/* Emoji Smiley Button */}
+                <button
+                  type="button"
+                  className="wa-composer-action-btn"
+                  title="Emoji"
+                  onClick={() => {
+                    setInputText(prev => prev + ' 👍');
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <Smile size={22} />
+                </button>
+
+                <div className="wa-input-pill">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Type a message"
+                    value={inputText}
+                    onChange={e => setInputText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    disabled={sending}
+                  />
+                </div>
+
+                {/* Send or Voice Note Button */}
+                {inputText.trim().length > 0 ? (
+                  <button
+                    type="submit"
+                    disabled={sending}
+                    className="wa-send-btn"
+                    title="Send message"
+                  >
+                    {sending ? <RefreshCw size={18} className="v-spin" /> : <Send size={18} />}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="wa-send-btn mic"
+                    title="Record voice note"
+                    onClick={handleStartVoiceRecord}
+                  >
+                    <Mic size={20} />
+                  </button>
+                )}
+              </form>
+            )}
           </main>
         ) : (
           /* Empty Standby State on Desktop (WhatsApp Web Dark Standby) */

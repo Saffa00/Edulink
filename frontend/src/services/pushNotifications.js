@@ -9,6 +9,12 @@ export function urlBase64ToUint8Array(base64String) {
 
 export async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) throw new Error('Service workers are not supported.')
+  if (navigator.serviceWorker.ready) {
+    try {
+      const reg = await navigator.serviceWorker.ready
+      if (reg) return reg
+    } catch {}
+  }
   return navigator.serviceWorker.register('/sw.js')
 }
 
@@ -33,23 +39,36 @@ export async function subscribeToPush(vapidPublicKey) {
     })
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('You must be signed in to enable notifications.')
+  const { data } = await supabase.auth.getUser()
+  const user = data?.user
+
+  if (!user) {
+    // Guest or login screen: store locally so it links as soon as they sign in
+    try {
+      localStorage.setItem('pending_push_subscription', JSON.stringify(subscription.toJSON()))
+    } catch {}
+    return subscription
+  }
 
   const json = subscription.toJSON()
 
-  const { error } = await supabase
-    .from('push_subscriptions')
-    .upsert({
-      user_id: user.id,
-      endpoint: json.endpoint,
-      p256dh: json.keys?.p256dh,
-      auth: json.keys?.auth,
-      user_agent: navigator.userAgent,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id,endpoint' })
+  try {
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert({
+        user_id: user.id,
+        endpoint: json.endpoint,
+        p256dh: json.keys?.p256dh,
+        auth: json.keys?.auth,
+        user_agent: navigator.userAgent,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,endpoint' })
 
-  if (error) throw error
+    if (error) console.warn('Push subscription save warning:', error.message)
+  } catch (upsertErr) {
+    console.warn('Push subscription upsert error:', upsertErr.message)
+  }
+
   return subscription
 }
 

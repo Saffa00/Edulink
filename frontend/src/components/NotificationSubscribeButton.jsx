@@ -3,7 +3,7 @@ import { Bell, BellRing, Check, X, ShieldCheck } from 'lucide-react';
 import { enableMessagePushNotifications } from '../services/pushSetup';
 import { promptOneSignalPush } from '../services/oneSignalService';
 
-export default function NotificationSubscribeButton({ compact = false, floating = true }) {
+export default function NotificationSubscribeButton({ compact = false, floating = true, position = 'bottom-right' }) {
   const [permission, setPermission] = useState('default');
   const [isOpen, setIsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,9 @@ export default function NotificationSubscribeButton({ compact = false, floating 
     };
   }, [isOpen]);
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     setBusy(true);
     setStatusMsg('');
     try {
@@ -41,10 +43,14 @@ export default function NotificationSubscribeButton({ compact = false, floating 
         const perm = await Notification.requestPermission();
         setPermission(perm);
         if (perm === 'granted') {
-          await Promise.all([
-            enableMessagePushNotifications().catch(e => console.warn('VAPID setup notice:', e.message)),
-            promptOneSignalPush().catch(e => console.warn('OneSignal setup notice:', e.message))
-          ]);
+          try {
+            await Promise.all([
+              enableMessagePushNotifications().catch(err => console.warn('VAPID setup notice:', err.message)),
+              promptOneSignalPush().catch(err => console.warn('OneSignal setup notice:', err.message))
+            ]);
+          } catch (pErr) {
+            console.warn('Push registration non-fatal notice:', pErr);
+          }
           setStatusMsg('Active! Push alerts enabled for grades, attendance & timetable.');
           setTimeout(() => {
             setStatusMsg('');
@@ -98,9 +104,9 @@ export default function NotificationSubscribeButton({ compact = false, floating 
     );
   }
 
-  // Floating button on bottom left hand side with "Manage Site Notifications" popup
+  // Floating button with "Manage Site Notifications" popup
   return (
-    <div className="edulink-notif-floater" ref={popoverRef}>
+    <div className={`edulink-notif-floater pos-${position === 'bottom-left' ? 'left' : 'right'}`} ref={popoverRef}>
       {/* 1. Popover Card: "Manage Site Notifications" */}
       {isOpen && (
         <div className="edulink-notif-popover" role="dialog" aria-label="Manage Site Notifications">
@@ -110,7 +116,11 @@ export default function NotificationSubscribeButton({ compact = false, floating 
             <button
               type="button"
               className="edulink-notif-popover-close"
-              onClick={() => setIsOpen(false)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsOpen(false);
+              }}
               aria-label="Close"
             >
               <X size={16} />
@@ -137,7 +147,7 @@ export default function NotificationSubscribeButton({ compact = false, floating 
             </div>
           )}
 
-          {/* Big Action Button (Red SUBSCRIBE / Green ACTIVE) */}
+          {/* Big Action Button (Brand Navy SUBSCRIBE / Green ACTIVE) */}
           <button
             type="button"
             className={`edulink-notif-subscribe-btn ${isSubscribed ? 'active' : ''}`}
@@ -156,11 +166,15 @@ export default function NotificationSubscribeButton({ compact = false, floating 
         </div>
       )}
 
-      {/* 2. Floating Circular Red Bell Button */}
+      {/* 2. Floating Circular Bell Button */}
       <button
         type="button"
         className="edulink-notif-bell-btn"
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(prev => !prev);
+        }}
         aria-label="Manage Site Notifications"
         title="Manage Site Notifications"
       >

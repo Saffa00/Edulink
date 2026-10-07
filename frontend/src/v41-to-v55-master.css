@@ -1823,30 +1823,41 @@
 }
 
 /* ==========================================================================
-   Floating Bottom-Left Notification Bell & "Manage Site Notifications" Popover
-   Matches reference mockups (media_1791375929979 & media_1791375944568)
+   Floating Notification Bell & "Manage Site Notifications" Popover
+   Styled in EduLink App Signature Colors (Deep Academic Navy #0a2540)
    ========================================================================== */
 
 .edulink-notif-floater {
   position: fixed;
-  bottom: 24px;
-  left: 24px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   font-family: inherit;
   user-select: none;
 }
 
-/* Floating Circular Red Bell Button */
+.edulink-notif-floater.pos-right {
+  bottom: 24px;
+  right: 24px;
+  left: auto;
+  align-items: flex-end;
+}
+
+.edulink-notif-floater.pos-left {
+  bottom: 24px;
+  left: 24px;
+  right: auto;
+  align-items: flex-start;
+}
+
+/* Floating Circular Bell Button: Styled in Signature EduLink App Brand Navy */
 .edulink-notif-bell-btn {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #eb4d4b;
+  background: linear-gradient(135deg, #0a2540 0%, #1e3a5f 100%);
   border: none;
-  box-shadow: 0 4px 18px rgba(235, 77, 75, 0.45), 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 18px rgba(10, 37, 64, 0.45), 0 2px 6px rgba(0, 0, 0, 0.18);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1859,8 +1870,8 @@
 
 .edulink-notif-bell-btn:hover {
   transform: scale(1.06);
-  background: #e03d3b;
-  box-shadow: 0 6px 22px rgba(235, 77, 75, 0.55), 0 3px 8px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #051525 0%, #152e4d 100%);
+  box-shadow: 0 6px 22px rgba(10, 37, 64, 0.6), 0 3px 8px rgba(0, 0, 0, 0.25);
 }
 
 .edulink-notif-bell-btn:active {
@@ -1883,7 +1894,7 @@
   stroke: #ffffff;
   width: 22px;
   height: 22px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
 }
 
 .edulink-notif-subscribed-dot {
@@ -1902,7 +1913,6 @@
 .edulink-notif-popover {
   position: absolute;
   bottom: 70px;
-  left: 0;
   width: 290px;
   max-width: calc(100vw - 32px);
   background: #ffffff;
@@ -1914,6 +1924,16 @@
   flex-direction: column;
   animation: notifPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   z-index: 10000;
+}
+
+.edulink-notif-floater.pos-right .edulink-notif-popover {
+  right: 0;
+  left: auto;
+}
+
+.edulink-notif-floater.pos-left .edulink-notif-popover {
+  left: 0;
+  right: auto;
 }
 
 @keyframes notifPopIn {
@@ -2018,10 +2038,10 @@
   background: #f1f5f9;
 }
 
-/* Action Button */
+/* Action Button in EduLink Brand App Color */
 .edulink-notif-subscribe-btn {
   margin: 0 16px 16px;
-  background: #eb4d4b;
+  background: #0a2540;
   color: #ffffff;
   border: none;
   border-radius: 7px;
@@ -2032,13 +2052,13 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.18s ease;
-  box-shadow: 0 4px 12px rgba(235, 77, 75, 0.3);
+  box-shadow: 0 4px 12px rgba(10, 37, 64, 0.25);
   text-align: center;
 }
 
 .edulink-notif-subscribe-btn:hover:not(:disabled) {
-  background: #d63031;
-  box-shadow: 0 6px 16px rgba(235, 77, 75, 0.4);
+  background: #051525;
+  box-shadow: 0 6px 16px rgba(10, 37, 64, 0.35);
   transform: translateY(-1px);
 }
 
@@ -2056,11 +2076,10 @@
   background: #15803d;
 }
 
-/* Speech bubble arrow pointing down to bell */
+/* Speech bubble arrow */
 .edulink-notif-popover-arrow {
   position: absolute;
   bottom: -8px;
-  left: 20px;
   width: 0;
   height: 0;
   border-left: 8px solid transparent;
@@ -2068,9 +2087,31 @@
   border-top: 8px solid #ffffff;
 }
 
-/* Mobile responsive positioning so it doesn't overlap bottom navigation bar */
+.edulink-notif-floater.pos-right .edulink-notif-popover-arrow {
+  right: 20px;
+  left: auto;
+}
+
+.edulink-notif-floater.pos-left .edulink-notif-popover-arrow {
+  left: 20px;
+  right: auto;
+}
+
+/* Mobile responsive positioning */
 @media (max-width: 900px) {
-  .edulink-notif-floater {
+  .edulink-notif-floater.pos-right {
+    bottom: 20px;
+    right: 18px;
+  }
+  .app-shell .edulink-notif-floater.pos-right {
+    bottom: 84px;
+    right: 16px;
+  }
+  .edulink-notif-floater.pos-left {
+    bottom: 20px;
+    left: 18px;
+  }
+  .app-shell .edulink-notif-floater.pos-left {
     bottom: 84px;
     left: 16px;
   }

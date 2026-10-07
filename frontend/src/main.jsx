@@ -37,11 +37,12 @@ updateSW = registerSW({
   }
 });
 
-// Auto-reload immediately when new service worker takes control so the phone gets new changes
+// Auto-reload immediately when new service worker takes control ONLY if an existing worker was already active (prevents reload on first subscription/install)
 if ("serviceWorker" in navigator) {
   let refreshing = false;
+  const hadExistingController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!refreshing) {
+    if (hadExistingController && !refreshing) {
       refreshing = true;
       window.location.reload();
     }

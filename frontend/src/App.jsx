@@ -2780,7 +2780,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   return (
     <div className="app-shell">
       <LiveNotificationToast onNavigate={setPage} />
-      <NotificationSubscribeButton floating={true} />
+      <NotificationSubscribeButton floating={true} position="bottom-right" />
       {sidebarOpen && (
         <div
           className="sidebar-backdrop"
@@ -3117,13 +3117,16 @@ export default function App(){
       );
     }
     return (
-      <Auth
-        onAuthenticated={handleAuthenticated}
-        initialScreen={forceAuthScreen?.screen || 'gateway'}
-        initialRole={forceAuthScreen?.role || 'student'}
-        initialStudentId={forceAuthScreen?.studentId || ''}
-        onShowOnboarding={() => setShowOnboarding(true)}
-      />
+      <>
+        <Auth
+          onAuthenticated={handleAuthenticated}
+          initialScreen={forceAuthScreen?.screen || 'gateway'}
+          initialRole={forceAuthScreen?.role || 'student'}
+          initialStudentId={forceAuthScreen?.studentId || ''}
+          onShowOnboarding={() => setShowOnboarding(true)}
+        />
+        <NotificationSubscribeButton floating={true} position="bottom-right" />
+      </>
     );
   }
 

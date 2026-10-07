@@ -104,11 +104,9 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
       setCheckoutUrl(res.checkoutUrl);
       setUssdStep(true);
 
-      // If Monime provided a direct checkout session URL, automatically navigate
+      // Automatically take student directly to Monime checkout session where the USSD code (*715*...#) is generated for phone dialing
       if (res?.checkoutUrl) {
-        setTimeout(() => {
-          window.location.assign(res.checkoutUrl);
-        }, 1200);
+        window.location.assign(res.checkoutUrl);
       }
     } catch (err) {
       setError(err.message || 'Could not send payment authorization request.');

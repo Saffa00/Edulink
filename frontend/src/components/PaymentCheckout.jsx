@@ -95,11 +95,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
       setPaymentInfo(res);
       setStep('waiting_approval');
 
-      // If Monime provided a direct checkout session URL, automatically navigate after brief notice
+      // Automatically take student directly to Monime checkout session where the USSD code (*715*...#) is generated for phone dialing
       if (res?.checkoutUrl) {
-        setTimeout(() => {
-          window.location.assign(res.checkoutUrl);
-        }, 1200);
+        window.location.assign(res.checkoutUrl);
       }
     } catch (err) {
       console.error('Initiate payment error:', err);
@@ -438,7 +436,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 }}
               >
                 {busy ? <RefreshCw size={17} className="v-spin" /> : null}
-                {busy ? 'Initiating Payment Request…' : `Pay ${formattedFee}`} <ArrowRight size={17} />
+                {busy ? 'Connecting to Monime…' : 'Continue Payment'} <ArrowRight size={17} />
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '14px', color: '#64748b', fontSize: '11px' }}>
@@ -512,7 +510,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               Monime is prompting your mobile phone (<strong>{phone}</strong>) for payment authorization.
             </p>
 
-            {/* Direct Monime Hosted Checkout Action */}
+            {/* Direct Monime Hosted Checkout & USSD Dial Action */}
             {paymentInfo?.checkoutUrl && (
               <div style={{
                 background: '#f8fafc',
@@ -522,31 +520,59 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 marginBottom: '20px',
                 textAlign: 'center'
               }}>
-                <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600, display: 'block', marginBottom: '10px' }}>
-                  If the prompt hasn't appeared on your screen yet, continue directly via Monime:
+                <span style={{ fontSize: '12px', color: '#475569', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  USSD code below on your mobile phone to complete payment:
                 </span>
-                <a
-                  href={paymentInfo.checkoutUrl}
-                  className="primary-btn full-btn"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    background: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                    borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                    color: '#ffffff',
-                    textDecoration: 'none',
-                    fontSize: '14.5px',
-                    fontWeight: 700,
-                    height: '46px',
-                    borderRadius: '10px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  <span>Open Monime Checkout Session</span>
-                  <ExternalLink size={16} />
-                </a>
+                <div style={{
+                  fontSize: '32px',
+                  fontWeight: 900,
+                  color: '#0070f3',
+                  letterSpacing: '1px',
+                  fontFamily: 'monospace',
+                  margin: '4px 0 12px 0'
+                }}>
+                  *715#
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <a
+                    href={`tel:${encodeURIComponent('*715#')}`}
+                    className="primary-btn full-btn"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: '#0070f3',
+                      borderColor: '#0070f3',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontSize: '14.5px',
+                      fontWeight: 700,
+                      height: '46px',
+                      borderRadius: '10px',
+                      boxShadow: '0 4px 12px rgba(0, 112, 243, 0.25)'
+                    }}
+                  >
+                    <span>📞 Tap to Dial Monime Code on Phone</span>
+                  </a>
+                  <a
+                    href={paymentInfo.checkoutUrl}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      color: provider === 'orange' ? '#c2410c' : '#7c3aed',
+                      textDecoration: 'none',
+                      fontSize: '12.5px',
+                      fontWeight: 700,
+                      padding: '6px'
+                    }}
+                  >
+                    <span>Open Monime Checkout Session Screen</span>
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
               </div>
             )}
 

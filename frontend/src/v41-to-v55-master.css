@@ -1822,3 +1822,257 @@
   }
 }
 
+/* ==========================================================================
+   Floating Bottom-Left Notification Bell & "Manage Site Notifications" Popover
+   Matches reference mockups (media_1791375929979 & media_1791375944568)
+   ========================================================================== */
+
+.edulink-notif-floater {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-family: inherit;
+  user-select: none;
+}
+
+/* Floating Circular Red Bell Button */
+.edulink-notif-bell-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #eb4d4b;
+  border: none;
+  box-shadow: 0 4px 18px rgba(235, 77, 75, 0.45), 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  outline: none;
+  padding: 0;
+}
+
+.edulink-notif-bell-btn:hover {
+  transform: scale(1.06);
+  background: #e03d3b;
+  box-shadow: 0 6px 22px rgba(235, 77, 75, 0.55), 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.edulink-notif-bell-btn:active {
+  transform: scale(0.96);
+}
+
+/* Inner white concentric circular ring */
+.edulink-notif-bell-ring {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edulink-notif-bell-svg {
+  fill: #ffffff;
+  stroke: #ffffff;
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.edulink-notif-subscribed-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Manage Site Notifications Popover Card */
+.edulink-notif-popover {
+  position: absolute;
+  bottom: 70px;
+  left: 0;
+  width: 290px;
+  max-width: calc(100vw - 32px);
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  animation: notifPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 10000;
+}
+
+@keyframes notifPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Header */
+.edulink-notif-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.edulink-notif-popover-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.2px;
+}
+
+.edulink-notif-popover-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.edulink-notif-popover-close:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* Sample Preview Box */
+.edulink-notif-preview-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin: 14px 16px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.edulink-notif-preview-thumb {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 6px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edulink-notif-preview-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.edulink-notif-preview-line {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.edulink-notif-preview-line.l1 {
+  width: 75%;
+  background: #94a3b8;
+  height: 7px;
+}
+
+.edulink-notif-preview-line.l2 {
+  width: 95%;
+  background: #cbd5e1;
+}
+
+.edulink-notif-preview-line.l3 {
+  width: 65%;
+  background: #e2e8f0;
+}
+
+.edulink-notif-preview-line.l4 {
+  width: 40%;
+  background: #f1f5f9;
+}
+
+/* Action Button */
+.edulink-notif-subscribe-btn {
+  margin: 0 16px 16px;
+  background: #eb4d4b;
+  color: #ffffff;
+  border: none;
+  border-radius: 7px;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 12px rgba(235, 77, 75, 0.3);
+  text-align: center;
+}
+
+.edulink-notif-subscribe-btn:hover:not(:disabled) {
+  background: #d63031;
+  box-shadow: 0 6px 16px rgba(235, 77, 75, 0.4);
+  transform: translateY(-1px);
+}
+
+.edulink-notif-subscribe-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.edulink-notif-subscribe-btn.active {
+  background: #16a34a;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+
+.edulink-notif-subscribe-btn.active:hover:not(:disabled) {
+  background: #15803d;
+}
+
+/* Speech bubble arrow pointing down to bell */
+.edulink-notif-popover-arrow {
+  position: absolute;
+  bottom: -8px;
+  left: 20px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #ffffff;
+}
+
+/* Mobile responsive positioning so it doesn't overlap bottom navigation bar */
+@media (max-width: 900px) {
+  .edulink-notif-floater {
+    bottom: 84px;
+    left: 16px;
+  }
+}
+

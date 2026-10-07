@@ -5,7 +5,6 @@ import {
   ChevronRight, MessageSquare, CreditCard, AlertCircle,
   FileText, CheckCircle2, ArrowRight, Bell
 } from 'lucide-react';
-import NotificationSubscribeButton from './NotificationSubscribeButton';
 import { getTimeBasedGreeting } from '../utils/greeting';
 
 export default function StudentDashboardV36({ onNavigate, profile }) {
@@ -98,9 +97,6 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
           </p>
           <h1>{getTimeBasedGreeting(student.full_name || 'Moses Saffa')}</h1>
           <p>Here is an overview of your enrolled modules, upcoming classes, assignments, and results.</p>
-          <div style={{ marginTop: '10px' }}>
-            <NotificationSubscribeButton />
-          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div className="date-chip">

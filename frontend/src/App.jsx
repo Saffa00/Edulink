@@ -2412,9 +2412,6 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
           <p className="eyebrow">{lecturerId} • {departmentName}</p>
           <h1>{getTimeBasedGreeting(lecturerName)}</h1>
           <p>Teaching workspace for Level 3 Computer Science degree programmes.</p>
-          <div style={{ marginTop: '10px' }}>
-            <NotificationSubscribeButton />
-          </div>
         </div>
         <div className="date-chip">Academic Year 2026/2027<br /><strong>First Semester</strong></div>
       </div>
@@ -2783,6 +2780,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   return (
     <div className="app-shell">
       <LiveNotificationToast onNavigate={setPage} />
+      <NotificationSubscribeButton floating={true} />
       {sidebarOpen && (
         <div
           className="sidebar-backdrop"

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, BellRing, Check, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, BellRing, Check, X, ShieldCheck } from 'lucide-react';
 import { enableMessagePushNotifications } from '../services/pushSetup';
 import { promptOneSignalPush } from '../services/oneSignalService';
 
-export default function NotificationSubscribeButton({ compact = false }) {
+export default function NotificationSubscribeButton({ compact = false, floating = true }) {
   const [permission, setPermission] = useState('default');
+  const [isOpen, setIsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
+  const popoverRef = useRef(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -14,9 +16,26 @@ export default function NotificationSubscribeButton({ compact = false }) {
     }
   }, []);
 
+  // Close popup when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
+
   const handleSubscribe = async () => {
     setBusy(true);
-    setSuccessMsg('');
+    setStatusMsg('');
     try {
       if (typeof window !== 'undefined' && 'Notification' in window) {
         const perm = await Notification.requestPermission();
@@ -26,10 +45,13 @@ export default function NotificationSubscribeButton({ compact = false }) {
             enableMessagePushNotifications().catch(e => console.warn('VAPID setup notice:', e.message)),
             promptOneSignalPush().catch(e => console.warn('OneSignal setup notice:', e.message))
           ]);
-          setSuccessMsg('Active! You will receive push notifications for grades, assignments, attendance & 5-min class reminders.');
-          setTimeout(() => setSuccessMsg(''), 6000);
+          setStatusMsg('Active! Push alerts enabled for grades, attendance & timetable.');
+          setTimeout(() => {
+            setStatusMsg('');
+            setIsOpen(false);
+          }, 3500);
         } else if (perm === 'denied') {
-          alert('Notification permission was blocked in browser settings. Please allow notifications for EduLink in your browser settings.');
+          alert('Notifications were blocked in your browser settings. Please allow notifications for EduLink.');
         }
       } else {
         alert('Push notifications are not supported in this browser.');
@@ -43,14 +65,14 @@ export default function NotificationSubscribeButton({ compact = false }) {
 
   const isSubscribed = permission === 'granted';
 
+  // Compact header button mode
   if (compact) {
     return (
       <button
         type="button"
-        onClick={handleSubscribe}
-        disabled={busy}
+        onClick={() => setIsOpen(prev => !prev)}
         className="icon-btn"
-        title={isSubscribed ? "Push Notifications Active (Click to re-verify)" : "Subscribe to Live Academic Alerts"}
+        title={isSubscribed ? "Push Notifications Active" : "Manage Notifications"}
         style={{
           position: 'relative',
           color: isSubscribed ? '#16a34a' : '#64748b',
@@ -76,37 +98,79 @@ export default function NotificationSubscribeButton({ compact = false }) {
     );
   }
 
+  // Floating button on bottom left hand side with "Manage Site Notifications" popup
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+    <div className="edulink-notif-floater" ref={popoverRef}>
+      {/* 1. Popover Card: "Manage Site Notifications" */}
+      {isOpen && (
+        <div className="edulink-notif-popover" role="dialog" aria-label="Manage Site Notifications">
+          {/* Header */}
+          <div className="edulink-notif-popover-head">
+            <h3 className="edulink-notif-popover-title">Manage Site Notifications</h3>
+            <button
+              type="button"
+              className="edulink-notif-popover-close"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Sample Notification Preview Box */}
+          <div className="edulink-notif-preview-box">
+            <div className="edulink-notif-preview-thumb">
+              <Bell size={24} color="#94a3b8" />
+            </div>
+            <div className="edulink-notif-preview-lines">
+              <div className="edulink-notif-preview-line l1" />
+              <div className="edulink-notif-preview-line l2" />
+              <div className="edulink-notif-preview-line l3" />
+              <div className="edulink-notif-preview-line l4" />
+            </div>
+          </div>
+
+          {/* Status Message if just subscribed */}
+          {statusMsg && (
+            <div style={{ padding: '0 16px 10px', fontSize: '12px', color: '#16a34a', fontWeight: 600, textAlign: 'center' }}>
+              ✓ {statusMsg}
+            </div>
+          )}
+
+          {/* Big Action Button (Red SUBSCRIBE / Green ACTIVE) */}
+          <button
+            type="button"
+            className={`edulink-notif-subscribe-btn ${isSubscribed ? 'active' : ''}`}
+            onClick={handleSubscribe}
+            disabled={busy}
+          >
+            {busy
+              ? 'CONFIGURING…'
+              : isSubscribed
+              ? 'SUBSCRIBED ✓'
+              : 'SUBSCRIBE'}
+          </button>
+
+          {/* Speech Bubble Arrow pointing to the bell button */}
+          <div className="edulink-notif-popover-arrow" />
+        </div>
+      )}
+
+      {/* 2. Floating Circular Red Bell Button */}
       <button
         type="button"
-        onClick={handleSubscribe}
-        disabled={busy}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '7px',
-          padding: '6px 14px',
-          borderRadius: '999px',
-          fontSize: '12.5px',
-          fontWeight: '700',
-          cursor: 'pointer',
-          transition: 'all 0.15s ease',
-          background: isSubscribed ? '#f0fdf4' : '#eff6ff',
-          color: isSubscribed ? '#15803d' : '#1d4ed8',
-          border: isSubscribed ? '1.5px solid #86efac' : '1.5px solid #bfdbfe',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-        }}
+        className="edulink-notif-bell-btn"
+        onClick={() => setIsOpen(prev => !prev)}
+        aria-label="Manage Site Notifications"
+        title="Manage Site Notifications"
       >
-        {isSubscribed ? <Check size={14} strokeWidth={2.5} /> : <BellRing size={14} />}
-        <span>{isSubscribed ? 'Notifications Active' : 'Subscribe to Alerts'}</span>
+        <div className="edulink-notif-bell-ring">
+          <Bell className="edulink-notif-bell-svg" size={24} />
+        </div>
+        {isSubscribed && (
+          <span className="edulink-notif-subscribed-dot" title="Active" />
+        )}
       </button>
-
-      {successMsg && (
-        <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: '600' }}>
-          {successMsg}
-        </span>
-      )}
     </div>
   );
 }

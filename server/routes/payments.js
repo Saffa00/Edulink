@@ -298,20 +298,27 @@ router.post('/initiate-momo', async (req, res) => {
 
     if (!isPlaceholderSecret) {
       try {
+        const originHeader = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : null);
+        const clientBase = req.body.returnUrl ? null : (originHeader || process.env.ALLOWED_ORIGIN || `${req.protocol}://${req.get('host')}`);
+        const successRedirect = req.body.returnUrl
+          ? `${req.body.returnUrl}${req.body.returnUrl.includes('?') ? '&' : '?'}session_id=${reference}&student_id=${student.student_id}`
+          : `${clientBase}/payment-success?session_id=${reference}&student_id=${student.student_id}`;
+        const cancelRedirect = req.body.cancelUrl || `${clientBase}/payment-cancelled`;
+
         const checkout = await createCheckout({
           reference,
           studentId: student.student_id,
           amount,
           currency: 'SLE',
-          returnUrl: `${req.protocol}://${req.get('host')}/payment-success?session_id=${reference}`,
-          cancelUrl: `${req.protocol}://${req.get('host')}/payment-cancelled`,
+          returnUrl: successRedirect,
+          cancelUrl: cancelRedirect,
           registrationType: cleanType,
           phone: cleanPhone,
           provider: cleanProvider,
           modulesCount: count
         });
         checkoutSessionId = checkout.id || reference;
-        checkoutUrl = checkout.redirectUrl || null;
+        checkoutUrl = checkout.redirectUrl || checkout.url || null;
       } catch (monimeErr) {
         console.warn('Monime API notice:', monimeErr.message);
       }
@@ -534,13 +541,28 @@ router.post('/verify-completion', async (req, res) => {
     });
 
     // Provision account and generate temporary password
-    const creds = await provisionStudentAccount(db, payment.student_id || studentRecordId);
+    const targetStudentId = payment.student_id || studentRecordId;
+    const creds = await provisionStudentAccount(db, targetStudentId);
+    await activateStudentModules(db, targetStudentId);
+
+    // Fetch activated modules to return to frontend
+    const { data: stMods } = await db
+      .from('student_modules')
+      .select('module_id, modules(code, title)')
+      .eq('student_id', targetStudentId);
+
+    const modules = (stMods || []).map(sm => ({
+      code: sm.modules?.code || sm.module_id,
+      title: sm.modules?.title || ''
+    }));
 
     res.json({
       success: true,
       amount: payment.amount || 100,
       currency: payment.currency || 'SLE',
       ...creds,
+      modules,
+      modulesCount: modules.length || 1,
       requiresPasswordChange: true
     });
   } catch (error) {

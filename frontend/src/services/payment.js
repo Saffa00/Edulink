@@ -89,6 +89,9 @@ export async function initiateMobileMoneyPayment({
   registrationType = 'normal'
 }) {
   try {
+    const returnUrl = `${window.location.origin}/payment-success`;
+    const cancelUrl = `${window.location.origin}/payment-cancelled`;
+
     const response = await fetch(apiUrl('/api/payments/initiate-momo'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -98,7 +101,9 @@ export async function initiateMobileMoneyPayment({
         provider,
         modules,
         modulesCount,
-        registrationType
+        registrationType,
+        returnUrl,
+        cancelUrl
       })
     });
     const data = await response.json().catch(() => ({}));

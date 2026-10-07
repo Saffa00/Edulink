@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CreditCard, Clock, CheckCircle2, AlertCircle, RefreshCw, LogOut, ShieldAlert, Sparkles } from 'lucide-react';
+import { CreditCard, Clock, CheckCircle2, AlertCircle, RefreshCw, LogOut, ShieldAlert, Sparkles, ExternalLink } from 'lucide-react';
 import { supabase } from '../services/supabase';
-import { initiateMobileMoneyPayment, checkMobileMoneyPaymentStatus, simulateMobileMoneyApproval } from '../services/payment';
+import { initiateMobileMoneyPayment, checkMobileMoneyPaymentStatus } from '../services/payment';
 
 export default function PaymentGate({ profile, onActivated, onLogout }) {
   const [busy, setBusy] = useState(false);
@@ -13,6 +13,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
   const [phone, setPhone] = useState(profile?.phone || '');
   const [ussdStep, setUssdStep] = useState(false);
   const [paymentId, setPaymentId] = useState(null);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
   const pollingRef = useRef(null);
 
   const isDissertation = profile?.registration_type === 'dissertation';
@@ -42,7 +43,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
           onActivated?.({ ...profile, ...data, role: 'student' });
         }, 800);
       } else if (notify) {
-        setMessage('Status checked: Payment is still pending. If you just approved on your phone, please wait a moment.');
+        setMessage('Status checked: Payment is still pending. Please authorize the prompt on your mobile phone.');
       }
     } catch (err) {
       if (notify) setError(err.message || 'Could not verify payment status.');
@@ -58,7 +59,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
     };
   }, []);
 
-  // Polling backend while USSD prompt is active
+  // Polling backend while Monime checkout session is active
   useEffect(() => {
     if (!ussdStep || !paymentId) return;
 
@@ -100,32 +101,19 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
         registrationType: profile.registration_type || 'normal'
       });
       setPaymentId(res.paymentId);
+      setCheckoutUrl(res.checkoutUrl);
       setUssdStep(true);
+
+      // If Monime provided a direct checkout session URL, automatically navigate
+      if (res?.checkoutUrl) {
+        setTimeout(() => {
+          window.location.assign(res.checkoutUrl);
+        }, 1200);
+      }
     } catch (err) {
       setError(err.message || 'Could not send payment authorization request.');
     } finally {
       setBusy(false);
-    }
-  };
-
-  const confirmUssdPayment = async () => {
-    setChecking(true);
-    setError('');
-    try {
-      const pId = paymentId || profile.student_id;
-      const res = await simulateMobileMoneyApproval({
-        paymentId: pId,
-        studentId: profile.student_id
-      });
-
-      if (pollingRef.current) clearInterval(pollingRef.current);
-      setMessage('Payment confirmed! Activating your student workspace…');
-      setTimeout(() => {
-        onActivated?.({ ...profile, ...(res || {}), account_status: 'active', role: 'student' });
-      }, 700);
-    } catch (err) {
-      setError(err.message || 'Payment confirmation failed.');
-      setChecking(false);
     }
   };
 
@@ -352,162 +340,156 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 Continue Payment
               </button>
             </div>
-          ) : (() => {
-            const ussdCode = provider === 'orange' ? '*144*4*260460#' : '*161*2*1#';
-            const dialTel = `tel:${encodeURIComponent(ussdCode)}`;
+          ) : (
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <div style={{
+                height: '52px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 16px',
+                borderRadius: '12px',
+                background: provider === 'orange' ? '#000000' : '#ffffff',
+                border: provider === 'orange' ? 'none' : '1.5px solid #ede9fe',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                margin: '0 auto 10px auto'
+              }}>
+                <img
+                  src={provider === 'orange' ? '/orange-money-logo.png' : '/afrimoney-logo.png'}
+                  alt={provider === 'orange' ? 'Orange Money' : 'Afrimoney'}
+                  style={{ height: '32px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                />
+              </div>
 
-            return (
-              <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                <div style={{
-                  height: '52px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '6px 16px',
-                  borderRadius: '12px',
-                  background: provider === 'orange' ? '#000000' : '#ffffff',
-                  border: provider === 'orange' ? 'none' : '1.5px solid #ede9fe',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                  margin: '0 auto 10px auto'
+              <div>
+                <span style={{
+                  display: 'inline-block',
+                  background: '#e0f2fe',
+                  color: '#0369a1',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  padding: '3px 10px',
+                  borderRadius: '99px',
+                  marginBottom: '8px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
                 }}>
-                  <img
-                    src={provider === 'orange' ? '/orange-money-logo.png' : '/afrimoney-logo.png'}
-                    alt={provider === 'orange' ? 'Orange Money' : 'Afrimoney'}
-                    style={{ height: '32px', width: 'auto', objectFit: 'contain', display: 'block' }}
-                  />
-                </div>
+                  Monime Checkout Session Active
+                </span>
+              </div>
 
-                <div>
-                  <span style={{
-                    display: 'inline-block',
-                    background: provider === 'orange' ? '#ff660015' : '#7c3aed15',
-                    color: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    padding: '3px 10px',
-                    borderRadius: '99px',
-                    marginBottom: '8px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {provider === 'orange' ? 'Orange Money USSD' : 'Afrimoney USSD'}
-                  </span>
-                </div>
+              <strong style={{ display: 'block', fontSize: '20px', color: '#0f172a', marginBottom: '6px' }}>
+                {feeAmount}
+              </strong>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 auto 16px auto', maxWidth: '420px', lineHeight: 1.5 }}>
+                Monime is prompting your mobile phone (<strong>{phone}</strong>) for payment authorization.
+              </p>
 
-                <strong style={{ display: 'block', fontSize: '18px', color: '#0f172a', marginBottom: '6px' }}>
-                  Continue Payment on Your Phone
-                </strong>
-                <p style={{ fontSize: '13px', color: '#64748b', margin: '0 auto 16px auto', maxWidth: '420px', lineHeight: 1.5 }}>
-                  Dial the official Monime code on your phone <strong>({phone})</strong> and enter your PIN to approve <strong>{feeAmount}</strong>.
-                </p>
-
-                {/* Dial Code Display */}
+              {/* Monime Checkout Direct Link */}
+              {checkoutUrl && (
                 <div style={{
                   background: '#f8fafc',
-                  border: '2px dashed #cbd5e1',
-                  borderRadius: '14px',
-                  padding: '16px',
-                  marginBottom: '16px'
-                }}>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                    Monime USSD Dial Code
-                  </span>
-                  <div style={{
-                    fontSize: '22px',
-                    fontWeight: 900,
-                    letterSpacing: '1px',
-                    color: provider === 'orange' ? '#c2410c' : '#6d28d9',
-                    fontFamily: 'monospace',
-                    marginBottom: '10px'
-                  }}>
-                    {ussdCode}
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                    <a
-                      href={dialTel}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                        color: '#ffffff',
-                        textDecoration: 'none',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        padding: '8px 14px',
-                        borderRadius: '8px'
-                      }}
-                    >
-                      📞 Tap to Dial on Phone
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(ussdCode);
-                        alert(`Dial code ${ussdCode} copied to clipboard!`);
-                      }}
-                      style={{
-                        background: '#ffffff',
-                        border: '1px solid #cbd5e1',
-                        color: '#334155',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      📋 Copy Code
-                    </button>
-                  </div>
-                </div>
-
-                {/* Step Instructions */}
-                <div style={{
-                  textAlign: 'left',
-                  background: '#f1f5f9',
+                  border: '1.5px solid #e2e8f0',
                   borderRadius: '12px',
-                  padding: '12px 14px',
-                  fontSize: '12px',
-                  color: '#334155',
+                  padding: '14px',
                   marginBottom: '16px',
-                  lineHeight: 1.55
+                  textAlign: 'center'
                 }}>
-                  <div>1. Dial <b>{ussdCode}</b> on your phone dialer.</div>
-                  <div>2. Confirm payment to MMTU EduLink for <b>{feeAmount}</b>.</div>
-                  <div>3. Enter your secret <b>{provider === 'orange' ? 'Orange Money' : 'Afrimoney'} PIN</b> on your mobile screen.</div>
-                  <div>4. Once approved, click the button below.</div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>
-                  <button
-                    type="button"
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                    If prompt did not show on your phone, open Monime Checkout:
+                  </span>
+                  <a
+                    href={checkoutUrl}
                     className="primary-btn"
                     style={{
-                      background: '#0a2540',
-                      fontSize: '13.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                      borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontSize: '14px',
                       fontWeight: 700,
                       padding: '11px 16px',
                       borderRadius: '10px'
                     }}
-                    onClick={confirmUssdPayment}
-                    disabled={checking}
                   >
-                    {checking ? 'Verifying…' : 'I Have Approved Payment on Phone'}
-                  </button>
-                  <button
-                    type="button"
-                    className="text-btn"
-                    style={{ fontSize: '12px', color: '#64748b' }}
-                    onClick={() => { setUssdStep(false); setBusy(false); }}
-                    disabled={checking}
-                  >
-                    ← Change phone number or provider
-                  </button>
+                    <span>Open Monime Checkout Session</span>
+                    <ExternalLink size={15} />
+                  </a>
                 </div>
+              )}
+
+              {/* Waiting Indicator */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: '10px',
+                padding: '10px 16px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#0a2540',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                marginBottom: '16px'
+              }}>
+                <RefreshCw size={15} className="v-spin" style={{ color: '#0284c7' }} />
+                <span>Listening for payment confirmation from your phone…</span>
               </div>
-            );
-          })()}
+
+              {/* Step Instructions */}
+              <div style={{
+                textAlign: 'left',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                fontSize: '12px',
+                color: '#166534',
+                marginBottom: '16px',
+                lineHeight: 1.55
+              }}>
+                <div>1. Unlock your phone <b>({phone})</b> and look for the Monime payment prompt.</div>
+                <div>2. Confirm payment to MMTU EduLink for <b>{feeAmount}</b>.</div>
+                <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset screen.</div>
+                <div>4. EduLink will automatically activate your portal once approved.</div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                  onClick={() => checkStatus(true)}
+                  disabled={checking}
+                >
+                  {checking ? <RefreshCw size={14} className="v-spin" /> : null}
+                  {checking ? 'Checking Status…' : 'Check Payment Status'}
+                </button>
+                <button
+                  type="button"
+                  className="text-btn"
+                  style={{ fontSize: '12px', color: '#64748b' }}
+                  onClick={() => { setUssdStep(false); setBusy(false); }}
+                  disabled={checking}
+                >
+                  ← Change phone number or provider
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Status Messages */}

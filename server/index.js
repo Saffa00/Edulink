@@ -41,6 +41,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'academic-pwa-production-server', version: 'v57' });
 });
 
+// Fallback redirects when Monime redirects to API host
+app.get('/payment-success', (req, res) => {
+  const clientOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  res.redirect(`${clientOrigin}/payment-success${query}`);
+});
+
+app.get('/payment-cancelled', (_req, res) => {
+  const clientOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+  res.redirect(`${clientOrigin}/payment-cancelled`);
+});
+
 // Authoritative Attendance Route
 registerAttendanceRoutes(app, { supabaseAdmin: getAdminSupabase() });
 

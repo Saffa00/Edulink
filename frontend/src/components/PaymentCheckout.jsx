@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, ArrowLeft, ArrowRight, Lock, PhoneCall, Copy, Check, BookOpen } from 'lucide-react';
-import { initiateMobileMoneyPayment, checkMobileMoneyPaymentStatus, simulateMobileMoneyApproval } from '../services/payment';
+import { Smartphone, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, ArrowLeft, ArrowRight, Lock, Copy, Check, BookOpen, ExternalLink } from 'lucide-react';
+import { initiateMobileMoneyPayment, checkMobileMoneyPaymentStatus } from '../services/payment';
 
 export default function PaymentCheckout({ applicant, onPaymentCompleted, onCancel }) {
   const [provider, setProvider] = useState('orange'); // 'orange' | 'afrimoney'
@@ -60,7 +60,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
       // Automatically timeout after 4 minutes (96 polls of 2.5s)
       if (pollCount > 96) {
         if (pollingRef.current) clearInterval(pollingRef.current);
-        setError('Payment approval timed out. If you already approved, click "I Have Approved on Phone".');
+        setError('Payment approval timed out. Please check your phone connection and try again.');
       }
     }, 2500);
 
@@ -70,7 +70,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
   }, [step, paymentInfo, amount, modulesCount, applicant]);
 
   // Step 3: Student taps "Pay SLE {amount}"
-  // Backend initiates request to Monime & provider network; student does NOT enter PIN inside Edulink
+  // Backend initiates request to Monime Checkout session; prompts student's phone directly
   const handleStartPayment = async (e) => {
     e.preventDefault();
     setError('');
@@ -94,6 +94,13 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
 
       setPaymentInfo(res);
       setStep('waiting_approval');
+
+      // If Monime provided a direct checkout session URL, automatically navigate after brief notice
+      if (res?.checkoutUrl) {
+        setTimeout(() => {
+          window.location.assign(res.checkoutUrl);
+        }, 1200);
+      }
     } catch (err) {
       console.error('Initiate payment error:', err);
       setError(err.message || 'Could not initiate payment. Please verify your phone number and try again.');
@@ -102,30 +109,30 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
     }
   };
 
-  // Fallback / manual verification when student completes on handset
-  const handleConfirmOnPhone = async () => {
+  // Real status check against Monime API
+  const handleCheckStatusNow = async () => {
+    if (!paymentInfo?.paymentId) return;
     setBusy(true);
     setError('');
     try {
-      const pId = paymentInfo?.paymentId || applicant.studentId;
-      const res = await simulateMobileMoneyApproval({
-        paymentId: pId,
-        studentId: applicant.studentId
-      });
-
-      if (pollingRef.current) clearInterval(pollingRef.current);
-      setConfirmedData({
-        ...res,
-        amount,
-        modulesCount,
-        studentId: res.studentId || applicant.studentId,
-        fullName: res.fullName || applicant.fullName,
-        email: res.email || applicant.email
-      });
-      setStep('success');
+      const res = await checkMobileMoneyPaymentStatus(paymentInfo.paymentId);
+      if (res?.paid || res?.status === 'paid') {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        setConfirmedData({
+          ...res,
+          amount,
+          modulesCount,
+          studentId: res.studentId || applicant.studentId,
+          fullName: res.fullName || applicant.fullName,
+          email: res.email || applicant.email
+        });
+        setStep('success');
+      } else {
+        setError('Payment is still awaiting mobile confirmation. Please enter your PIN on your phone.');
+      }
     } catch (err) {
-      console.error('Manual confirmation check error:', err);
-      setError(err.message || 'Could not confirm payment approval. Please wait for the authorization to settle.');
+      console.error('Status check error:', err);
+      setError(err.message || 'Could not check payment status.');
     } finally {
       setBusy(false);
     }
@@ -138,9 +145,6 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
       setTimeout(() => setCopied(false), 3000);
     }
   };
-
-  const ussdCode = provider === 'orange' ? '*144*4*260460#' : '*161*2*1#';
-  const dialTel = `tel:${encodeURIComponent(ussdCode)}`;
 
   return (
     <main className="auth-screen">
@@ -181,13 +185,13 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 color: '#0369a1',
                 marginBottom: '8px'
               }}>
-                Mobile Money USSD Payment Authorization Flow
+                Monime Direct Mobile Money Checkout
               </div>
               <h1 style={{ fontSize: '24px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>
                 Pay with Mobile Money
               </h1>
               <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
-                Select your mobile wallet provider to receive an instant USSD authorization prompt on your phone.
+                Select your provider. Monime Checkout will directly prompt your mobile phone for PIN payment authorization.
               </p>
 
               {/* Visual Step Breadcrumb */}
@@ -204,9 +208,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               }}>
                 <span>1. Select Modules</span>
                 <span>→</span>
-                <span>2. Choose Provider</span>
+                <span>2. Provider & Phone</span>
                 <span>→</span>
-                <span>📱 3. USSD Prompt on Phone</span>
+                <span>📱 3. Monime Phone Prompt</span>
                 <span>→</span>
                 <span>4. Enter PIN</span>
                 <span>→</span>
@@ -446,7 +450,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
         )}
 
         {/* ========================================================
-            STEP 5: EDULINK WAITS (AWAITING APPROVAL ON STUDENT'S PHONE)
+            STEP 2: MONIME CHECKOUT SESSION & MOBILE PHONE PROMPT
            ======================================================== */}
         {step === 'waiting_approval' && (
           <div style={{
@@ -489,7 +493,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               textTransform: 'uppercase',
               letterSpacing: '0.6px'
             }}>
-              Payment Request Sent
+              Monime Checkout Session Active
             </div>
 
             {/* Total Fee Big Text */}
@@ -505,15 +509,53 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
 
             {/* Notice to Student */}
             <p style={{ color: '#334155', fontSize: '14px', lineHeight: 1.5, maxWidth: '440px', margin: '0 auto 18px auto' }}>
-              We've sent a payment authorization request to <strong>{phone}</strong>.
+              Monime is prompting your mobile phone (<strong>{phone}</strong>) for payment authorization.
             </p>
+
+            {/* Direct Monime Hosted Checkout Action */}
+            {paymentInfo?.checkoutUrl && (
+              <div style={{
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '16px',
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600, display: 'block', marginBottom: '10px' }}>
+                  If the prompt hasn't appeared on your screen yet, continue directly via Monime:
+                </span>
+                <a
+                  href={paymentInfo.checkoutUrl}
+                  className="primary-btn full-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                    borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                    color: '#ffffff',
+                    textDecoration: 'none',
+                    fontSize: '14.5px',
+                    fontWeight: 700,
+                    height: '46px',
+                    borderRadius: '10px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <span>Open Monime Checkout Session</span>
+                  <ExternalLink size={16} />
+                </a>
+              </div>
+            )}
 
             {/* Animated Waiting Radar Indicator */}
             <div style={{
               background: '#f8fafc',
               border: '1px solid #cbd5e1',
               borderRadius: '12px',
-              padding: '14px 18px',
+              padding: '12px 18px',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '10px',
@@ -522,92 +564,30 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               fontWeight: 700,
               marginBottom: '20px'
             }}>
-              <RefreshCw size={17} className="v-spin" style={{ color: '#0284c7' }} />
-              <span>Waiting for approval on your phone…</span>
+              <RefreshCw size={16} className="v-spin" style={{ color: '#0284c7' }} />
+              <span>Listening for payment confirmation from your phone…</span>
             </div>
 
             {/* Explanatory Banner: Student approves using PIN on phone */}
             <div style={{
               textAlign: 'left',
-              background: '#fffaf5',
-              border: '1px solid #fed7aa',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
               borderRadius: '12px',
               padding: '14px 16px',
               fontSize: '12.5px',
-              color: '#9a3412',
+              color: '#166534',
               marginBottom: '20px',
               lineHeight: 1.6
             }}>
-              <strong style={{ display: 'block', color: '#c2410c', marginBottom: '4px' }}>
+              <strong style={{ display: 'block', color: '#15803d', marginBottom: '4px' }}>
                 📱 Authorize on your phone:
               </strong>
-              <div>1. Unlock your phone <b>({phone})</b> and look for the authorization prompt.</div>
-              <div>2. Confirm university tuition payment of <b>{formattedFee}</b> for {modulesCount} modules.</div>
-              <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset.</div>
-              <div style={{ marginTop: '4px', fontSize: '11.5px', color: '#ea580c' }}>
-                * EduLink will automatically detect your confirmation and activate your enrolled modules.
-              </div>
-            </div>
-
-            {/* USSD Fallback Reference */}
-            <div style={{
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              borderRadius: '12px',
-              padding: '14px',
-              marginBottom: '22px'
-            }}>
-              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                USSD Dial Code Reference
-              </span>
-              <div style={{
-                fontSize: '20px',
-                fontWeight: 800,
-                color: provider === 'orange' ? '#c2410c' : '#6d28d9',
-                fontFamily: 'monospace',
-                marginBottom: '10px'
-              }}>
-                {ussdCode}
-              </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <a
-                  href={dialTel}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                    color: '#ffffff',
-                    textDecoration: 'none',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    padding: '7px 14px',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <PhoneCall size={13} /> Tap to Dial on Phone
-                </a>
-                {paymentInfo?.checkoutUrl && (
-                  <a
-                    href={paymentInfo.checkoutUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: '#0284c7',
-                      color: '#ffffff',
-                      textDecoration: 'none',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      padding: '7px 14px',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    🌐 Open Monime Checkout
-                  </a>
-                )}
+              <div>1. Unlock your phone <b>({phone})</b> and look for the Monime payment prompt.</div>
+              <div>2. Confirm university payment of <b>{formattedFee}</b> for {modulesCount} enrolled modules.</div>
+              <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset screen.</div>
+              <div style={{ marginTop: '4px', fontSize: '11.5px', color: '#15803d' }}>
+                * EduLink will instantly detect your authorization and activate your student account.
               </div>
             </div>
 
@@ -630,18 +610,22 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '340px', margin: '0 auto' }}>
               <button
                 type="button"
-                className="primary-btn"
+                className="secondary-btn"
                 style={{
-                  background: '#0a2540',
-                  fontSize: '14px',
+                  fontSize: '13.5px',
                   fontWeight: 700,
-                  padding: '12px 18px',
-                  borderRadius: '10px'
+                  padding: '11px 18px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
                 }}
-                onClick={handleConfirmOnPhone}
+                onClick={handleCheckStatusNow}
                 disabled={busy}
               >
-                {busy ? 'Checking Confirmation…' : 'I Have Approved on Phone'}
+                {busy ? <RefreshCw size={15} className="v-spin" /> : null}
+                {busy ? 'Checking Status…' : 'Check Payment Status'}
               </button>
               <button
                 type="button"

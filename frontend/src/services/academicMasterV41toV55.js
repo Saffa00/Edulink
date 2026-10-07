@@ -78,7 +78,7 @@ export async function getModuleGradeSheet(moduleId) {
   // 2. Enrolled students strictly from student_modules for this specific module
   const { data: enrolled } = await supabase
     .from('student_modules')
-    .select('student_id, students(id, student_id, full_name, email, programme, level, department_id)')
+    .select('student_id, students(id, student_id, full_name, email, programme, level, department_id, photo_url)')
     .eq('module_id', mod.id);
 
   let studentList = (enrolled || [])
@@ -101,6 +101,7 @@ export async function getModuleGradeSheet(moduleId) {
       studentId: s.student_id,
       fullName: s.full_name,
       email: s.email,
+      photoUrl: s.photo_url || null,
       programme: s.programme || 'Undergraduate',
       gradeId: g?.id || null,
       score: g?.score != null ? Number(g.score) : '',

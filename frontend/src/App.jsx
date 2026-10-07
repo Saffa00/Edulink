@@ -2182,16 +2182,6 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {/* Desktop Toggle Button */}
-              <button
-                type="button"
-                className="icon-btn sidebar-collapse-btn desktop-only"
-                onClick={() => setCollapsed(true)}
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar width"
-              >
-                <ChevronLeft size={19} />
-              </button>
 
               {/* Mobile Close Button */}
               <button
@@ -2340,6 +2330,50 @@ function BottomNav({ page, setPage, role, profile, onNavigateSettings, unreadNot
       })}
     </nav>
   );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("EduLink ErrorBoundary caught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '36px 20px', textAlign: 'center', background: '#ffffff', borderRadius: '16px', margin: '24px auto', maxWidth: '540px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+          <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '26px' }}>⚠️</div>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>Something went wrong</h3>
+          <p style={{ color: '#64748b', fontSize: '13.5px', lineHeight: 1.5, margin: '0 auto 20px' }}>
+            {this.state.error?.message || 'An unexpected error occurred while loading this view.'}
+          </p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13.5px' }}
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '13.5px' }}
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function Stat({ icon:Icon, title, value, sub }) {
@@ -2787,9 +2821,11 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           onSelectScopedModule={handleSelectScopedModule}
         />
         <main className="app-main-content">
-          <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
-            {content}
-          </Suspense>
+          <ErrorBoundary key={page}>
+            <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
+              {content}
+            </Suspense>
+          </ErrorBoundary>
         </main>
         <BottomNav
           page={page}

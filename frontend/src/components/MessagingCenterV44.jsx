@@ -20,6 +20,14 @@ import {
 import { supabase } from '../services/supabase.js';
 import '../v25-whatsapp-messages.css';
 
+function getSafeInitials(name, fallback = 'ED') {
+  if (!name || typeof name !== 'string') return fallback;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return fallback;
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+
 export default function MessagingCenterV44({ role = 'student', profile = null, onNavigate = null }) {
   // Navigation Tabs: 'chats' | 'calls'
   const [sidebarTab, setSidebarTab] = useState('chats');
@@ -1250,7 +1258,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                           </div>
                         ) : (
                           <div className={`wa-avatar ${party.isSuper ? 'supervisor' : (party.isClassmate ? 'classmate' : (role === 'student' ? 'lecturer' : 'student'))}`}>
-                            {party.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                            {getSafeInitials(party.name)}
                             <div className="wa-avatar-online" />
                           </div>
                         )}
@@ -1343,7 +1351,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                     <div key={call.id} className="wa-call-history-item">
                       <div className="wa-call-history-left">
                         <div className="wa-avatar" style={{ width: '42px', height: '42px', fontSize: '13px' }}>
-                          {otherPartyName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          {getSafeInitials(otherPartyName)}
                         </div>
                         <div className="wa-call-history-info">
                           <span className="wa-call-history-name">{otherPartyName}</span>
@@ -1415,7 +1423,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                   </div>
                 ) : (
                   <div className={`wa-avatar ${other.isSuper ? 'supervisor' : (other.isClassmate ? 'classmate' : (role === 'student' ? 'lecturer' : 'student'))}`} style={{ width: '40px', height: '40px', fontSize: '13px' }}>
-                    {other.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                    {getSafeInitials(other?.name)}
                   </div>
                 )}
 
@@ -2074,7 +2082,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
                   fontWeight: 800,
                   boxShadow: '0 15px 40px rgba(0,0,0,0.6)'
                 }}>
-                  {activeCall.recipientName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  {getSafeInitials(activeCall?.recipientName)}
                 </div>
                 <strong style={{ fontSize: '18px', color: '#ffffff', marginTop: '16px' }}>
                   {activeCall.recipientName}
@@ -2133,7 +2141,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
             <div className="wa-call-avatar-wrap">
               <div className="wa-call-ripple" />
               <div className="wa-call-avatar">
-                {activeCall.recipientName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                {getSafeInitials(activeCall?.recipientName)}
               </div>
 
               {/* Live Realtime Audio Frequency Bars */}
@@ -2230,7 +2238,7 @@ export default function MessagingCenterV44({ role = 'student', profile = null, o
             <div className="wa-incoming-ripple-wrap">
               <div className="wa-incoming-ripple" />
               <div className="wa-incoming-avatar">
-                {incomingCall.callerName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                {getSafeInitials(incomingCall?.callerName)}
               </div>
             </div>
 

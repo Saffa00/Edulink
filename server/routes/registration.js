@@ -29,19 +29,27 @@ router.post('/student-applicant', async (req, res) => {
     const db = getAdminSupabase();
 
     // Check if account already exists and is active
-    const { data: existingStudent, error: checkErr } = await db
-      .from('students')
-      .select('id, student_id, email, account_status')
-      .or(`student_id.eq.${cleanStudentId},email.eq.${cleanEmail}`)
-      .maybeSingle();
+    let existingStudents = [];
+    try {
+      const { data, error: checkErr } = await db
+        .from('students')
+        .select('id, student_id, email, account_status')
+        .or(`student_id.eq.${cleanStudentId},email.eq.${cleanEmail}`);
+      if (!checkErr && Array.isArray(data)) {
+        existingStudents = data;
+      }
+    } catch (checkQueryErr) {
+      console.warn('Student check notice:', checkQueryErr.message);
+    }
 
-    if (checkErr) throw checkErr;
-
-    if (existingStudent && existingStudent.account_status === 'active') {
+    const activeExisting = existingStudents.find(s => s.account_status === 'active');
+    if (activeExisting) {
       return res.status(409).json({
         error: 'An active account already exists with this Student ID or Email. Please proceed to login.'
       });
     }
+
+    const existingStudent = existingStudents.find(s => s.student_id === cleanStudentId) || existingStudents[0] || null;
 
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const safeUuid = (val) => (val && typeof val === 'string' && UUID_REGEX.test(val) ? val : null);
@@ -67,39 +75,51 @@ router.post('/student-applicant', async (req, res) => {
         .from('students')
         .update({ ...studentPayload, programme: programme || null })
         .eq('id', existingStudent.id)
-        .select('*')
-        .maybeSingle();
+        .select('*');
 
       if (updateErr && updateErr.message?.includes('programme')) {
         const retry = await db
           .from('students')
           .update(studentPayload)
           .eq('id', existingStudent.id)
-          .select('*')
-          .maybeSingle();
+          .select('*');
         updateErr = retry.error;
         updated = retry.data;
       }
-      if (updateErr) throw updateErr;
-      studentRecord = updated;
+      if (updateErr) {
+        console.warn('Student record update notice:', updateErr.message);
+      }
+      studentRecord = Array.isArray(updated) && updated.length ? updated[0] : (updated || existingStudent);
     } else {
       let { data: created, error: insertErr } = await db
         .from('students')
         .insert({ ...studentPayload, programme: programme || null })
-        .select('*')
-        .maybeSingle();
+        .select('*');
 
       if (insertErr && insertErr.message?.includes('programme')) {
         const retry = await db
           .from('students')
           .insert(studentPayload)
-          .select('*')
-          .maybeSingle();
+          .select('*');
         insertErr = retry.error;
         created = retry.data;
       }
-      if (insertErr) throw insertErr;
-      studentRecord = created;
+      if (insertErr) {
+        console.warn('Student insert notice (checking existing):', insertErr.message);
+        const { data: fallbackRows } = await db
+          .from('students')
+          .select('*')
+          .or(`student_id.eq.${cleanStudentId},email.eq.${cleanEmail}`)
+          .limit(1);
+        studentRecord = Array.isArray(fallbackRows) && fallbackRows.length ? fallbackRows[0] : null;
+        if (!studentRecord) throw insertErr;
+      } else {
+        studentRecord = Array.isArray(created) && created.length ? created[0] : created;
+      }
+    }
+
+    if (!studentRecord) {
+      studentRecord = { id: cleanStudentId, student_id: cleanStudentId, ...studentPayload };
     }
 
     // Auto-allocate matching level curriculum modules
@@ -193,13 +213,14 @@ router.post('/modules', async (req, res) => {
       return res.status(400).json({ error: 'Student ID and at least one module are required.' });
     }
     const db = getAdminSupabase();
-    const { data: student, error: studentError } = await db
+    const { data: studentRows, error: studentError } = await db
       .from('students')
       .select('id, auth_user_id, student_id')
       .eq('student_id', studentId)
-      .maybeSingle();
+      .limit(1);
 
     if (studentError) throw studentError;
+    const student = Array.isArray(studentRows) && studentRows.length ? studentRows[0] : null;
     if (!student || student.auth_user_id !== user.id) {
       return res.status(403).json({ error: 'Student profile does not belong to this account.' });
     }

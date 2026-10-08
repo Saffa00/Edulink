@@ -58,9 +58,12 @@ export async function recordPayment(db, paymentData) {
         reference: payload.reference
       })
       .select('id, reference, status, amount, currency')
-      .single();
+      .limit(1);
 
-    if (!error && data) {
+    if (!error && Array.isArray(data) && data.length) {
+      return data[0];
+    }
+    if (!error && data && !Array.isArray(data)) {
       return data;
     }
   } catch (supabaseErr) {
@@ -94,10 +97,12 @@ export async function findPayment(db, { sessionId, studentRecordId, studentCode 
 
     const { data, error } = await query
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
 
-    if (!error && data) {
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data[0];
+    }
+    if (!error && data && !Array.isArray(data)) {
       return data;
     }
   } catch (e) {

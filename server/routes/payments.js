@@ -14,13 +14,14 @@ function paymentTypeFromRegistration(registrationType) {
 }
 
 async function getStudentForUser(userId, studentId) {
-  const { data, error } = await getAdminSupabase()
+  const { data: rows, error } = await getAdminSupabase()
     .from('students')
     .select('id, student_id, auth_user_id, registration_type, account_status')
     .eq('student_id', studentId)
-    .maybeSingle();
+    .limit(1);
 
   if (error) throw error;
+  const data = Array.isArray(rows) && rows.length ? rows[0] : null;
   if (!data) throw new Error('Student record not found.');
   if (data.auth_user_id && data.auth_user_id !== userId) {
     throw new Error('Student account does not match the authenticated user.');
@@ -30,12 +31,13 @@ async function getStudentForUser(userId, studentId) {
 
 // Helper to provision Supabase Auth user & generate temporary password upon verified payment
 export async function provisionStudentAccount(db, studentRecordId) {
-  const { data: student, error: sErr } = await db
+  const { data: studentRows, error: sErr } = await db
     .from('students')
     .select('id, student_id, full_name, email, account_status, auth_user_id')
     .eq('id', studentRecordId)
-    .single();
+    .limit(1);
 
+  const student = Array.isArray(studentRows) && studentRows.length ? studentRows[0] : null;
   if (sErr || !student) throw new Error('Student record not found.');
 
   // Generate secure temporary password
@@ -130,32 +132,32 @@ export async function lookupStudent(db, identifier) {
   const clean = String(identifier).trim();
 
   // Try student_id first (e.g. "2003", "8100", "8409")
-  const { data: byCode, error: cErr } = await db
+  const { data: byCodeRows, error: cErr } = await db
     .from('students')
     .select('id, student_id, full_name, email, phone, account_status, level, registration_type')
     .eq('student_id', clean)
-    .maybeSingle();
+    .limit(1);
 
-  if (byCode && !cErr) return byCode;
+  if (Array.isArray(byCodeRows) && byCodeRows.length > 0 && !cErr) return byCodeRows[0];
 
   // If valid UUID, search by id
   if (UUID_REGEX.test(clean)) {
-    const { data: byId } = await db
+    const { data: byIdRows } = await db
       .from('students')
       .select('id, student_id, full_name, email, phone, account_status, level, registration_type')
       .eq('id', clean)
-      .maybeSingle();
-    if (byId) return byId;
+      .limit(1);
+    if (Array.isArray(byIdRows) && byIdRows.length > 0) return byIdRows[0];
   }
 
   // Fallback: search by email if contains @
   if (clean.includes('@')) {
-    const { data: byEmail } = await db
+    const { data: byEmailRows } = await db
       .from('students')
       .select('id, student_id, full_name, email, phone, account_status, level, registration_type')
       .eq('email', clean.toLowerCase())
-      .maybeSingle();
-    if (byEmail) return byEmail;
+      .limit(1);
+    if (Array.isArray(byEmailRows) && byEmailRows.length > 0) return byEmailRows[0];
   }
 
   return null;
@@ -167,29 +169,29 @@ export async function lookupPayment(db, identifier) {
 
   // 1. If valid UUID, search payments.id
   if (UUID_REGEX.test(clean)) {
-    const { data: byId } = await db
+    const { data: byIdRows } = await db
       .from('payments')
       .select('*, students(id, student_id, full_name, email, phone, account_status)')
       .eq('id', clean)
-      .maybeSingle();
-    if (byId) return byId;
+      .limit(1);
+    if (Array.isArray(byIdRows) && byIdRows.length > 0) return byIdRows[0];
   }
 
   // 2. Search reference
-  const { data: byRef } = await db
+  const { data: byRefRows } = await db
     .from('payments')
     .select('*, students(id, student_id, full_name, email, phone, account_status)')
     .eq('reference', clean)
-    .maybeSingle();
-  if (byRef) return byRef;
+    .limit(1);
+  if (Array.isArray(byRefRows) && byRefRows.length > 0) return byRefRows[0];
 
   // 3. Search checkout_session_id or provider_reference
-  const { data: bySession } = await db
+  const { data: bySessionRows } = await db
     .from('payments')
     .select('*, students(id, student_id, full_name, email, phone, account_status)')
     .or(`checkout_session_id.eq.${clean},provider_reference.eq.${clean}`)
-    .maybeSingle();
-  if (bySession) return bySession;
+    .limit(1);
+  if (Array.isArray(bySessionRows) && bySessionRows.length > 0) return bySessionRows[0];
 
   // 4. Fallback to paymentsStore
   const local = await findPayment(db, { sessionId: clean });
@@ -478,8 +480,8 @@ router.post('/simulate-momo-approval', async (req, res) => {
 
     let targetStudentId = payment?.student_id;
     if (!targetStudentId && studentId) {
-      const { data: st } = await db.from('students').select('id').eq('student_id', studentId).maybeSingle();
-      if (st) targetStudentId = st.id;
+      const { data: stRows } = await db.from('students').select('id').eq('student_id', studentId).limit(1);
+      if (Array.isArray(stRows) && stRows.length) targetStudentId = stRows[0].id;
     }
 
     if (payment?.id) {
@@ -520,8 +522,8 @@ router.post('/verify-completion', async (req, res) => {
 
     let studentRecordId = null;
     if (studentId) {
-      const { data: st } = await db.from('students').select('id').eq('student_id', studentId).maybeSingle();
-      if (st) studentRecordId = st.id;
+      const { data: stRows } = await db.from('students').select('id').eq('student_id', studentId).limit(1);
+      if (Array.isArray(stRows) && stRows.length) studentRecordId = stRows[0].id;
     }
 
     const payment = await findPayment(db, { sessionId, studentRecordId, studentCode: studentId });
@@ -617,9 +619,10 @@ router.post('/initialize', async (req, res) => {
         reference
       })
       .select('id, reference, status, amount, currency')
-      .single();
+      .limit(1);
 
     if (paymentInsertError) throw paymentInsertError;
+    const paymentRecord = Array.isArray(pendingPayment) && pendingPayment.length ? pendingPayment[0] : pendingPayment;
 
     let checkout;
     const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
@@ -634,7 +637,7 @@ router.post('/initialize', async (req, res) => {
         provider_reference: checkout.id,
         checkout_session_id: checkout.id,
         verified_at: new Date().toISOString()
-      }).eq('id', pendingPayment.id);
+      }).eq('id', paymentRecord?.id);
       await provisionStudentAccount(db, student.id);
     } else {
       try {
@@ -648,20 +651,24 @@ router.post('/initialize', async (req, res) => {
           registrationType
         });
       } catch (error) {
-        await db.from('payments').update({ status: 'failed' }).eq('id', pendingPayment.id);
+        if (paymentRecord?.id) {
+          await db.from('payments').update({ status: 'failed' }).eq('id', paymentRecord.id);
+        }
         throw error;
       }
     }
 
-    const { error: updateError } = await db
-      .from('payments')
-      .update({
-        provider_reference: checkout.id,
-        checkout_session_id: checkout.id
-      })
-      .eq('id', pendingPayment.id);
+    if (paymentRecord?.id) {
+      const { error: updateError } = await db
+        .from('payments')
+        .update({
+          provider_reference: checkout.id,
+          checkout_session_id: checkout.id
+        })
+        .eq('id', paymentRecord.id);
 
-    if (updateError) throw updateError;
+      if (updateError) throw updateError;
+    }
 
     res.json({
       status: 'pending',
@@ -681,13 +688,14 @@ router.get('/status/:checkoutId', async (req, res) => {
     const checkout = await getCheckoutSession(req.params.checkoutId);
     const db = getAdminSupabase();
 
-    const { data: payment, error } = await db
+    const { data: paymentRows, error } = await db
       .from('payments')
       .select('id, student_id, reference, amount, currency, payment_type, status, provider_reference, checkout_session_id, verified_at')
       .eq('checkout_session_id', checkout.id)
-      .maybeSingle();
+      .limit(1);
 
     if (error) throw error;
+    const payment = Array.isArray(paymentRows) && paymentRows.length ? paymentRows[0] : (paymentRows || null);
     if (!payment) return res.status(404).json({ error: 'Payment record not found.' });
 
     res.json({ checkout, payment });
@@ -744,13 +752,14 @@ router.post('/webhook', async (req, res) => {
     }
 
     const db = getAdminSupabase();
-    const { data: payment, error: paymentError } = await db
+    const { data: paymentRows, error: paymentError } = await db
       .from('payments')
       .select('id, student_id, amount, currency, status, reference, checkout_session_id')
       .eq('checkout_session_id', checkout.id)
-      .maybeSingle();
+      .limit(1);
 
     if (paymentError) throw paymentError;
+    const payment = Array.isArray(paymentRows) && paymentRows.length ? paymentRows[0] : (paymentRows || null);
     if (!payment) {
       return res.status(404).json({ error: 'Local payment record not found.' });
     }

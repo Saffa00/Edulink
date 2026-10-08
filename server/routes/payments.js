@@ -358,10 +358,7 @@ router.post('/initiate-momo', async (req, res) => {
       }
     }
 
-    if (!ussdCode) {
-      ussdNumericCode = String(Math.floor(1000000000 + Math.random() * 9000000000));
-      ussdCode = `*715*${ussdNumericCode}#`;
-    }
+
 
     return res.json({
       success: true,

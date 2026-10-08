@@ -18,8 +18,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
   const modulesList = Array.isArray(applicant?.modules) ? applicant.modules : [];
   const modulesCount = applicant?.modulesCount || modulesList.length || (isDissertation ? 1 : 3);
   const amount = isDissertation ? 500 : modulesCount * 100;
-  const formattedFee = `SLE ${amount}.00`;
-  const ussdCode = paymentInfo?.ussdCode || (paymentInfo?.ussdNumericCode ? `*715*${paymentInfo.ussdNumericCode}#` : '*715*6609731529#');
+  const ussdCode = paymentInfo?.ussdCode || (paymentInfo?.ussdNumericCode ? `*715*${paymentInfo.ussdNumericCode}#` : null);
 
   // Clean up polling interval when unmounting or changing step
   useEffect(() => {
@@ -93,6 +92,11 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
         modulesCount,
         registrationType: applicant.registrationType || 'normal'
       });
+
+      if (res?.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+        return;
+      }
 
       setPaymentInfo(res);
       setStep('transaction_initiated');
@@ -587,70 +591,70 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               )}
             </div>
 
-            {/* Monime USSD Code Card */}
-            <div style={{
-              background: '#f0f9ff',
-              border: '1.5px solid #bae6fd',
-              borderRadius: '14px',
-              padding: '16px',
-              marginBottom: '18px',
-              textAlign: 'center'
-            }}>
-              <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: '6px' }}>
-                Monime Generated USSD Code:
-              </span>
+            {/* Monime USSD Code Card (only if real Monime payment code returned) */}
+            {ussdCode ? (
               <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                background: '#ffffff',
-                border: '1.5px solid #7dd3fc',
-                borderRadius: '12px',
-                padding: '8px 16px',
-                marginBottom: '8px'
+                background: '#f0f9ff',
+                border: '1.5px solid #bae6fd',
+                borderRadius: '14px',
+                padding: '16px',
+                marginBottom: '18px',
+                textAlign: 'center'
               }}>
-                <span style={{
-                  fontSize: '24px',
-                  fontWeight: 900,
-                  color: '#0284c7',
-                  fontFamily: 'monospace',
-                  letterSpacing: '1px'
-                }}>
-                  {ussdCode}
+                <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: '6px' }}>
+                  Monime Generated USSD Code:
                 </span>
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  style={{
-                    background: '#f0f9ff',
-                    border: '1px solid #bae6fd',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: copiedCode ? '#16a34a' : '#0369a1'
-                  }}
-                >
-                  {copiedCode ? <Check size={13} /> : <Copy size={13} />}
-                  {copiedCode ? 'Copied' : 'Copy'}
-                </button>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  background: '#ffffff',
+                  border: '1.5px solid #7dd3fc',
+                  borderRadius: '12px',
+                  padding: '8px 16px',
+                  marginBottom: '8px'
+                }}>
+                  <span style={{
+                    fontSize: '24px',
+                    fontWeight: 900,
+                    color: '#0284c7',
+                    fontFamily: 'monospace',
+                    letterSpacing: '1px'
+                  }}>
+                    {ussdCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    style={{
+                      background: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: copiedCode ? '#16a34a' : '#0369a1'
+                    }}
+                  >
+                    {copiedCode ? <Check size={13} /> : <Copy size={13} />}
+                    {copiedCode ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p style={{ fontSize: '11.5px', color: '#475569', margin: 0 }}>
+                  Dial this code on your mobile phone to approve the transaction.
+                </p>
               </div>
-              <p style={{ fontSize: '11.5px', color: '#475569', margin: 0 }}>
-                Dial this code on your mobile phone to approve the transaction.
-              </p>
-            </div>
+            ) : null}
 
             {/* Action Buttons */}
             {paymentInfo?.checkoutUrl ? (
               <a
                 href={paymentInfo.checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="primary-btn full-btn"
                 style={{
                   display: 'flex',
@@ -670,33 +674,35 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 }}
               >
                 <Smartphone size={18} />
-                <span>Pay via Monime Mobile Prompt (Direct)</span>
+                <span>Continue to Mobile Payment via Monime →</span>
               </a>
             ) : null}
 
-            {/* Pay via Dial Code Button */}
-            <a
-              href={`tel:${encodeURIComponent(ussdCode)}`}
-              className="full-btn"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                background: paymentInfo?.checkoutUrl ? '#f8fafc' : '#0070f3',
-                border: paymentInfo?.checkoutUrl ? '1.5px solid #cbd5e1' : '1px solid #0070f3',
-                color: paymentInfo?.checkoutUrl ? '#0f172a' : '#ffffff',
-                textDecoration: 'none',
-                fontSize: '14px',
-                fontWeight: 700,
-                height: '44px',
-                borderRadius: '12px',
-                marginBottom: '16px'
-              }}
-            >
-              <PhoneCall size={17} />
-              <span>{paymentInfo?.checkoutUrl ? `Or Dial Code on Phone (${ussdCode})` : `Pay Now (${ussdCode})`}</span>
-            </a>
+            {/* Pay via Dial Code Button (only if valid USSD code exists) */}
+            {ussdCode ? (
+              <a
+                href={`tel:${encodeURIComponent(ussdCode)}`}
+                className="full-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  background: paymentInfo?.checkoutUrl ? '#f8fafc' : '#0070f3',
+                  border: paymentInfo?.checkoutUrl ? '1.5px solid #cbd5e1' : '1px solid #0070f3',
+                  color: paymentInfo?.checkoutUrl ? '#0f172a' : '#ffffff',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  height: '44px',
+                  borderRadius: '12px',
+                  marginBottom: '16px'
+                }}
+              >
+                <PhoneCall size={17} />
+                <span>Dial Code on Phone ({ussdCode})</span>
+              </a>
+            ) : null}
 
             {/* Instructions */}
             <div style={{

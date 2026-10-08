@@ -108,11 +108,6 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
         modulesCount,
         registrationType: profile.registration_type || 'normal'
       });
-      if (res?.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
-        return;
-      }
-
       setPaymentId(res.paymentId);
       setPaymentInfo(res);
       setCheckoutUrl(res.checkoutUrl);
@@ -512,45 +507,47 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 </div>
               ) : null}
 
-              {/* Action Buttons */}
-              {paymentInfo?.checkoutUrl ? (
+              {/* Primary Action Button: Pay Now via USSD Dial */}
+              {ussdCode ? (
                 <a
-                  href={paymentInfo.checkoutUrl}
+                  href={`tel:${encodeURIComponent(ussdCode)}`}
                   className="primary-btn"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '10px',
-                    background: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                    borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                    background: '#0070f3',
+                    borderColor: '#0070f3',
                     color: '#ffffff',
                     textDecoration: 'none',
                     fontSize: '15px',
                     fontWeight: 800,
                     height: '48px',
                     borderRadius: '12px',
-                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
+                    boxShadow: '0 4px 14px rgba(0, 112, 243, 0.3)',
                     marginBottom: '10px'
                   }}
                 >
-                  <Smartphone size={18} />
-                  <span>Continue to Mobile Payment via Monime →</span>
+                  <PhoneCall size={18} />
+                  <span>Pay Now ({ussdCode})</span>
                 </a>
               ) : null}
 
-              {/* Pay via Dial Code Button (only if valid USSD code exists) */}
-              {ussdCode ? (
+              {/* Alternative Action: Pay via Monime Web Checkout */}
+              {paymentInfo?.checkoutUrl ? (
                 <a
-                  href={`tel:${encodeURIComponent(ussdCode)}`}
+                  href={paymentInfo.checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '10px',
-                    background: paymentInfo?.checkoutUrl ? '#f8fafc' : '#0070f3',
-                    border: paymentInfo?.checkoutUrl ? '1.5px solid #cbd5e1' : '1px solid #0070f3',
-                    color: paymentInfo?.checkoutUrl ? '#0f172a' : '#ffffff',
+                    gap: '8px',
+                    background: ussdCode ? '#f8fafc' : (provider === 'orange' ? '#ff6600' : '#7c3aed'),
+                    border: ussdCode ? '1.5px solid #cbd5e1' : 'none',
+                    color: ussdCode ? '#0f172a' : '#ffffff',
                     textDecoration: 'none',
                     fontSize: '14px',
                     fontWeight: 700,
@@ -559,8 +556,8 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                     marginBottom: '16px'
                   }}
                 >
-                  <PhoneCall size={17} />
-                  <span>Dial Code on Phone ({ussdCode})</span>
+                  <Smartphone size={16} />
+                  <span>{ussdCode ? 'Or Pay via Monime Web Checkout →' : 'Continue to Payment via Monime →'}</span>
                 </a>
               ) : null}
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { registrationFee } from '../services/fees.js';
-import { createCheckout, getCheckoutSession, createPaymentCode } from '../services/monime.js';
+import { createCheckout, getCheckoutSession, createPaymentCode, getPaymentCode } from '../services/monime.js';
 import { getAdminSupabase, getAuthenticatedUser } from '../services/supabase.js';
 import { verifyMonimeWebhook } from '../services/webhook-security.js';
 import { sendStudentCredentialsEmail } from '../services/email.js';
@@ -340,6 +340,7 @@ router.post('/initiate-momo', async (req, res) => {
     // Generate Monime USSD payment dial code (*715*...#) via Monime Payment Code API if available
     let ussdCode = null;
     let ussdNumericCode = null;
+    let paymentCodeId = null;
     if (!isPlaceholderSecret) {
       try {
         const pmc = await createPaymentCode({
@@ -352,9 +353,20 @@ router.post('/initiate-momo', async (req, res) => {
         if (pmc?.ussdCode) {
           ussdCode = pmc.ussdCode;
           ussdNumericCode = pmc.ussdCode.replace(/[^0-9]/g, '');
+          paymentCodeId = pmc.id;
         }
       } catch (pmcErr) {
         console.warn('Monime payment code creation notice (using checkout session fallback):', pmcErr.message);
+      }
+    }
+
+    if (pendingPayment?.id && paymentCodeId) {
+      try {
+        await db.from('payments').update({
+          provider_reference: paymentCodeId
+        }).eq('id', pendingPayment.id);
+      } catch (updErr) {
+        console.warn('Payment record update notice:', updErr.message);
       }
     }
 
@@ -418,23 +430,47 @@ router.get('/status-check/:paymentId', async (req, res) => {
     const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
     let isMonimeConfirmed = false;
 
-    if (!isPlaceholderSecret && payment.checkout_session_id) {
-      try {
-        const monimeSession = await getCheckoutSession(payment.checkout_session_id);
-        const monimeStatus = String(monimeSession.status || '').toLowerCase();
-        if (monimeStatus === 'completed' || monimeStatus === 'paid' || monimeStatus === 'succeeded') {
-          isMonimeConfirmed = true;
-        } else if (monimeStatus === 'failed' || monimeStatus === 'cancelled' || monimeStatus === 'expired') {
-          await db.from('payments').update({ status: 'failed' }).eq('id', payment.id);
-          return res.json({
-            success: false,
-            status: 'failed',
-            paid: false,
-            error: 'Mobile money authorization was cancelled or expired.'
-          });
+    if (!isPlaceholderSecret) {
+      // 2a. Check Monime Payment Code status (e.g. pmc-...)
+      if (payment.provider_reference?.startsWith('pmc-')) {
+        try {
+          const pmcData = await getPaymentCode(payment.provider_reference);
+          const pmcStatus = String(pmcData?.status || '').toLowerCase();
+          if (pmcStatus === 'completed' || pmcStatus === 'paid' || pmcStatus === 'succeeded') {
+            isMonimeConfirmed = true;
+          } else if (pmcStatus === 'failed' || pmcStatus === 'cancelled' || pmcStatus === 'expired') {
+            await db.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+            return res.json({
+              success: false,
+              status: 'failed',
+              paid: false,
+              error: 'Mobile money authorization was cancelled or expired.'
+            });
+          }
+        } catch (pmcErr) {
+          console.warn('Payment code status query notice:', pmcErr.message);
         }
-      } catch (err) {
-        console.warn('Monime session status query notice:', err.message);
+      }
+
+      // 2b. Check Monime Checkout Session status (e.g. scs-...)
+      if (!isMonimeConfirmed && payment.checkout_session_id?.startsWith('scs-')) {
+        try {
+          const monimeSession = await getCheckoutSession(payment.checkout_session_id);
+          const monimeStatus = String(monimeSession.status || '').toLowerCase();
+          if (monimeStatus === 'completed' || monimeStatus === 'paid' || monimeStatus === 'succeeded') {
+            isMonimeConfirmed = true;
+          } else if (monimeStatus === 'failed' || monimeStatus === 'cancelled' || monimeStatus === 'expired') {
+            await db.from('payments').update({ status: 'failed' }).eq('id', payment.id);
+            return res.json({
+              success: false,
+              status: 'failed',
+              paid: false,
+              error: 'Mobile money authorization was cancelled or expired.'
+            });
+          }
+        } catch (err) {
+          console.warn('Monime session status query notice:', err.message);
+        }
       }
     }
 

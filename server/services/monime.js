@@ -123,3 +123,17 @@ export async function createPaymentCode({
   return data.result;
 }
 
+export async function getPaymentCode(id) {
+  requireConfig();
+  const response = await fetch(`${API_BASE}/v1/payment-codes/${encodeURIComponent(id)}`, {
+    headers: headers()
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    throw new Error(data?.messages?.join?.('; ') || `Monime returned HTTP ${response.status}`);
+  }
+  return data.result;
+}
+
+

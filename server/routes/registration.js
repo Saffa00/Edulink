@@ -2,7 +2,7 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import { getAdminSupabase, getAuthenticatedUser } from '../services/supabase.js';
 import { registrationFee } from '../services/fees.js';
-import { createCheckout } from '../services/monime.js';
+import { createCheckout, isMonimeConfigured } from '../services/monime.js';
 import { recordPayment, markPaymentPaid } from '../services/paymentsStore.js';
 
 const router = Router();
@@ -161,7 +161,7 @@ router.post('/student-applicant', async (req, res) => {
     });
 
     let checkout;
-    const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
+    const isPlaceholderSecret = !isMonimeConfigured();
     if (isPlaceholderSecret) {
       // Development simulated checkout mode
       const simSessionId = `chk_sim_${Date.now()}`;

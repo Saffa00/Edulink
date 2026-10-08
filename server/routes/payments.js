@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { registrationFee } from '../services/fees.js';
-import { createCheckout, getCheckoutSession, createPaymentCode, getPaymentCode } from '../services/monime.js';
+import { createCheckout, getCheckoutSession, createPaymentCode, getPaymentCode, isMonimeConfigured } from '../services/monime.js';
 import { getAdminSupabase, getAuthenticatedUser } from '../services/supabase.js';
 import { verifyMonimeWebhook } from '../services/webhook-security.js';
 import { sendStudentCredentialsEmail } from '../services/email.js';
@@ -296,7 +296,7 @@ router.post('/initiate-momo', async (req, res) => {
     // Contact Monime API to create checkout session or mobile money charge
     let checkoutSessionId = reference;
     let checkoutUrl = null;
-    const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
+    const isPlaceholderSecret = !isMonimeConfigured();
 
     if (!isPlaceholderSecret) {
       try {
@@ -427,7 +427,7 @@ router.get('/status-check/:paymentId', async (req, res) => {
     }
 
     // 2. If status is pending, verify against Monime API
-    const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
+    const isPlaceholderSecret = !isMonimeConfigured();
     let isMonimeConfirmed = false;
 
     if (!isPlaceholderSecret) {
@@ -680,7 +680,7 @@ router.post('/initialize', async (req, res) => {
     const paymentRecord = Array.isArray(pendingPayment) && pendingPayment.length ? pendingPayment[0] : pendingPayment;
 
     let checkout;
-    const isPlaceholderSecret = !process.env.MONIME_SECRET_KEY || process.env.MONIME_SECRET_KEY.includes('replace_with_');
+    const isPlaceholderSecret = !isMonimeConfigured();
     if (isPlaceholderSecret) {
       const simId = `chk_sim_${Date.now()}`;
       checkout = {

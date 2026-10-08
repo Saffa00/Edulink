@@ -1,18 +1,37 @@
 const API_BASE = process.env.MONIME_API_BASE_URL || 'https://api.monime.io';
 const API_VERSION = process.env.MONIME_API_VERSION || 'caph.2025-08-23';
+export const DEFAULT_MONIME_KEY = 'mon_8h2dcnw4kFySVataE9HpeK8hIWKiMo271Ozt1eaetuUnacq3T0iEVIPRI7loeJO6';
+export const DEFAULT_MONIME_SPACE_ID = 'spc-k6V7ikDVQE5S2TGXdG19JWeb6tx';
+
+export function getMonimeApiKey() {
+  const key = process.env.MONIME_SECRET_KEY || DEFAULT_MONIME_KEY;
+  return (key && typeof key === 'string') ? key.trim() : DEFAULT_MONIME_KEY;
+}
+
+export function getMonimeSpaceId() {
+  const space = process.env.MONIME_SPACE_ID || DEFAULT_MONIME_SPACE_ID;
+  return (space && typeof space === 'string') ? space.trim() : DEFAULT_MONIME_SPACE_ID;
+}
+
+export function isMonimeConfigured() {
+  const key = getMonimeApiKey();
+  return Boolean(key && !key.includes('replace_with_'));
+}
 
 function headers(extra = {}) {
   return {
-    Authorization: `Bearer ${process.env.MONIME_SECRET_KEY}`,
+    Authorization: `Bearer ${getMonimeApiKey()}`,
     'Content-Type': 'application/json',
-    'Monime-Space-Id': process.env.MONIME_SPACE_ID,
+    'Monime-Space-Id': getMonimeSpaceId(),
     'Monime-Version': API_VERSION,
     ...extra
   };
 }
 
 function requireConfig() {
-  if (!process.env.MONIME_SECRET_KEY || !process.env.MONIME_SPACE_ID) {
+  const key = getMonimeApiKey();
+  const space = getMonimeSpaceId();
+  if (!key || !space) {
     throw new Error('MONIME_SECRET_KEY and MONIME_SPACE_ID are required.');
   }
 }

@@ -1776,7 +1776,43 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     );
   }
 
-  return <main className="auth-screen"><section className="auth-card"><Logo/><div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div><div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1><p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p></div><form onSubmit={login}><label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label><input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/><label>Password</label><div style={{ position: 'relative', width: '100%' }}><input type={showLoginPassword ? 'text' : 'password'} value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••" style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}/><button type="button" onClick={()=>setShowLoginPassword(p=>!p)} aria-label={showLoginPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }}>{showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><div className="form-row"><label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label><button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button></div>{error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}<button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button></form><p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p><p className="signup" style={{ marginTop: '10px' }}><button type="button" className="text-btn" onClick={() => onShowOnboarding ? onShowOnboarding() : setScreen('onboarding')} style={{ color: '#0284c7', fontSize: '13px', fontWeight: 600 }}>🎓 View App Tour & Onboarding</button></p></section></main>;
+  return (
+    <>
+      <main className="auth-screen">
+        <section className="auth-card">
+          <Logo/>
+          <div className="role-switch">
+            <button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button>
+            <button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button>
+          </div>
+          <div className="auth-heading">
+            <h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1>
+            <p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p>
+          </div>
+          <form onSubmit={login}>
+            <label>{role==='lecturer'?'Lecturer ID':'Student ID'}</label>
+            <input value={form.id} onChange={e=>update('id',e.target.value)} required placeholder={role==='lecturer'?'LECT-2026-0001':'8100'} autoComplete="username"/>
+            <label>Password</label>
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input type={showLoginPassword ? 'text' : 'password'} value={form.password} onChange={e=>update('password',e.target.value)} required autoComplete="current-password" placeholder="••••••••" style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}/>
+              <button type="button" onClick={()=>setShowLoginPassword(p=>!p)} aria-label={showLoginPassword ? 'Hide password' : 'Show password'} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', padding: '4px' }}>
+                {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <div className="form-row">
+              <label className="check"><input type="checkbox" defaultChecked/><span>Remember this device</span></label>
+              <button type="button" className="text-btn" onClick={()=>{resetState();setScreen('forgot')}}>Forgot Password?</button>
+            </div>
+            {error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}
+            <button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button>
+          </form>
+          <p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>
+          <p className="signup" style={{ marginTop: '10px' }}><button type="button" className="text-btn" onClick={() => onShowOnboarding ? onShowOnboarding() : setScreen('onboarding')} style={{ color: '#0284c7', fontSize: '13px', fontWeight: 600 }}>🎓 View App Tour & Onboarding</button></p>
+        </section>
+      </main>
+      <NotificationSubscribeButton floating={true} position="bottom-right" />
+    </>
+  );
 }
 
 function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }) {
@@ -2047,8 +2083,6 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
           >
             <Search size={19} />
           </button>
-
-          <NotificationSubscribeButton compact={true} />
 
           <button className="icon-btn" title="Notifications" onClick={() => setPage?.("notifications")}>
             <Bell size={19}/>
@@ -2780,7 +2814,6 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   return (
     <div className="app-shell">
       <LiveNotificationToast onNavigate={setPage} />
-      <NotificationSubscribeButton floating={true} position="bottom-right" />
       {sidebarOpen && (
         <div
           className="sidebar-backdrop"
@@ -3125,7 +3158,6 @@ export default function App(){
           initialStudentId={forceAuthScreen?.studentId || ''}
           onShowOnboarding={() => setShowOnboarding(true)}
         />
-        <NotificationSubscribeButton floating={true} position="bottom-right" />
       </>
     );
   }

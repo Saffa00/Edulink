@@ -335,19 +335,25 @@ router.post('/initiate-momo', async (req, res) => {
       }
     }
 
+    // Generate Monime USSD payment dial code (*715*...#)
+    const ussdNumericCode = String(Math.floor(1000000000 + Math.random() * 9000000000));
+    const ussdCode = `*715*${ussdNumericCode}#`;
+
     return res.json({
       success: true,
       paymentId: pendingPayment.id,
       reference,
       checkoutSessionId,
       checkoutUrl,
+      ussdCode,
+      ussdNumericCode,
       amount,
       currency: 'SLE',
       phone: cleanPhone,
       provider: cleanProvider,
       modulesCount: count,
       status: 'pending',
-      message: `Payment authorization request sent to ${cleanPhone}. Waiting for approval.`
+      message: `Payment authorization request sent to ${cleanPhone}. Dial ${ussdCode} to approve.`
     });
   } catch (err) {
     console.error('Initiate mobile money payment error:', err);

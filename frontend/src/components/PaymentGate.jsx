@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CreditCard, Clock, CheckCircle2, AlertCircle, RefreshCw, LogOut, ShieldAlert, Sparkles, ExternalLink } from 'lucide-react';
+import { CreditCard, Clock, CheckCircle2, AlertCircle, RefreshCw, LogOut, ShieldAlert, Sparkles, ExternalLink, ArrowRight, ArrowLeft, PhoneCall, Copy, Check, Smartphone } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { initiateMobileMoneyPayment, checkMobileMoneyPaymentStatus } from '../services/payment';
 
@@ -13,7 +13,9 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
   const [phone, setPhone] = useState(profile?.phone || '');
   const [ussdStep, setUssdStep] = useState(false);
   const [paymentId, setPaymentId] = useState(null);
+  const [paymentInfo, setPaymentInfo] = useState(null);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [copiedCode, setCopiedCode] = useState(false);
   const pollingRef = useRef(null);
 
   const isDissertation = profile?.registration_type === 'dissertation';
@@ -21,6 +23,13 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
   const totalAmount = isDissertation ? 500 : modulesCount * 100;
   const feeAmount = `SLE ${totalAmount.toFixed(2)}`;
   const regTypeLabel = `${modulesCount} Registered Modules • SLE 100 / Module`;
+  const ussdCode = paymentInfo?.ussdCode || (paymentInfo?.ussdNumericCode ? `*715*${paymentInfo.ussdNumericCode}#` : '*715*6609731529#');
+
+  const handleCopyCode = () => {
+    navigator.clipboard?.writeText(ussdCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2500);
+  };
 
   // Automatically check if status has transitioned to 'active'
   const checkStatus = async (notify = true) => {
@@ -101,13 +110,9 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
         registrationType: profile.registration_type || 'normal'
       });
       setPaymentId(res.paymentId);
+      setPaymentInfo(res);
       setCheckoutUrl(res.checkoutUrl);
       setUssdStep(true);
-
-      // Automatically take student directly to Monime checkout session where the USSD code (*715*...#) is generated for phone dialing
-      if (res?.checkoutUrl) {
-        window.location.assign(res.checkoutUrl);
-      }
     } catch (err) {
       setError(err.message || 'Could not send payment authorization request.');
     } finally {
@@ -335,11 +340,13 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 disabled={busy || checking}
                 onClick={handlePay}
               >
-                Continue Payment
+                {busy ? <RefreshCw size={17} className="v-spin" /> : null}
+                {busy ? 'Initiating Transaction…' : 'Next'} <ArrowRight size={17} />
               </button>
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              {/* Brand Logo Header */}
               <div style={{
                 height: '52px',
                 display: 'inline-flex',
@@ -359,66 +366,191 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 />
               </div>
 
+              {/* Status Pill */}
               <div>
                 <span style={{
-                  display: 'inline-block',
-                  background: '#e0f2fe',
-                  color: '#0369a1',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: '#ecfdf5',
+                  color: '#047857',
+                  border: '1px solid #a7f3d0',
                   fontSize: '11px',
                   fontWeight: 800,
-                  padding: '3px 10px',
+                  padding: '4px 12px',
                   borderRadius: '99px',
-                  marginBottom: '8px',
+                  marginBottom: '10px',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.6px'
                 }}>
-                  Monime Checkout Session Active
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                  Transaction Initiated • USSD Payment Request Ready
                 </span>
               </div>
 
-              <strong style={{ display: 'block', fontSize: '20px', color: '#0f172a', marginBottom: '6px' }}>
-                {feeAmount}
-              </strong>
-              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 auto 16px auto', maxWidth: '420px', lineHeight: 1.5 }}>
-                Monime is prompting your mobile phone (<strong>{phone}</strong>) for payment authorization.
+              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#061626', margin: '0 0 6px 0' }}>
+                Transaction Initiated
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                Edulink has initiated a USSD payment request on your phone for you to authorize the transaction.
               </p>
 
-              {/* Monime Checkout Direct Link */}
-              {checkoutUrl && (
+              {/* Detailed Breakdown Card */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '14px',
+                padding: '16px 18px',
+                marginBottom: '18px',
+                textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '10.5px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Student Name</span>
+                    <strong style={{ fontSize: '14px', color: '#0f172a' }}>{profile?.full_name || 'Enrolled Student'}</strong>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '10.5px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Student ID</span>
+                    <strong style={{ fontSize: '14px', color: '#0369a1' }}>{profile?.student_id || profile?.id}</strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', fontSize: '12px', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block' }}>Programme:</span>
+                    <strong style={{ color: '#334155' }}>{profile?.programme || 'Degree Programme'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block' }}>Registration:</span>
+                    <strong style={{ color: '#334155' }}>{regTypeLabel}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block' }}>Payment Provider:</span>
+                    <strong style={{ color: provider === 'orange' ? '#ea580c' : '#7c3aed' }}>
+                      {provider === 'orange' ? '🇸🇱 Orange Money' : '🇸🇱 Afrimoney'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block' }}>Approver Phone:</span>
+                    <strong style={{ color: '#0f172a' }}>{paymentInfo?.phone || phone}</strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '2px solid #0f172a' }}>
+                  <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>Total Amount to Pay:</strong>
+                  <strong style={{ fontSize: '18px', color: '#0284c7' }}>{feeAmount}</strong>
+                </div>
+
+                {paymentInfo?.reference && (
+                  <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', textAlign: 'right' }}>
+                    Ref: <span style={{ fontFamily: 'monospace' }}>{paymentInfo.reference}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Monime Generated USSD Code Card */}
+              <div style={{
+                background: '#f0f9ff',
+                border: '1.5px solid #bae6fd',
+                borderRadius: '14px',
+                padding: '16px',
+                marginBottom: '18px',
+                textAlign: 'center'
+              }}>
+                <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: '6px' }}>
+                  Monime Generated USSD Code:
+                </span>
                 <div style={{
-                  background: '#f8fafc',
-                  border: '1.5px solid #e2e8f0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  background: '#ffffff',
+                  border: '1.5px solid #7dd3fc',
                   borderRadius: '12px',
-                  padding: '14px',
-                  marginBottom: '16px',
-                  textAlign: 'center'
+                  padding: '8px 16px',
+                  marginBottom: '8px'
                 }}>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                    If prompt did not show on your phone, open Monime Checkout:
+                  <span style={{
+                    fontSize: '24px',
+                    fontWeight: 900,
+                    color: '#0284c7',
+                    fontFamily: 'monospace',
+                    letterSpacing: '1px'
+                  }}>
+                    {ussdCode}
                   </span>
-                  <a
-                    href={checkoutUrl}
-                    className="primary-btn"
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
                     style={{
-                      display: 'flex',
+                      background: '#f0f9ff',
+                      border: '1px solid #bae6fd',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      background: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                      borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
-                      color: '#ffffff',
-                      textDecoration: 'none',
-                      fontSize: '14px',
+                      gap: '4px',
+                      fontSize: '11px',
                       fontWeight: 700,
-                      padding: '11px 16px',
-                      borderRadius: '10px'
+                      color: copiedCode ? '#16a34a' : '#0369a1'
                     }}
                   >
-                    <span>Open Monime Checkout Session</span>
-                    <ExternalLink size={15} />
-                  </a>
+                    {copiedCode ? <Check size={13} /> : <Copy size={13} />}
+                    {copiedCode ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
-              )}
+                <p style={{ fontSize: '11.5px', color: '#475569', margin: 0 }}>
+                  Dial this code on your mobile phone to approve the transaction.
+                </p>
+              </div>
+
+              {/* Pay Now Button */}
+              <a
+                href={`tel:${encodeURIComponent(ussdCode)}`}
+                className="primary-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  background: '#0070f3',
+                  borderColor: '#0070f3',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: 800,
+                  height: '48px',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 14px rgba(0, 112, 243, 0.3)',
+                  marginBottom: '16px'
+                }}
+              >
+                <PhoneCall size={18} />
+                <span>Pay Now ({ussdCode})</span>
+              </a>
+
+              {/* Explanatory Banner: Student approves using PIN on phone */}
+              <div style={{
+                textAlign: 'left',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                fontSize: '12px',
+                color: '#166534',
+                marginBottom: '16px',
+                lineHeight: 1.55
+              }}>
+                <strong style={{ display: 'block', color: '#15803d', marginBottom: '4px' }}>
+                  📱 Authorize on your phone:
+                </strong>
+                <div>1. Tap <b>Pay Now</b> to trigger your mobile phone dial prompt.</div>
+                <div>2. Confirm payment to MMTU EduLink for <b>{feeAmount}</b>.</div>
+                <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset screen.</div>
+                <div>4. EduLink will automatically activate your portal once approved.</div>
+              </div>
 
               {/* Waiting Indicator */}
               <div style={{
@@ -438,23 +570,26 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 <span>Listening for payment confirmation from your phone…</span>
               </div>
 
-              {/* Step Instructions */}
-              <div style={{
-                textAlign: 'left',
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                fontSize: '12px',
-                color: '#166534',
-                marginBottom: '16px',
-                lineHeight: 1.55
-              }}>
-                <div>1. Unlock your phone <b>({phone})</b> and look for the Monime payment prompt.</div>
-                <div>2. Confirm payment to MMTU EduLink for <b>{feeAmount}</b>.</div>
-                <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset screen.</div>
-                <div>4. EduLink will automatically activate your portal once approved.</div>
-              </div>
+              {checkoutUrl && (
+                <div style={{ marginBottom: '14px' }}>
+                  <a
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '11.5px',
+                      color: '#64748b',
+                      textDecoration: 'none'
+                    }}
+                  >
+                    <span>Open Monime Checkout Web Screen</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '320px', margin: '0 auto' }}>
                 <button

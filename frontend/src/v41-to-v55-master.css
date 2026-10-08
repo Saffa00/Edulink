@@ -1898,15 +1898,7 @@
 }
 
 .edulink-notif-subscribed-dot {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #22c55e;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  display: none !important;
 }
 
 /* Manage Site Notifications Popover Card */
@@ -2074,6 +2066,33 @@
 
 .edulink-notif-subscribe-btn.active:hover:not(:disabled) {
   background: #15803d;
+}
+
+.edulink-notif-unsubscribe-btn {
+  margin: 0 16px 16px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1.5px solid #fecaca;
+  border-radius: 7px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+}
+
+.edulink-notif-unsubscribe-btn:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.edulink-notif-unsubscribe-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* Speech bubble arrow */

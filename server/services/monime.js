@@ -82,3 +82,44 @@ export async function getCheckoutSession(id) {
   }
   return data.result;
 }
+
+export async function createPaymentCode({
+  name,
+  amount,
+  currency = 'SLE',
+  reference,
+  provider = 'orange'
+}) {
+  requireConfig();
+  const minorValue = Math.round(Number(amount) * 100);
+  const providerId = provider.toLowerCase().includes('afri') ? 'm18' : 'm17';
+
+  const payload = {
+    name: name || 'EduLink Student Registration',
+    mode: 'one_time',
+    enable: true,
+    amount: {
+      currency,
+      value: minorValue
+    },
+    reference,
+    authorizedProviders: [providerId],
+    financialAccountId: process.env.MONIME_FINANCIAL_ACCOUNT_ID || 'fac-k6V7ikHutmL3HsjGzi9FGrfBpcg'
+  };
+
+  const response = await fetch(`${API_BASE}/v1/payment-codes`, {
+    method: 'POST',
+    headers: headers({ 'Idempotency-Key': reference }),
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.success) {
+    const detailError = data?.error?.details?.[0]?.errors?.join?.('; ')
+      || data?.error?.message
+      || `Monime returned HTTP ${response.status}`;
+    throw new Error(detailError);
+  }
+  return data.result;
+}
+

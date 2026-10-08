@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { registrationFee } from '../services/fees.js';
-import { createCheckout, getCheckoutSession } from '../services/monime.js';
+import { createCheckout, getCheckoutSession, createPaymentCode } from '../services/monime.js';
 import { getAdminSupabase, getAuthenticatedUser } from '../services/supabase.js';
 import { verifyMonimeWebhook } from '../services/webhook-security.js';
 import { sendStudentCredentialsEmail } from '../services/email.js';
@@ -337,9 +337,31 @@ router.post('/initiate-momo', async (req, res) => {
       }
     }
 
-    // Generate Monime USSD payment dial code (*715*...#)
-    const ussdNumericCode = String(Math.floor(1000000000 + Math.random() * 9000000000));
-    const ussdCode = `*715*${ussdNumericCode}#`;
+    // Generate Monime USSD payment dial code (*715*...#) via Monime Payment Code API if available
+    let ussdCode = null;
+    let ussdNumericCode = null;
+    if (!isPlaceholderSecret) {
+      try {
+        const pmc = await createPaymentCode({
+          name: `Registration ${student.student_id}`,
+          amount,
+          currency: 'SLE',
+          reference,
+          provider: cleanProvider
+        });
+        if (pmc?.ussdCode) {
+          ussdCode = pmc.ussdCode;
+          ussdNumericCode = pmc.ussdCode.replace(/[^0-9]/g, '');
+        }
+      } catch (pmcErr) {
+        console.warn('Monime payment code creation notice (using checkout session fallback):', pmcErr.message);
+      }
+    }
+
+    if (!ussdCode) {
+      ussdNumericCode = String(Math.floor(1000000000 + Math.random() * 9000000000));
+      ussdCode = `*715*${ussdNumericCode}#`;
+    }
 
     return res.json({
       success: true,

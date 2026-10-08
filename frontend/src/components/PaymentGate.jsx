@@ -506,29 +506,56 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 </p>
               </div>
 
-              {/* Pay Now Button */}
+              {/* Action Buttons */}
+              {paymentInfo?.checkoutUrl ? (
+                <a
+                  href={paymentInfo.checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="primary-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    background: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                    borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                    color: '#ffffff',
+                    textDecoration: 'none',
+                    fontSize: '15px',
+                    fontWeight: 800,
+                    height: '48px',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
+                    marginBottom: '10px'
+                  }}
+                >
+                  <Smartphone size={18} />
+                  <span>Pay via Monime Mobile Prompt (Direct)</span>
+                </a>
+              ) : null}
+
+              {/* Pay via Dial Code Button */}
               <a
                 href={`tel:${encodeURIComponent(ussdCode)}`}
-                className="primary-btn"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '10px',
-                  background: '#0070f3',
-                  borderColor: '#0070f3',
-                  color: '#ffffff',
+                  background: paymentInfo?.checkoutUrl ? '#f8fafc' : '#0070f3',
+                  border: paymentInfo?.checkoutUrl ? '1.5px solid #cbd5e1' : '1px solid #0070f3',
+                  color: paymentInfo?.checkoutUrl ? '#0f172a' : '#ffffff',
                   textDecoration: 'none',
-                  fontSize: '15px',
-                  fontWeight: 800,
-                  height: '48px',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  height: '44px',
                   borderRadius: '12px',
-                  boxShadow: '0 4px 14px rgba(0, 112, 243, 0.3)',
                   marginBottom: '16px'
                 }}
               >
-                <PhoneCall size={18} />
-                <span>Pay Now ({ussdCode})</span>
+                <PhoneCall size={17} />
+                <span>{paymentInfo?.checkoutUrl ? `Or Dial Code on Phone (${ussdCode})` : `Pay Now (${ussdCode})`}</span>
               </a>
 
               {/* Explanatory Banner: Student approves using PIN on phone */}

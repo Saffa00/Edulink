@@ -2,10 +2,18 @@ import { supabase } from './supabase';
 
 export async function getMyLecturerProfile(){
   const {data:{user},error:uerr}=await supabase.auth.getUser();
-  if(uerr) throw uerr;
-  const {data,error}=await supabase.from('lecturers')
-    .select('id,lecturer_id,full_name,email').eq('auth_user_id',user.id).single();
-  if(error) throw error; return data;
+  if(uerr||!user) throw uerr||new Error('Not authenticated');
+  let {data}=await supabase.from('lecturers')
+    .select('id,lecturer_id,full_name,email,auth_user_id').eq('auth_user_id',user.id).maybeSingle();
+  if(!data && user.email) {
+    const r=await supabase.from('lecturers').select('id,lecturer_id,full_name,email,auth_user_id').eq('email',user.email).maybeSingle();
+    if(r.data) {
+      data=r.data;
+      if(!data.auth_user_id) supabase.from('lecturers').update({auth_user_id:user.id}).eq('id',data.id).then(null,()=>{});
+    }
+  }
+  if(!data) throw new Error('Lecturer profile not found.');
+  return data;
 }
 export async function getMyTeachingModules(lecturerId){
   const {data,error}=await supabase.from('modules')
@@ -29,7 +37,7 @@ export async function saveIndividualGrade({lecturerId,moduleId,studentId,score})
   const {data,error}=await supabase.from('grades').upsert({
     module_id:moduleId,student_id:studentId,lecturer_id:lecturerId,
     score:n,grade:String(n),published:false,updated_at:new Date().toISOString()
-  },{onConflict:'module_id,student_id'}).select().single();
+  },{onConflict:'module_id,student_id'}).select().maybeSingle();
   if(error) throw error; return data;
 }
 export async function publishModuleGrades({moduleId,lecturerId}){

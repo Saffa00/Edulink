@@ -4,9 +4,16 @@ export async function getLecturerDashboardSummary() {
   const { data:{user} } = await supabase.auth.getUser()
   if (!user) throw new Error('You must be signed in.')
 
-  const { data: lecturer, error: lecturerError } = await supabase
-    .from('lecturers').select('*').eq('auth_user_id', user.id).single()
-  if (lecturerError) throw lecturerError
+  let { data: lecturer } = await supabase
+    .from('lecturers').select('*').eq('auth_user_id', user.id).maybeSingle()
+  if (!lecturer && user.email) {
+    const r = await supabase.from('lecturers').select('*').eq('email', user.email).maybeSingle()
+    if (r.data) {
+      lecturer = r.data
+      if (!lecturer.auth_user_id) supabase.from('lecturers').update({ auth_user_id: user.id }).eq('id', lecturer.id).then(null, () => {})
+    }
+  }
+  if (!lecturer) throw new Error('Lecturer account not found.')
 
   const { data: modules, error: moduleError } = await supabase
     .from('modules')

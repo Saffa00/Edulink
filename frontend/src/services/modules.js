@@ -71,13 +71,27 @@ export async function createModule(payload) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data: lecturer, error: le } = await supabase
+  let { data: lecturer, error: le } = await supabase
     .from('lecturers')
     .select('id,faculty_id,department_id')
     .eq('auth_user_id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (le) throw le;
+  if (!lecturer && user.email) {
+    const resEmail = await supabase
+      .from('lecturers')
+      .select('id,faculty_id,department_id,auth_user_id')
+      .eq('email', user.email)
+      .maybeSingle();
+    if (resEmail.data) {
+      lecturer = resEmail.data;
+      if (!lecturer.auth_user_id) {
+        supabase.from('lecturers').update({ auth_user_id: user.id }).eq('id', lecturer.id).then(null, () => {});
+      }
+    }
+  }
+
+  if (!lecturer) throw new Error('Lecturer account record not found.');
 
   const targetLevel = payload.level ? String(payload.level).trim() : null;
 

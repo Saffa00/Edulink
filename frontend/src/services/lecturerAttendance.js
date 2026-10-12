@@ -3,8 +3,15 @@ import { supabase } from './supabase';
 export async function getLecturerAttendance() {
   const {data:{user},error:u}=await supabase.auth.getUser();
   if(u||!user) throw u||new Error('Not authenticated');
-  const {data:l,error:le}=await supabase.from('lecturers').select('id').eq('auth_user_id',user.id).single();
-  if(le) throw le;
+  let {data:l}=await supabase.from('lecturers').select('id,auth_user_id').eq('auth_user_id',user.id).maybeSingle();
+  if(!l && user.email) {
+    const r=await supabase.from('lecturers').select('id,auth_user_id').eq('email',user.email).maybeSingle();
+    if(r.data) {
+      l=r.data;
+      if(!l.auth_user_id) supabase.from('lecturers').update({auth_user_id:user.id}).eq('id',l.id).then(null,()=>{});
+    }
+  }
+  if(!l) throw new Error('Lecturer record not found.');
   const {data:classes,error:ce}=await supabase.from('classes')
     .select('id,class_date,start_time,end_time,location_name,modules(id,code,title)')
     .eq('lecturer_id',l.id).order('class_date',{ascending:false}).order('start_time',{ascending:false});

@@ -4,10 +4,17 @@ export async function getLecturerWorkspace(moduleId) {
   const { data:{user} } = await supabase.auth.getUser()
   if (!user) throw new Error('You must be signed in.')
 
-  const { data: lecturer, error: le } = await supabase
+  let { data: lecturer } = await supabase
     .from('lecturers').select('id,lecturer_id,full_name,email,teaching_area')
-    .eq('auth_user_id',user.id).single()
-  if (le) throw le
+    .eq('auth_user_id',user.id).maybeSingle()
+  if (!lecturer && user.email) {
+    const r = await supabase.from('lecturers').select('id,lecturer_id,full_name,email,teaching_area').eq('email', user.email).maybeSingle()
+    if (r.data) {
+      lecturer = r.data
+      if (!lecturer.auth_user_id) supabase.from('lecturers').update({ auth_user_id: user.id }).eq('id', lecturer.id).then(null, () => {})
+    }
+  }
+  if (!lecturer) throw new Error('Lecturer account not found.')
 
   let moduleQuery=supabase.from('modules')
     .select('id,code,title,level,semester,active')

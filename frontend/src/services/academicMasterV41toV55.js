@@ -14,23 +14,66 @@ export async function getAuthUser() {
 
 export async function getLecturerProfile() {
   const user = await getAuthUser();
-  const { data, error } = await supabase
+  let { data } = await supabase
     .from('lecturers')
-    .select('id, lecturer_id, full_name, email, department_id, faculty_id, teaching_area')
+    .select('id, lecturer_id, full_name, email, department_id, faculty_id, teaching_area, auth_user_id')
     .eq('auth_user_id', user.id)
-    .single();
-  if (error) throw error;
+    .maybeSingle();
+
+  if (!data && user.email) {
+    const resEmail = await supabase
+      .from('lecturers')
+      .select('id, lecturer_id, full_name, email, department_id, faculty_id, teaching_area, auth_user_id')
+      .eq('email', user.email)
+      .maybeSingle();
+    if (resEmail.data) {
+      data = resEmail.data;
+      if (!data.auth_user_id) {
+        supabase.from('lecturers').update({ auth_user_id: user.id }).eq('id', data.id).then(null, () => {});
+      }
+    }
+  }
+
+  if (!data) {
+    throw new Error('Lecturer profile not found for this account.');
+  }
   return { ...data, department: data.teaching_area || '' };
 }
 
 export async function getStudentProfile() {
   const user = await getAuthUser();
-  const { data, error } = await supabase
+  let { data } = await supabase
     .from('students')
-    .select('id, student_id, full_name, email, programme, level, academic_year, semester, registration_type, account_status, faculty_id, department_id')
+    .select('id, student_id, full_name, email, programme, level, academic_year, semester, registration_type, account_status, faculty_id, department_id, auth_user_id')
     .eq('auth_user_id', user.id)
-    .single();
-  if (error) throw error;
+    .maybeSingle();
+
+  if (!data && user.email) {
+    const resEmail = await supabase
+      .from('students')
+      .select('id, student_id, full_name, email, programme, level, academic_year, semester, registration_type, account_status, faculty_id, department_id, auth_user_id')
+      .eq('email', user.email)
+      .maybeSingle();
+    if (resEmail.data) {
+      data = resEmail.data;
+      if (!data.auth_user_id) {
+        supabase.from('students').update({ auth_user_id: user.id }).eq('id', data.id).then(null, () => {});
+      }
+    }
+  }
+
+  if (!data && user.user_metadata?.student_id) {
+    const resId = await supabase
+      .from('students')
+      .select('id, student_id, full_name, email, programme, level, academic_year, semester, registration_type, account_status, faculty_id, department_id, auth_user_id')
+      .eq('student_id', user.user_metadata.student_id)
+      .maybeSingle();
+    if (resId.data) data = resId.data;
+  }
+
+  if (!data) {
+    throw new Error('Student profile not found for this account. Please verify your credentials or register.');
+  }
   return data;
 }
 
@@ -851,12 +894,12 @@ export async function addModuleRegistration(moduleId) {
   const student = await getStudentProfile();
   const { data, error } = await supabase
     .from('student_modules')
-    .insert({
+    .upsert({
       student_id: student.id,
       module_id: moduleId
-    })
+    }, { onConflict: 'student_id,module_id' })
     .select('*, modules(code, title)')
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

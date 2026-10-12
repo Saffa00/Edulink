@@ -5,13 +5,27 @@ export async function getMyStudentProfile() {
   const { data: { user }, error: u } = await supabase.auth.getUser();
   if (u || !user) throw u || new Error('Not authenticated');
 
-  const { data, error } = await supabase
+  let { data } = await supabase
     .from('students')
-    .select('id, student_id, full_name, level, academic_year, semester, department_id, faculty_id, programme')
+    .select('id, student_id, full_name, level, academic_year, semester, department_id, faculty_id, programme, auth_user_id')
     .eq('auth_user_id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) throw error;
+  if (!data && user.email) {
+    const resEmail = await supabase
+      .from('students')
+      .select('id, student_id, full_name, level, academic_year, semester, department_id, faculty_id, programme, auth_user_id')
+      .eq('email', user.email)
+      .maybeSingle();
+    if (resEmail.data) {
+      data = resEmail.data;
+      if (!data.auth_user_id) {
+        supabase.from('students').update({ auth_user_id: user.id }).eq('id', data.id).then(null, () => {});
+      }
+    }
+  }
+
+  if (!data) throw new Error('Student account record not found.');
   return data;
 }
 

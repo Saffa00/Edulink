@@ -5,13 +5,26 @@ export async function getMyAccountProfile(role) {
   if (!user) throw new Error('You must be signed in.')
 
   const table = role === 'lecturer' ? 'lecturers' : 'students'
-  const { data, error } = await supabase
+  let { data } = await supabase
     .from(table)
     .select('*')
     .eq('auth_user_id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (error) throw error
+  if (!data && user.email) {
+    const resEmail = await supabase
+      .from(table)
+      .select('*')
+      .eq('email', user.email)
+      .maybeSingle()
+    if (resEmail.data) {
+      data = resEmail.data
+      if (!data.auth_user_id) {
+        supabase.from(table).update({ auth_user_id: user.id }).eq('id', data.id).then(null, () => {})
+      }
+    }
+  }
+
   return data
 }
 
@@ -28,7 +41,7 @@ export async function updateMyProfile(role, changes) {
     .update(payload)
     .eq('auth_user_id', user.id)
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error) throw error
   return data

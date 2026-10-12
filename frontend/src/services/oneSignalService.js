@@ -12,14 +12,12 @@ let isInitialized = false;
  */
 export async function initOneSignal() {
   if (typeof window === 'undefined') return;
-  if (!ONESIGNAL_APP_ID) {
-    // Graceful fallback for local development or prior to setting up OneSignal
-    return;
-  }
+  if (!ONESIGNAL_APP_ID) return;
   if (isInitialized) return;
 
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal) {
+    if (isInitialized) return;
     try {
       await OneSignal.init({
         appId: ONESIGNAL_APP_ID,
@@ -30,7 +28,14 @@ export async function initOneSignal() {
       });
       isInitialized = true;
     } catch (err) {
-      console.warn('OneSignal initialization warning:', err.message);
+      const msg = err?.message || String(err);
+      if (msg.includes('Can only be used on') || msg.includes('domain')) {
+        console.info('[OneSignal] Push notifications active on configured domain (https://edulink-gilt-gamma.vercel.app). Local/dev environment gracefully bypassed.');
+      } else if (msg.includes('SDK already initialized')) {
+        isInitialized = true;
+      } else {
+        console.warn('OneSignal initialization warning:', msg);
+      }
     }
   });
 }
@@ -44,8 +49,10 @@ export async function setOneSignalUser(profile, role) {
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal) {
     try {
+      if (!isInitialized || !OneSignal?.User) return;
+
       const externalId = profile?.student_id || profile?.lecturer_id || profile?.auth_user_id || profile?.id;
-      if (externalId) {
+      if (externalId && typeof OneSignal.login === 'function') {
         await OneSignal.login(String(externalId));
       }
 
@@ -60,9 +67,11 @@ export async function setOneSignalUser(profile, role) {
       if (profile?.faculty_id) tags.faculty = String(profile.faculty_id);
       if (profile?.department_id) tags.department = String(profile.department_id);
 
-      await OneSignal.User.addTags(tags);
+      if (typeof OneSignal.User?.addTags === 'function') {
+        await OneSignal.User.addTags(tags);
+      }
     } catch (err) {
-      console.warn('OneSignal user tagging notice:', err.message);
+      console.warn('OneSignal user tagging notice:', err?.message || err);
     }
   });
 }
@@ -75,9 +84,10 @@ export async function clearOneSignalUser() {
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal) {
     try {
+      if (!isInitialized || !OneSignal?.User || typeof OneSignal.logout !== 'function') return;
       await OneSignal.logout();
     } catch (err) {
-      console.warn('OneSignal logout notice:', err.message);
+      console.warn('OneSignal logout notice:', err?.message || err);
     }
   });
 }
@@ -88,11 +98,15 @@ export async function clearOneSignalUser() {
 export async function promptOneSignalPush() {
   if (typeof window === 'undefined') return { granted: false };
 
-  // Fallback to native browser permission if OneSignal App ID is not yet provided
-  if (!ONESIGNAL_APP_ID) {
+  // Fallback to native browser permission if OneSignal App ID is not provided or not initialized
+  if (!ONESIGNAL_APP_ID || !isInitialized) {
     if ('Notification' in window) {
-      const perm = await Notification.requestPermission();
-      return { granted: perm === 'granted' };
+      try {
+        const perm = await Notification.requestPermission();
+        return { granted: perm === 'granted' };
+      } catch {
+        return { granted: false };
+      }
     }
     return { granted: false, reason: 'unsupported' };
   }
@@ -101,11 +115,26 @@ export async function promptOneSignalPush() {
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function (OneSignal) {
       try {
+        if (!isInitialized || !OneSignal?.Slidedown) {
+          if ('Notification' in window) {
+            const perm = await Notification.requestPermission();
+            return resolve({ granted: perm === 'granted' });
+          }
+          return resolve({ granted: false, reason: 'unsupported' });
+        }
         await OneSignal.Slidedown.promptPush();
-        const permission = await OneSignal.Notifications.permission;
+        const permission = await OneSignal.Notifications?.permission;
         resolve({ granted: permission === true || permission === 'granted' });
       } catch (err) {
-        resolve({ granted: false, error: err.message });
+        if ('Notification' in window) {
+          try {
+            const perm = await Notification.requestPermission();
+            return resolve({ granted: perm === 'granted' });
+          } catch {
+            // ignore
+          }
+        }
+        resolve({ granted: false, error: err?.message || err });
       }
     });
   });

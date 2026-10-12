@@ -17,7 +17,8 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
   const isDissertation = applicant?.registrationType === 'dissertation';
   const modulesList = Array.isArray(applicant?.modules) ? applicant.modules : [];
   const modulesCount = applicant?.modulesCount || modulesList.length || (isDissertation ? 1 : 3);
-  const amount = isDissertation ? 500 : modulesCount * 100;
+  const amount = applicant?.amount || applicant?.fee || (isDissertation ? 500 : modulesCount * 100);
+  const formattedFee = `SLE ${Number(amount || 0).toLocaleString()}`;
   const ussdCode = paymentInfo?.ussdCode || (paymentInfo?.ussdNumericCode ? `*715*${paymentInfo.ussdNumericCode}#` : null);
 
   // Clean up polling interval when unmounting or changing step

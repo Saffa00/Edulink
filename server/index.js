@@ -34,18 +34,18 @@ app.get('/', (_req, res) => {
   res.json({
     status: 'online',
     message: 'Edulink Academic Portal Backend API is running.',
-    version: 'v57',
+    version: 'v58',
     healthCheck: '/api/health',
     timestamp: new Date().toISOString()
   });
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, status: 'healthy', version: 'v57', timestamp: new Date().toISOString() });
+  res.json({ ok: true, status: 'healthy', version: 'v58', timestamp: new Date().toISOString() });
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'academic-pwa-production-server', version: 'v57' });
+  res.json({ ok: true, service: 'academic-pwa-production-server', version: 'v58' });
 });
 
 // Fallback redirects when Monime redirects to API host

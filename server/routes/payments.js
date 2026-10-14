@@ -1,13 +1,25 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { registrationFee } from '../services/fees.js';
-import { createCheckout, getCheckoutSession, createPaymentCode, getPaymentCode, isMonimeConfigured } from '../services/monime.js';
+import { createCheckout, getCheckoutSession, createPaymentCode, getPaymentCode, isMonimeConfigured, verifyMonimeConnection, getMonimeApiKey, getMonimeSpaceId } from '../services/monime.js';
 import { getAdminSupabase, getAuthenticatedUser } from '../services/supabase.js';
 import { verifyMonimeWebhook } from '../services/webhook-security.js';
 import { sendStudentCredentialsEmail } from '../services/email.js';
 import { findPayment, markPaymentPaid, recordPayment } from '../services/paymentsStore.js';
 
 const router = Router();
+
+router.get('/config-status', async (_req, res) => {
+  const monimeAuth = await verifyMonimeConnection();
+  return res.json({
+    ok: true,
+    version: 'v58',
+    isMonimeConfigured: isMonimeConfigured(),
+    keyPrefix: getMonimeApiKey().slice(0, 10) + '...',
+    spaceId: getMonimeSpaceId(),
+    monimeAuth
+  });
+});
 
 function paymentTypeFromRegistration(registrationType) {
   return registrationType === 'dissertation' ? 'dissertation' : 'registration';

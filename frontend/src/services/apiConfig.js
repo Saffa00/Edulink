@@ -1,16 +1,18 @@
 export function getApiBaseUrl() {
   const configured = import.meta.env.VITE_API_BASE_URL;
+  if (configured && (configured.startsWith('https://') || configured.startsWith('http://'))) {
+    return configured.replace(/\/+$/, '');
+  }
   if (typeof window !== 'undefined') {
-    // If configured as an absolute HTTPS production URL, use it directly
-    if (configured && configured.startsWith('https://')) {
-      return configured.replace(/\/+$/, '');
+    const hostname = window.location.hostname || '';
+    // If running in production on Vercel or any public domain, target the production Render backend
+    if (hostname.includes('vercel.app') || (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.') && !hostname.startsWith('10.'))) {
+      return 'https://edulink-backend-bjn6.onrender.com';
     }
-    // In local development or PWA running against Vite dev server,
-    // use relative path '' so Vite dev proxy forwards /api to port 4000 seamlessly
-    // regardless of whether accessed via localhost, 127.0.0.1, LAN IP, or mobile.
+    // In local development, use relative path '' so Vite dev proxy handles it
     return '';
   }
-  return (configured || 'http://localhost:4000').replace(/\/+$/, '');
+  return 'http://localhost:4000';
 }
 
 export function apiUrl(path) {

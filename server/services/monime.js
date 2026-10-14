@@ -3,19 +3,92 @@ const API_VERSION = process.env.MONIME_API_VERSION || 'caph.2025-08-23';
 export const DEFAULT_MONIME_KEY = 'mon_8h2dcnw4kFySVataE9HpeK8hIWKiMo271Ozt1eaetuUnacq3T0iEVIPRI7loeJO6';
 export const DEFAULT_MONIME_SPACE_ID = 'spc-k6V7ikDVQE5S2TGXdG19JWeb6tx';
 
+export function cleanMonimeKey(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let cleaned = raw.trim().replace(/^["']|["']$/g, '').trim();
+  if (cleaned.toLowerCase().startsWith('bearer ')) {
+    cleaned = cleaned.slice(7).trim();
+  }
+  if (cleaned.includes('mon_')) {
+    cleaned = 'mon_' + cleaned.split('mon_')[1].trim();
+  }
+  return cleaned;
+}
+
+export function cleanMonimeSpaceId(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let cleaned = raw.trim().replace(/^["']|["']$/g, '').trim();
+  if (cleaned.includes('spc-')) {
+    return 'spc-' + cleaned.split('spc-')[1].trim();
+  }
+  // If user provided a domain like edulinl.monime.space, map to its space ID
+  if (cleaned.includes('monime.space') || cleaned.includes('edulinl')) {
+    return DEFAULT_MONIME_SPACE_ID;
+  }
+  return cleaned;
+}
+
 export function getMonimeApiKey() {
-  const key = process.env.MONIME_SECRET_KEY || DEFAULT_MONIME_KEY;
-  return (key && typeof key === 'string') ? key.trim() : DEFAULT_MONIME_KEY;
+  const envCandidates = [
+    process.env.MONIME_SECRET_KEY,
+    process.env.MONIME_API_KEY,
+    process.env.MONIME_KEY,
+    process.env.API,
+    process.env.vercelAPI,
+    process.env.VERCEL_API,
+    process.env.VITE_MONIME_SECRET_KEY
+  ];
+
+  for (const candidate of envCandidates) {
+    const cleaned = cleanMonimeKey(candidate);
+    if (cleaned && cleaned.startsWith('mon_') && !cleaned.includes('replace_with_')) {
+      return cleaned;
+    }
+  }
+  return DEFAULT_MONIME_KEY;
 }
 
 export function getMonimeSpaceId() {
-  const space = process.env.MONIME_SPACE_ID || DEFAULT_MONIME_SPACE_ID;
-  return (space && typeof space === 'string') ? space.trim() : DEFAULT_MONIME_SPACE_ID;
+  const envCandidates = [
+    process.env.MONIME_SPACE_ID,
+    process.env.MONIME_SPACE,
+    process.env.SPACE_ID,
+    process.env.VITE_MONIME_SPACE_ID
+  ];
+
+  for (const candidate of envCandidates) {
+    const cleaned = cleanMonimeSpaceId(candidate);
+    if (cleaned && cleaned.startsWith('spc-')) {
+      return cleaned;
+    }
+  }
+  return DEFAULT_MONIME_SPACE_ID;
 }
 
 export function isMonimeConfigured() {
   const key = getMonimeApiKey();
-  return Boolean(key && !key.includes('replace_with_'));
+  return Boolean(key && key.startsWith('mon_') && !key.includes('replace_with_'));
+}
+
+export async function verifyMonimeConnection() {
+  try {
+    const response = await fetch(`${API_BASE}/v1/checkout-sessions?limit=1`, {
+      method: 'GET',
+      headers: headers()
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok && data.success) {
+      return { ok: true, status: 'authenticated', keyPrefix: getMonimeApiKey().slice(0, 10) + '...' };
+    }
+    return {
+      ok: false,
+      status: response.status,
+      error: data?.error?.message || (data?.messages || []).join('; ') || `HTTP ${response.status}`,
+      keyPrefix: getMonimeApiKey().slice(0, 10) + '...'
+    };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 }
 
 function headers(extra = {}) {

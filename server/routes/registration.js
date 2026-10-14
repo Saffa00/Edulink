@@ -160,7 +160,7 @@ router.post('/student-applicant', async (req, res) => {
       reference
     });
 
-    let checkout;
+    let checkout = { id: reference, redirectUrl: null };
     const isPlaceholderSecret = !isMonimeConfigured();
     if (isPlaceholderSecret) {
       // Development simulated checkout mode
@@ -170,18 +170,26 @@ router.post('/student-applicant', async (req, res) => {
         redirectUrl: `${successRedirect}?session_id=${simSessionId}&student_id=${cleanStudentId}`
       };
     } else {
-      checkout = await createCheckout({
-        reference,
-        studentId: cleanStudentId,
-        amount,
-        currency: 'SLE',
-        returnUrl: `${successRedirect}?session_id=${reference}&student_id=${cleanStudentId}`,
-        cancelUrl: cancelRedirect,
-        registrationType: cleanType,
-        phone: studentRecord.phone,
-        provider: 'monime',
-        modulesCount
-      });
+      try {
+        checkout = await createCheckout({
+          reference,
+          studentId: cleanStudentId,
+          amount,
+          currency: 'SLE',
+          returnUrl: `${successRedirect}?session_id=${reference}&student_id=${cleanStudentId}`,
+          cancelUrl: cancelRedirect,
+          registrationType: cleanType,
+          phone: studentRecord.phone,
+          provider: 'monime',
+          modulesCount
+        });
+      } catch (monimeErr) {
+        console.warn('Monime checkout creation notice (proceeding to mobile payment screen):', monimeErr.message);
+        checkout = {
+          id: reference,
+          redirectUrl: null
+        };
+      }
     }
 
     // Update payment with checkout session ID

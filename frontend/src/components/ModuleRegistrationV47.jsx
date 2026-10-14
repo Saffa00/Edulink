@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { BookOpen, CheckCircle2, AlertCircle, RefreshCw, ShieldCheck, GraduationCap, Users, Clock, Plus, X, ArrowRight, Check } from 'lucide-react';
-import { getModuleCatalogue, addModuleRegistration } from '../services/academicMasterV41toV55.js';
+import { getModuleCatalogue, addModuleRegistration, getStudentProfile } from '../services/academicMasterV41toV55.js';
 import { supabase } from '../services/supabase';
+import PaymentCheckout from './PaymentCheckout.jsx';
 
 export default function ModuleRegistrationV47() {
   const [modules, setModules] = useState([]);
@@ -14,6 +15,8 @@ export default function ModuleRegistrationV47() {
   const [addQuota, setAddQuota] = useState(1);
   const [selectedAddCodes, setSelectedAddCodes] = useState([]);
   const [addBusy, setAddBusy] = useState(false);
+  const [currentStudent, setCurrentStudent] = useState(null);
+  const [checkoutApplicant, setCheckoutApplicant] = useState(null);
 
   useEffect(() => {
     if (message || error) {
@@ -25,8 +28,12 @@ export default function ModuleRegistrationV47() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const list = await getModuleCatalogue();
+      const [list, profile] = await Promise.all([
+        getModuleCatalogue(),
+        getStudentProfile().catch(() => null)
+      ]);
       setModules(list || []);
+      if (profile) setCurrentStudent(profile);
     } catch (err) {
       setError(err.message || 'Failed to load module curriculum.');
     } finally {
@@ -61,18 +68,39 @@ export default function ModuleRegistrationV47() {
     }
 
     setAddBusy(true);
+    setError('');
     try {
-      for (const code of selectedAddCodes) {
-        const modObj = modules.find(m => m.code === code);
-        if (modObj?.id) {
-          await addModuleRegistration(modObj.id);
-        }
+      let student = currentStudent;
+      if (!student) {
+        student = await getStudentProfile().catch(() => null);
+        if (student) setCurrentStudent(student);
       }
-      setMessage(`Successfully registered and activated ${selectedAddCodes.length} module(s)! SLE ${(selectedAddCodes.length * 100).toFixed(2)} paid.`);
+
+      const chosenModsData = modules
+        .filter(m => selectedAddCodes.includes(m.code))
+        .map(m => ({
+          code: m.code,
+          title: m.title,
+          fee: 100
+        }));
+
+      setCheckoutApplicant({
+        studentId: student?.student_id || student?.id || 'STUDENT',
+        fullName: student?.full_name || 'Enrolled Student',
+        email: student?.email || '',
+        phone: student?.phone || '',
+        programme: student?.programme || 'Undergraduate',
+        level: student?.level || '1',
+        semester: student?.semester || 'First Semester',
+        registrationType: 'normal',
+        modules: selectedAddCodes,
+        modulesCount: selectedAddCodes.length,
+        modulesData: chosenModsData,
+        amount: selectedAddCodes.length * 100
+      });
       setShowAddModal(false);
-      await loadData();
     } catch (err) {
-      setError(err.message || 'Failed to register selected modules.');
+      setError(err.message || 'Could not initiate checkout. Please try again.');
     } finally {
       setAddBusy(false);
     }
@@ -359,9 +387,9 @@ export default function ModuleRegistrationV47() {
                 {modules.map(m => {
                   const isChecked = selectedAddCodes.includes(m.code);
                   return (
-                    <label
+                    <div
                       key={m.id || m.code}
-                      onClick={(e) => { e.preventDefault(); handleToggleAddModule(m.code); }}
+                      onClick={() => handleToggleAddModule(m.code)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -370,15 +398,16 @@ export default function ModuleRegistrationV47() {
                         borderRadius: '10px',
                         border: isChecked ? '2px solid #0284c7' : '1px solid #e2e8f0',
                         background: isChecked ? '#f0f9ff' : '#fff',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          onChange={() => handleToggleAddModule(m.code)}
-                          style={{ accentColor: '#0284c7', width: '16px', height: '16px', margin: 0 }}
+                          onChange={() => {}}
+                          style={{ accentColor: '#0284c7', width: '16px', height: '16px', margin: 0, cursor: 'pointer' }}
                         />
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -393,7 +422,7 @@ export default function ModuleRegistrationV47() {
                       <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#0284c7' }}>
                         SLE 100
                       </span>
-                    </label>
+                    </div>
                   );
                 })}
               </div>
@@ -443,6 +472,50 @@ export default function ModuleRegistrationV47() {
                 {addBusy ? 'Processing…' : `Pay SLE ${(addQuota * 100).toFixed(2)} & Activate`}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real Mobile Money Payment Checkout for Added Modules */}
+      {checkoutApplicant && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(10, 37, 64, 0.75)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          overflowY: 'auto'
+        }}>
+          <div style={{ maxWidth: '620px', width: '100%', position: 'relative' }}>
+            <PaymentCheckout
+              applicant={checkoutApplicant}
+              onPaymentCompleted={async (confirmed) => {
+                try {
+                  for (const code of checkoutApplicant.modules) {
+                    const modObj = modules.find(m => m.code === code);
+                    if (modObj?.id) {
+                      await addModuleRegistration(modObj.id);
+                    }
+                  }
+                  setMessage(`🎉 Payment of SLE ${checkoutApplicant.amount} confirmed via Monime! ${checkoutApplicant.modulesCount} module(s) successfully registered & activated.`);
+                  await loadData();
+                } catch (actErr) {
+                  console.warn('Module activation notice:', actErr);
+                }
+                setCheckoutApplicant(null);
+              }}
+              onCancel={() => {
+                setCheckoutApplicant(null);
+                setShowAddModal(true);
+              }}
+            />
           </div>
         </div>
       )}

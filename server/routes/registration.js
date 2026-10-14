@@ -122,25 +122,60 @@ router.post('/student-applicant', async (req, res) => {
       studentRecord = { id: cleanStudentId, student_id: cleanStudentId, ...studentPayload };
     }
 
-    // Auto-allocate matching level curriculum modules
-    try {
-      const { data: matchingModules } = await db
-        .from('modules')
-        .select('id')
-        .or(`level.eq.${cleanLevel},level.is.null`);
+    // If dissertation student, create dissertation research record; else allocate curriculum modules
+    if (cleanType === 'dissertation') {
+      try {
+        const topic = (req.body.dissertationTopic || req.body.topic || 'Academic Research Dissertation & Thesis').trim();
+        const supervisorId = safeUuid(req.body.supervisorId);
 
-      if (matchingModules?.length) {
-        const enrollments = matchingModules.map(m => ({
+        await db.from('dissertations').upsert({
           student_id: studentRecord.id,
-          module_id: m.id
-        }));
-        await db.from('student_modules').upsert(enrollments, {
-          onConflict: 'student_id,module_id',
-          ignoreDuplicates: true
-        });
+          title: topic,
+          supervisor_id: supervisorId || null,
+          status: 'proposal',
+          current_chapter: 1,
+          progress_percentage: 20
+        }, { onConflict: 'student_id' });
+
+        if (supervisorId) {
+          try {
+            const { data: lec } = await db.from('lecturers').select('auth_user_id').eq('id', supervisorId).maybeSingle();
+            if (lec?.auth_user_id) {
+              await db.from('notifications').insert({
+                recipient_user_id: lec.auth_user_id,
+                title: 'New Dissertation Supervisee Proposal',
+                body: `${studentRecord.full_name} (${cleanStudentId}) registered you as supervisor for research topic: "${topic}".`,
+                category: 'dissertation'
+              });
+            }
+          } catch (notifErr) {
+            console.warn('Supervisor notification notice:', notifErr.message);
+          }
+        }
+      } catch (dissErr) {
+        console.warn('Dissertation proposal auto-record notice:', dissErr.message);
       }
-    } catch (modErr) {
-      console.warn('Curriculum auto-enrollment notice:', modErr.message);
+    } else {
+      // Auto-allocate matching level curriculum modules for regular coursework students
+      try {
+        const { data: matchingModules } = await db
+          .from('modules')
+          .select('id')
+          .or(`level.eq.${cleanLevel},level.is.null`);
+
+        if (matchingModules?.length) {
+          const enrollments = matchingModules.map(m => ({
+            student_id: studentRecord.id,
+            module_id: m.id
+          }));
+          await db.from('student_modules').upsert(enrollments, {
+            onConflict: 'student_id,module_id',
+            ignoreDuplicates: true
+          });
+        }
+      } catch (modErr) {
+        console.warn('Curriculum auto-enrollment notice:', modErr.message);
+      }
     }
 
     // Prepare Monime payment checkout (SLE 100 per module)

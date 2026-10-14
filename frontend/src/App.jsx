@@ -33,6 +33,7 @@ const StudentGradeInbox = lazy(() => import('./components/StudentGradeInbox'));
 const PaymentGate = lazy(() => import('./components/PaymentGate'));
 import NotificationSubscribeButton from './components/NotificationSubscribeButton';
 import { getTimeBasedGreeting } from './utils/greeting';
+import { getAvailableSupervisors } from './services/academicMasterV41toV55.js';
 import './v39-attendance.css';
 import './v15-attendance.css';
 import './v40-assignments.css';
@@ -162,8 +163,14 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     facultyId:'faculty-applied-sciences', departmentId:'dept-computer-science', programmeId:'', programme:'BSc', level:'1',
     programmeLecturing: 'BSc', levelLecturing: '1',
     academicYear:'2026/2027', semester:'First Semester', campus:'goderich', registrationType:'normal', selectedModulesCount: 1,
-    selectedModuleCodes: [], modules:[], teachingArea:'Department of Computer Science', deviceName:''
+    selectedModuleCodes: [], modules:[], teachingArea:'Department of Computer Science', deviceName:'',
+    dissertationTopic: '', supervisorId: ''
   });
+  const [departmentSupervisors, setDepartmentSupervisors] = useState([]);
+
+  React.useEffect(() => {
+    getAvailableSupervisors().then(list => setDepartmentSupervisors(list || [])).catch(() => {});
+  }, []);
 
   const handleProgrammeSelect = (progCode) => {
     const prog = getProgrammeInfo(progCode);
@@ -348,6 +355,44 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           const found = depts.find(d => d.id === form.departmentId);
           if (found) resolvedFacultyId = found.facultyId;
         }
+
+        if (form.registrationType === 'dissertation') {
+          if (!form.dissertationTopic || !form.dissertationTopic.trim()) {
+            throw new Error('Please enter your proposed Dissertation / Research Topic.');
+          }
+          const prog = getProgrammeInfo(form.programme || 'BSc');
+          const finalYearLevel = prog?.levels ? String(prog.levels[prog.levels.length - 1]?.value || '4') : '4';
+
+          const applicantData = {
+            ...form,
+            id: form.studentId,
+            facultyId: resolvedFacultyId,
+            level: finalYearLevel,
+            modulesCount: 1,
+            modules: ['DISSERTATION-RES'],
+            modulesData: [{ code: 'DISSERTATION', title: form.dissertationTopic.trim(), fee: 500 }],
+            registrationType: 'dissertation',
+            dissertationTopic: form.dissertationTopic.trim(),
+            supervisorId: form.supervisorId || null,
+            amount: 500
+          };
+
+          await registerStudentApplicantAndCheckout(applicantData);
+          setForm(f => ({
+            ...f,
+            id: form.studentId,
+            facultyId: resolvedFacultyId,
+            level: finalYearLevel,
+            modulesCount: 1,
+            modules: ['DISSERTATION-RES'],
+            modulesData: [{ code: 'DISSERTATION', title: form.dissertationTopic.trim(), fee: 500 }],
+            registrationType: 'dissertation',
+            amount: 500
+          }));
+          setScreen('checkout');
+          return;
+        }
+
         setForm(f => ({
           ...f,
           id: f.studentId,
@@ -1313,316 +1358,936 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
 
 
 
-  if (screen === 'register') return <main className="auth-screen"><section className="auth-card wide"><Logo />
-    <button className="back-link" onClick={()=>{resetState();setScreen('login')}}>← Back to login</button>
-    <div className="role-switch"><button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button><button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button></div>
-    <div className="auth-heading"><h1>{role==='lecturer'?'Lecturer Registration':'Student Registration'}</h1><p>{role==='lecturer'?'Your Lecturer ID is generated automatically.':'Register your modules before completing the registration payment.'}</p></div>
-    <form onSubmit={register}><div className="form-grid">
-      <div><label>Full Name</label><input value={form.fullName} onChange={e=>update('fullName',e.target.value)} required placeholder="Enter full name"/></div>
-      <div><label>Email Address</label><input type="email" value={form.email} onChange={e=>update('email',e.target.value)} required placeholder="you@example.com"/></div>
-      <div><label>Phone Number</label><input value={form.phone} onChange={e=>update('phone',e.target.value)} placeholder="+232 7X XXX XXX"/></div>
-      {role==='lecturer' ? (
-        <>
-          <div>
-            <label>Campus</label>
-            <select
-              value={form.campus}
-              onChange={e => {
-                const cmp = e.target.value;
-                update('campus', cmp);
-                update('facultyId', '');
-                update('departmentId', '');
-                update('teachingArea', '');
-                update('modules', []);
-              }}
-              required
-            >
-              {CAMPUSES.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Department</label>
-            <select
-              value={form.departmentId}
-              onChange={e => {
-                const deptId = e.target.value;
-                const depts = getDepartmentsByCampus(form.campus);
-                const chosen = depts.find(d => d.id === deptId);
-                update('departmentId', deptId);
-                update('facultyId', chosen ? chosen.facultyId : '');
-                update('teachingArea', chosen ? chosen.name : '');
-                update('modules', []);
-              }}
-              required
-              disabled={!form.campus}
-            >
-              <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
-              {getFacultiesByCampusId(form.campus).map(fac => {
-                const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
-                if (!deptsInFac.length) return null;
-                return (
-                  <optgroup key={fac.id} label={fac.name}>
-                    {deptsInFac.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </optgroup>
-                );
-              })}
-            </select>
-            {form.departmentId && (
-              <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
-                🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          <div>
-            <label>Student ID</label>
-            <input value={form.studentId} onChange={e=>update('studentId',e.target.value)} required placeholder="e.g. 8100"/>
-          </div>
-          <div>
-            <label>Campus</label>
-            <select
-              value={form.campus}
-              onChange={e => {
-                const cmp = e.target.value;
-                update('campus', cmp);
-                update('facultyId', '');
-                update('departmentId', '');
-                update('modules', []);
-              }}
-              required
-            >
-              {CAMPUSES.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Department</label>
-            <select
-              value={form.departmentId}
-              onChange={e => {
-                const deptId = e.target.value;
-                const depts = getDepartmentsByCampus(form.campus);
-                const chosen = depts.find(d => d.id === deptId);
-                update('departmentId', deptId);
-                update('facultyId', chosen ? chosen.facultyId : '');
-                update('modules', []);
-              }}
-              required
-              disabled={!form.campus}
-            >
-              <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
-              {getFacultiesByCampusId(form.campus).map(fac => {
-                const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
-                if (!deptsInFac.length) return null;
-                return (
-                  <optgroup key={fac.id} label={fac.name}>
-                    {deptsInFac.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </optgroup>
-                );
-              })}
-            </select>
-            {form.departmentId && (
-              <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
-                🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
-              </div>
-            )}
-          </div>
-          <div className="full-span">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-              <label style={{ margin: 0 }}>Academic Programme</label>
-              <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select BSc, Diploma, or HND</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
-              {PROGRAMME_TYPES.map(prog => {
-                const isSelected = (form.programme || 'BSc').toUpperCase() === prog.code.toUpperCase();
-                return (
-                  <button
-                    key={prog.id}
-                    type="button"
-                    onClick={() => handleProgrammeSelect(prog.code)}
-                    style={{
-                      padding: '12px 10px',
-                      borderRadius: '12px',
-                      border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
-                      background: isSelected ? prog.badgeBg : '#ffffff',
-                      color: isSelected ? prog.badgeColor : '#334155',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.18s ease',
-                      boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
-                    }}
-                  >
-                    <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
-                    <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>{prog.duration}</div>
-                  </button>
-                );
-              })}
-            </div>
+  if (screen === 'student-type-select') {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card wide" style={{ maxWidth: '680px' }}>
+          <Logo />
+          <button
+            type="button"
+            className="back-link"
+            onClick={() => { resetState(); setScreen('login'); }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              color: '#52657c',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: '16px'
+            }}
+          >
+            ← Back to login
+          </button>
 
-            {/* Programme Specification Card */}
-            {(() => {
-              const prog = getProgrammeInfo(form.programme || 'BSc');
-              return (
+          <div className="auth-heading" style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <span style={{
+              display: 'inline-block',
+              background: '#e0f2fe',
+              color: '#0369a1',
+              padding: '4px 12px',
+              borderRadius: '999px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              marginBottom: '10px',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase'
+            }}>
+              Student Portal Registration
+            </span>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#061626', margin: '0 0 8px 0' }}>
+              Choose Your Registration Track
+            </h1>
+            <p style={{ color: '#52657c', fontSize: '13.5px', margin: 0, lineHeight: 1.55 }}>
+              Select whether you are enrolling for taught semester coursework or registering for final year research and dissertation supervision.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+            {/* Card 1: Coursework Student */}
+            <div
+              onClick={() => {
+                resetState();
+                setRole('student');
+                update('registrationType', 'normal');
+                setScreen('register');
+              }}
+              style={{
+                border: '2px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '22px 18px',
+                background: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                textAlign: 'left'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#0284c7';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(2, 132, 199, 0.12)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <div>
                 <div style={{
-                  marginTop: '10px',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  background: '#f8fafc',
-                  border: `1px solid ${prog.badgeColor}35`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: '#f0f9ff',
+                  color: '#0284c7',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '24px',
+                  marginBottom: '14px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Award size={18} color={prog.badgeColor} />
-                      <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{prog.fullName}</strong>
-                    </div>
-                    <span style={{
-                      padding: '3px 9px',
-                      borderRadius: '999px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      background: prog.badgeBg,
-                      color: prog.badgeColor
-                    }}>
-                      {prog.levels.length} Levels ({prog.years[0]} – {prog.years[prog.years.length - 1]})
-                    </span>
+                  🎓
+                </div>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#0f172a', fontWeight: 800 }}>
+                  Regular Coursework Student
+                </h3>
+                <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.55 }}>
+                  For undergraduate and diploma students taking semester course modules (SLE 100/module). Attend lectures, submit assignments, and view grades.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11.5px', color: '#334155', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#16a34a' }}>✓</span> Select semester modules (1 to 8 modules)
                   </div>
-                  <div style={{ marginTop: '6px', fontSize: '12px', color: '#475569' }}>
-                    <strong style={{ color: '#0f172a' }}>Award: </strong>{prog.award} • {prog.duration}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#16a34a' }}>✓</span> SLE 100 per enrolled module
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#16a34a' }}>✓</span> Timetables, GPS attendance & coursework
                   </div>
                 </div>
-              );
-            })()}
-          </div>
-          <div>
-            <label>Academic Level / Year</label>
-            <select
-              value={form.level}
-              onChange={e => update('level', e.target.value)}
-              required
+              </div>
+              <button
+                type="button"
+                className="outline-btn"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '11px',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  color: '#0284c7',
+                  borderColor: '#bae6fd',
+                  background: '#f0f9ff',
+                  borderRadius: '10px'
+                }}
+              >
+                Continue as Regular Student →
+              </button>
+            </div>
+
+            {/* Card 2: Final Year Dissertation Student */}
+            <div
+              onClick={() => {
+                resetState();
+                setRole('student');
+                const prog = getProgrammeInfo(form.programme || 'BSc');
+                const finalYearLevel = prog?.levels ? String(prog.levels[prog.levels.length - 1]?.value || '4') : '4';
+                setForm(f => ({
+                  ...f,
+                  registrationType: 'dissertation',
+                  level: finalYearLevel,
+                  modulesCount: 1,
+                  modules: ['DISSERTATION-RES'],
+                  amount: 500
+                }));
+                setScreen('register');
+              }}
+              style={{
+                border: '2px solid #818cf8',
+                borderRadius: '16px',
+                padding: '22px 18px',
+                background: 'linear-gradient(180deg, #fbfbfe 0%, #ffffff 100%)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.08)',
+                textAlign: 'left',
+                position: 'relative'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#4f46e5';
+                e.currentTarget.style.boxShadow = '0 8px 26px rgba(79, 70, 229, 0.16)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#818cf8';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(99, 102, 241, 0.08)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
             >
-              {getLevelsForProgramme(form.programme).map(lvl => (
-                <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Academic Year</label>
-            <select value={form.academicYear} onChange={e=>update('academicYear',e.target.value)}>
-              <option>2026/2027</option>
-              <option>2025/2026</option>
-            </select>
-          </div>
-          <div>
-            <label>Semester</label>
-            <select value={form.semester} onChange={e=>update('semester',e.target.value)}>
-              <option>First Semester</option>
-              <option>Second Semester</option>
-            </select>
-          </div>
-        </>
-      )}
-      {role === 'lecturer' && (
-        <>
-          <div>
-            <label>Password</label>
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type={showRegisterPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={e=>update('password',e.target.value)}
-                required
-                minLength={8}
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-                style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
-              />
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: '#4f46e5',
+                color: '#fff',
+                padding: '3px 8px',
+                borderRadius: '6px',
+                fontSize: '10px',
+                fontWeight: 800,
+                letterSpacing: '0.04em'
+              }}>
+                FINAL YEAR
+              </div>
+              <div>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: '#eef2ff',
+                  color: '#4f46e5',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '24px',
+                  marginBottom: '14px'
+                }}>
+                  📚
+                </div>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '17px', color: '#0f172a', fontWeight: 800 }}>
+                  Student in Final Year Writing Dissertation
+                </h3>
+                <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.55 }}>
+                  For graduating students completing their honours thesis or capstone dissertation. Propose research topic and request a faculty supervisor.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11.5px', color: '#334155', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#4f46e5' }}>✓</span> Flat registration fee: <strong>SLE 500</strong>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#4f46e5' }}>✓</span> No regular taught module selection needed
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: '#4f46e5' }}>✓</span> Chapter tracker (1-5), supervisor reviews & defense
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={() => setShowRegisterPassword(p => !p)}
-                aria-label={showRegisterPassword ? 'Hide password' : 'Show password'}
+                className="primary-btn"
                 style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#64748b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px'
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '11px',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  background: '#4f46e5',
+                  borderColor: '#4f46e5',
+                  borderRadius: '10px'
                 }}
               >
-                {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                Register Dissertation Only →
               </button>
             </div>
           </div>
-          <div>
-            <label>Confirm Password</label>
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                value={form.confirmPassword}
-                onChange={e=>update('confirmPassword',e.target.value)}
-                required
-                minLength={8}
-                autoComplete="new-password"
-                placeholder="Repeat password"
-                style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
-              />
+
+          <p className="signup" style={{ textAlign: 'center', marginTop: '12px' }}>
+            Already have an active account?{' '}
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => { resetState(); setScreen('login'); }}
+            >
+              Sign In
+            </button>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (screen === 'register') {
+    const isDissertationStudent = role === 'student' && form.registrationType === 'dissertation';
+    const filteredSupervisors = departmentSupervisors.filter(s => {
+      if (!form.departmentId) return true;
+      return s.department_id === form.departmentId || s.department?.toLowerCase().includes(form.departmentId.toLowerCase()) || !s.department_id;
+    });
+    const supervisorOptions = filteredSupervisors.length > 0 ? filteredSupervisors : departmentSupervisors;
+
+    return (
+      <main className="auth-screen">
+        <section className="auth-card wide">
+          <Logo />
+          <button
+            type="button"
+            className="back-link"
+            onClick={() => {
+              resetState();
+              if (role === 'student') setScreen('student-type-select');
+              else setScreen('login');
+            }}
+          >
+            {role === 'student' ? '← Back to Track Selection' : '← Back to login'}
+          </button>
+
+          <div className="role-switch">
+            <button
+              type="button"
+              className={role === 'lecturer' ? 'active' : ''}
+              onClick={() => setRole('lecturer')}
+            >
+              Lecturer
+            </button>
+            <button
+              type="button"
+              className={role === 'student' ? 'active' : ''}
+              onClick={() => setRole('student')}
+            >
+              Student
+            </button>
+          </div>
+
+          {/* Student Track Switcher Pills */}
+          {role === 'student' && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px',
+              background: '#f1f5f9',
+              padding: '5px',
+              borderRadius: '12px',
+              margin: '14px 0 16px 0'
+            }}>
               <button
                 type="button"
-                onClick={() => setShowConfirmPassword(p => !p)}
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                onClick={() => update('registrationType', 'normal')}
                 style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
+                  padding: '10px 14px',
+                  borderRadius: '9px',
                   border: 'none',
+                  fontSize: '13px',
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  color: '#64748b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px'
+                  background: !isDissertationStudent ? '#ffffff' : 'transparent',
+                  color: !isDissertationStudent ? '#0a2540' : '#64748b',
+                  boxShadow: !isDissertationStudent ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s ease'
                 }}
               >
-                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                🎓 Coursework Student
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prog = getProgrammeInfo(form.programme || 'BSc');
+                  const finalYearLevel = prog?.levels ? String(prog.levels[prog.levels.length - 1]?.value || '4') : '4';
+                  setForm(f => ({
+                    ...f,
+                    registrationType: 'dissertation',
+                    level: finalYearLevel,
+                    modulesCount: 1,
+                    modules: ['DISSERTATION-RES'],
+                    amount: 500
+                  }));
+                }}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: isDissertationStudent ? '#4f46e5' : 'transparent',
+                  color: isDissertationStudent ? '#ffffff' : '#64748b',
+                  boxShadow: isDissertationStudent ? '0 2px 6px rgba(79, 70, 229, 0.25)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                📚 Final Year Dissertation
               </button>
             </div>
+          )}
+
+          <div className="auth-heading">
+            <h1>
+              {role === 'lecturer'
+                ? 'Lecturer Registration'
+                : (isDissertationStudent ? 'Dissertation Registration' : 'Student Registration')}
+            </h1>
+            <p>
+              {role === 'lecturer'
+                ? 'Your Lecturer ID is generated automatically.'
+                : (isDissertationStudent
+                    ? 'Final year research topic submission and supervisor allocation (Fixed fee: SLE 500).'
+                    : 'Register your modules before completing the registration payment.')}
+            </p>
           </div>
-        </>
-      )}
-    </div>
-    {error && <div className="error-box">{error}</div>}
-    {role === 'student' ? (
-      <div className="security-note">
-        <ShieldCheck size={18}/>
-        <span>A temporary password will be generated and emailed to you immediately after successful payment with Monime.</span>
-      </div>
-    ) : (
-      <div className="security-note">
-        <ShieldCheck size={18}/>
-        <span>After activation, first successful login registers this browser/device. Unknown devices are blocked.</span>
-      </div>
-    )}
-    <button className="primary-btn full-btn" disabled={busy}>
-      {busy ? 'Processing…' : (role === 'student' ? 'Continue to Module Selection →' : 'Continue to Teaching Modules →')}
-    </button></form>
-    <p className="signup">Already registered? <button type="button" className="text-btn" onClick={()=>setScreen('login')}>Login</button></p>
-  </section></main>;
+
+          <form onSubmit={register}>
+            <div className="form-grid">
+              <div>
+                <label>Full Name</label>
+                <input
+                  value={form.fullName}
+                  onChange={e => update('fullName', e.target.value)}
+                  required
+                  placeholder="Enter full name"
+                />
+              </div>
+              <div>
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => update('email', e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                />
+              </div>
+              <div>
+                <label>Phone Number</label>
+                <input
+                  value={form.phone}
+                  onChange={e => update('phone', e.target.value)}
+                  placeholder="+232 7X XXX XXX"
+                />
+              </div>
+
+              {role === 'lecturer' ? (
+                <>
+                  <div>
+                    <label>Campus</label>
+                    <select
+                      value={form.campus}
+                      onChange={e => {
+                        const cmp = e.target.value;
+                        update('campus', cmp);
+                        update('facultyId', '');
+                        update('departmentId', '');
+                        update('teachingArea', '');
+                        update('modules', []);
+                      }}
+                      required
+                    >
+                      {CAMPUSES.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Department</label>
+                    <select
+                      value={form.departmentId}
+                      onChange={e => {
+                        const deptId = e.target.value;
+                        const depts = getDepartmentsByCampus(form.campus);
+                        const chosen = depts.find(d => d.id === deptId);
+                        update('departmentId', deptId);
+                        update('facultyId', chosen ? chosen.facultyId : '');
+                        update('teachingArea', chosen ? chosen.name : '');
+                        update('modules', []);
+                      }}
+                      required
+                      disabled={!form.campus}
+                    >
+                      <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
+                      {getFacultiesByCampusId(form.campus).map(fac => {
+                        const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
+                        if (!deptsInFac.length) return null;
+                        return (
+                          <optgroup key={fac.id} label={fac.name}>
+                            {deptsInFac.map(d => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
+                    </select>
+                    {form.departmentId && (
+                      <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
+                        🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label>Password</label>
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <input
+                        type={showRegisterPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={e => update('password', e.target.value)}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        placeholder="At least 8 characters"
+                        style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegisterPassword(p => !p)}
+                        aria-label={showRegisterPassword ? 'Hide password' : 'Show password'}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '4px'
+                        }}
+                      >
+                        {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label>Confirm Password</label>
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={form.confirmPassword}
+                        onChange={e => update('confirmPassword', e.target.value)}
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        placeholder="Repeat password"
+                        style={{ width: '100%', boxSizing: 'border-box', paddingRight: '40px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(p => !p)}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#64748b',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '4px'
+                        }}
+                      >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : isDissertationStudent ? (
+                /* DISSERTATION STUDENT REGISTRATION: ONLY DISSERTATION FIELDS */
+                <>
+                  <div>
+                    <label>Student ID</label>
+                    <input
+                      value={form.studentId}
+                      onChange={e => update('studentId', e.target.value)}
+                      required
+                      placeholder="e.g. 8100"
+                    />
+                  </div>
+                  <div>
+                    <label>Campus</label>
+                    <select
+                      value={form.campus}
+                      onChange={e => {
+                        const cmp = e.target.value;
+                        update('campus', cmp);
+                        update('facultyId', '');
+                        update('departmentId', '');
+                        update('modules', []);
+                      }}
+                      required
+                    >
+                      {CAMPUSES.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Department</label>
+                    <select
+                      value={form.departmentId}
+                      onChange={e => {
+                        const deptId = e.target.value;
+                        const depts = getDepartmentsByCampus(form.campus);
+                        const chosen = depts.find(d => d.id === deptId);
+                        update('departmentId', deptId);
+                        update('facultyId', chosen ? chosen.facultyId : '');
+                        update('modules', []);
+                      }}
+                      required
+                      disabled={!form.campus}
+                    >
+                      <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
+                      {getFacultiesByCampusId(form.campus).map(fac => {
+                        const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
+                        if (!deptsInFac.length) return null;
+                        return (
+                          <optgroup key={fac.id} label={fac.name}>
+                            {deptsInFac.map(d => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
+                    </select>
+                    {form.departmentId && (
+                      <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
+                        🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="full-span">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ margin: 0 }}>Academic Programme (Final Year)</label>
+                      <span style={{ fontSize: '11.5px', color: '#4f46e5', fontWeight: 600 }}>Honours / Final Year Project</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
+                      {PROGRAMME_TYPES.map(prog => {
+                        const isSelected = (form.programme || 'BSc').toUpperCase() === prog.code.toUpperCase();
+                        return (
+                          <button
+                            key={prog.id}
+                            type="button"
+                            onClick={() => {
+                              handleProgrammeSelect(prog.code);
+                              const finalYearLevel = prog?.levels ? String(prog.levels[prog.levels.length - 1]?.value || '4') : '4';
+                              update('level', finalYearLevel);
+                            }}
+                            style={{
+                              padding: '12px 10px',
+                              borderRadius: '12px',
+                              border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
+                              background: isSelected ? prog.badgeBg : '#ffffff',
+                              color: isSelected ? prog.badgeColor : '#334155',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              transition: 'all 0.18s ease',
+                              boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
+                            }}
+                          >
+                            <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
+                            <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>Final Year</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Proposed Dissertation Topic Title */}
+                  <div className="full-span" style={{ marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ margin: 0, fontWeight: 700 }}>
+                        Proposed Dissertation / Research Topic Title <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <span style={{ fontSize: '11.5px', color: '#64748b' }}>Required for supervisor allocation</span>
+                    </div>
+                    <textarea
+                      value={form.dissertationTopic}
+                      onChange={e => update('dissertationTopic', e.target.value)}
+                      required
+                      rows={3}
+                      placeholder="e.g. Design and Implementation of an Automated Examination Verification and Attendance System"
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #cbd5e1',
+                        fontSize: '13.5px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        minHeight: '75px',
+                        outline: 'none'
+                      }}
+                    />
+                    <small style={{ color: '#64748b', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+                      Your proposed title will be submitted for department approval and supervisor review upon registration.
+                    </small>
+                  </div>
+
+                  {/* Preferred Faculty Supervisor */}
+                  <div className="full-span">
+                    <label style={{ fontWeight: 700, marginBottom: '4px', display: 'block' }}>
+                      Preferred Research Supervisor (Optional)
+                    </label>
+                    <select
+                      value={form.supervisorId}
+                      onChange={e => update('supervisorId', e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #cbd5e1',
+                        background: '#ffffff',
+                        fontSize: '13px'
+                      }}
+                    >
+                      <option value="">-- Let Department Head / Committee Assign Supervisor --</option>
+                      {supervisorOptions.map(sup => (
+                        <option key={sup.id} value={sup.id}>
+                          {sup.full_name} {sup.teaching_area || sup.department ? `(${sup.teaching_area || sup.department})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <small style={{ color: '#64748b', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+                      If unassigned, your department coordinator will assign an available supervisor after proposal validation.
+                    </small>
+                  </div>
+
+                  {/* Dissertation Fee Breakdown Box */}
+                  <div className="full-span" style={{
+                    background: '#f5f3ff',
+                    border: '1.5px solid #ddd6fe',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    marginTop: '6px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ color: '#5b21b6', fontSize: '13.5px', display: 'block' }}>
+                          📚 Final Year Dissertation Fee
+                        </strong>
+                        <span style={{ fontSize: '12px', color: '#6d28d9' }}>
+                          Fixed registration fee (No taught module fees required)
+                        </span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 800, color: '#5b21b6' }}>
+                          SLE 500
+                        </div>
+                        <span style={{ fontSize: '10.5px', color: '#7c3aed', fontWeight: 600 }}>Flat Rate</span>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '10px', borderTop: '1px solid #ede9fe', paddingTop: '8px', fontSize: '11.5px', color: '#5b21b6', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                      <span>✓ Thesis Supervisor Allocation</span>
+                      <span>✓ 5-Chapter Milestones & Review</span>
+                      <span>✓ Final Defense Evaluation</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* REGULAR COURSEWORK STUDENT FIELDS */
+                <>
+                  <div>
+                    <label>Student ID</label>
+                    <input
+                      value={form.studentId}
+                      onChange={e => update('studentId', e.target.value)}
+                      required
+                      placeholder="e.g. 8100"
+                    />
+                  </div>
+                  <div>
+                    <label>Campus</label>
+                    <select
+                      value={form.campus}
+                      onChange={e => {
+                        const cmp = e.target.value;
+                        update('campus', cmp);
+                        update('facultyId', '');
+                        update('departmentId', '');
+                        update('modules', []);
+                      }}
+                      required
+                    >
+                      {CAMPUSES.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Department</label>
+                    <select
+                      value={form.departmentId}
+                      onChange={e => {
+                        const deptId = e.target.value;
+                        const depts = getDepartmentsByCampus(form.campus);
+                        const chosen = depts.find(d => d.id === deptId);
+                        update('departmentId', deptId);
+                        update('facultyId', chosen ? chosen.facultyId : '');
+                        update('modules', []);
+                      }}
+                      required
+                      disabled={!form.campus}
+                    >
+                      <option value="">{form.campus ? 'Select Department' : 'Select Campus First'}</option>
+                      {getFacultiesByCampusId(form.campus).map(fac => {
+                        const deptsInFac = getDepartmentsByCampusAndFaculty(form.campus, fac.id);
+                        if (!deptsInFac.length) return null;
+                        return (
+                          <optgroup key={fac.id} label={fac.name}>
+                            {deptsInFac.map(d => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      })}
+                    </select>
+                    {form.departmentId && (
+                      <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 600 }}>
+                        🏛️ Faculty: {getDepartmentsByCampus(form.campus).find(d => d.id === form.departmentId)?.facultyName || 'Faculty of Pure and Applied Sciences'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="full-span">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ margin: 0 }}>Academic Programme</label>
+                      <span style={{ fontSize: '11.5px', color: '#64748b' }}>Select BSc, Diploma, or HND</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '6px' }}>
+                      {PROGRAMME_TYPES.map(prog => {
+                        const isSelected = (form.programme || 'BSc').toUpperCase() === prog.code.toUpperCase();
+                        return (
+                          <button
+                            key={prog.id}
+                            type="button"
+                            onClick={() => handleProgrammeSelect(prog.code)}
+                            style={{
+                              padding: '12px 10px',
+                              borderRadius: '12px',
+                              border: isSelected ? `2px solid ${prog.badgeColor}` : '1.5px solid #cbd5e1',
+                              background: isSelected ? prog.badgeBg : '#ffffff',
+                              color: isSelected ? prog.badgeColor : '#334155',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              transition: 'all 0.18s ease',
+                              boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.06)' : 'none'
+                            }}
+                          >
+                            <div style={{ fontWeight: 800, fontSize: '15px' }}>{prog.code}</div>
+                            <div style={{ fontSize: '11px', marginTop: '2px', opacity: 0.9, fontWeight: 600 }}>{prog.duration}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Programme Specification Card */}
+                    {(() => {
+                      const prog = getProgrammeInfo(form.programme || 'BSc');
+                      return (
+                        <div style={{
+                          marginTop: '10px',
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          background: '#f8fafc',
+                          border: `1px solid ${prog.badgeColor}35`,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <Award size={18} color={prog.badgeColor} />
+                              <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>{prog.fullName}</strong>
+                            </div>
+                            <span style={{
+                              padding: '3px 9px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              background: prog.badgeBg,
+                              color: prog.badgeColor
+                            }}>
+                              {prog.levels.length} Levels ({prog.years[0]} – {prog.years[prog.years.length - 1]})
+                            </span>
+                          </div>
+                          <div style={{ marginTop: '6px', fontSize: '12px', color: '#475569' }}>
+                            <strong style={{ color: '#0f172a' }}>Award: </strong>{prog.award} • {prog.duration}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <label>Academic Level / Year</label>
+                    <select
+                      value={form.level}
+                      onChange={e => update('level', e.target.value)}
+                      required
+                    >
+                      {getLevelsForProgramme(form.programme).map(lvl => (
+                        <option key={lvl.value} value={lvl.value}>{lvl.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Academic Year</label>
+                    <select value={form.academicYear} onChange={e => update('academicYear', e.target.value)}>
+                      <option>2026/2027</option>
+                      <option>2025/2026</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>Semester</label>
+                    <select value={form.semester} onChange={e => update('semester', e.target.value)}>
+                      <option>First Semester</option>
+                      <option>Second Semester</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {error && <div className="error-box">{error}</div>}
+
+            {role === 'student' ? (
+              isDissertationStudent ? (
+                <div className="security-note" style={{ background: '#f5f3ff', borderColor: '#ddd6fe', color: '#5b21b6' }}>
+                  <ShieldCheck size={18} color="#7c3aed" />
+                  <span>A temporary password will be generated and emailed to you immediately after completing your Mobile Money dissertation payment.</span>
+                </div>
+              ) : (
+                <div className="security-note">
+                  <ShieldCheck size={18} />
+                  <span>A temporary password will be generated and emailed to you immediately after successful payment with Monime.</span>
+                </div>
+              )
+            ) : (
+              <div className="security-note">
+                <ShieldCheck size={18} />
+                <span>After activation, first successful login registers this browser/device. Unknown devices are blocked.</span>
+              </div>
+            )}
+
+            <button
+              className="primary-btn full-btn"
+              disabled={busy}
+              style={isDissertationStudent ? {
+                background: '#4f46e5',
+                borderColor: '#4f46e5',
+                height: '48px',
+                fontSize: '15px',
+                fontWeight: 700
+              } : {}}
+            >
+              {busy
+                ? 'Processing…'
+                : (role === 'student'
+                    ? (isDissertationStudent ? 'Proceed to Dissertation Payment (SLE 500) →' : 'Continue to Module Selection →')
+                    : 'Continue to Teaching Modules →')}
+            </button>
+          </form>
+          <p className="signup">
+            Already registered? <button type="button" className="text-btn" onClick={() => setScreen('login')}>Login</button>
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   if (screen === 'forgot') {
     const handleForgotSubmit = async (e) => {
@@ -1806,7 +2471,23 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             {error&&<div className="error-box"><div style={{ marginBottom: pendingRebindAccount ? '10px' : 0 }}>{error}</div>{pendingRebindAccount && <button type="button" className="primary-btn full-btn" style={{ background: '#0284c7', borderColor: '#0284c7', fontSize: '13px', minHeight: '38px', padding: '8px 12px' }} disabled={busy} onClick={handleRebindDevice}>📱 Switch Active Device to This Device</button>}</div>}
             <button className="primary-btn full-btn" disabled={busy}>{busy?'Signing in…':'Login'}</button>
           </form>
-          <p className="signup">Don't have an account? <button className="text-btn" onClick={()=>{resetState();setScreen('register')}}>Create {role==='lecturer'?'Lecturer':'Student'} Account</button></p>
+          <p className="signup">
+            Don't have an account?{' '}
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => {
+                resetState();
+                if (role === 'student') {
+                  setScreen('student-type-select');
+                } else {
+                  setScreen('register');
+                }
+              }}
+            >
+              Create {role === 'lecturer' ? 'Lecturer' : 'Student'} Account
+            </button>
+          </p>
           <p className="signup" style={{ marginTop: '10px' }}><button type="button" className="text-btn" onClick={() => onShowOnboarding ? onShowOnboarding() : setScreen('onboarding')} style={{ color: '#0284c7', fontSize: '13px', fontWeight: 600 }}>🎓 View App Tour & Onboarding</button></p>
         </section>
       </main>

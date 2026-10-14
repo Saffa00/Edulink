@@ -218,14 +218,29 @@ export async function activateStudentModules(db, studentRecordId, moduleCodes = 
 
     if (!student) return;
 
+    if (student.registration_type === 'dissertation') {
+      try {
+        await db.from('dissertations').upsert({
+          student_id: student.id,
+          title: 'Academic Research Dissertation & Thesis',
+          status: 'proposal',
+          current_chapter: 1,
+          progress_percentage: 20
+        }, { onConflict: 'student_id', ignoreDuplicates: true });
+      } catch (dErr) {
+        console.warn('Dissertation activation notice:', dErr.message);
+      }
+      return;
+    }
+
     let targetModuleIds = [];
     if (Array.isArray(moduleCodes) && moduleCodes.length > 0) {
-      const { data: matchedMods } = await db
-        .from('modules')
-        .select('id')
-        .in('code', moduleCodes);
-      if (matchedMods?.length) {
-        targetModuleIds = matchedMods.map(m => m.id);
+      const cleanCodes = moduleCodes.map(c => String(c).replace(/\s+/g, '').toUpperCase());
+      const { data: allMods } = await db.from('modules').select('id, code');
+      if (allMods?.length) {
+        targetModuleIds = allMods
+          .filter(m => cleanCodes.includes(String(m.code || '').replace(/\s+/g, '').toUpperCase()))
+          .map(m => m.id);
       }
     }
 
@@ -302,7 +317,8 @@ router.post('/initiate-momo', async (req, res) => {
       payment_type: cleanType === 'dissertation' ? 'dissertation' : 'registration',
       status: 'pending',
       provider: cleanProvider,
-      reference
+      reference,
+      modules: Array.isArray(modules) ? modules : []
     });
 
     // Contact Monime API to create checkout session or mobile money charge
@@ -495,7 +511,7 @@ router.get('/status-check/:paymentId', async (req, res) => {
 
       // Provision credentials & activate account
       const creds = await provisionStudentAccount(db, student.id || payment.student_id);
-      await activateStudentModules(db, student.id || payment.student_id);
+      await activateStudentModules(db, student.id || payment.student_id, payment.modules || []);
 
       return res.json({
         success: true,
@@ -559,7 +575,7 @@ router.post('/simulate-momo-approval', async (req, res) => {
     }
 
     const creds = await provisionStudentAccount(db, targetStudentId);
-    await activateStudentModules(db, targetStudentId);
+    await activateStudentModules(db, targetStudentId, payment?.modules || []);
 
     return res.json({
       success: true,
@@ -618,7 +634,7 @@ router.post('/verify-completion', async (req, res) => {
     // Provision account and generate temporary password
     const targetStudentId = payment.student_id || studentRecordId;
     const creds = await provisionStudentAccount(db, targetStudentId);
-    await activateStudentModules(db, targetStudentId);
+    await activateStudentModules(db, targetStudentId, payment?.modules || []);
 
     // Fetch activated modules to return to frontend
     const { data: stMods } = await db

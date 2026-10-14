@@ -347,7 +347,7 @@ router.post('/initiate-momo', async (req, res) => {
           name: `Registration ${student.student_id}`,
           amount,
           currency: 'SLE',
-          reference,
+          reference: `${reference}-PMC`,
           provider: cleanProvider
         });
         if (pmc?.ussdCode) {

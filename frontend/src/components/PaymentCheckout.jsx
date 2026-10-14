@@ -21,6 +21,20 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
   const formattedFee = `SLE ${Number(amount || 0).toLocaleString()}`;
   const ussdCode = paymentInfo?.ussdCode || (paymentInfo?.ussdNumericCode ? `*715*${paymentInfo.ussdNumericCode}#` : null);
 
+  const handlePayNow = () => {
+    if (!ussdCode) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(ussdCode);
+      }
+    } catch {}
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 3500);
+
+    // Triggers the phone dialer on mobile handsets
+    window.location.href = `tel:${encodeURIComponent(ussdCode)}`;
+  };
+
   // Clean up polling interval when unmounting or changing step
   useEffect(() => {
     return () => {
@@ -647,60 +661,49 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               </div>
             ) : null}
 
-            {/* Primary Action Button: Pay Now via USSD Dial */}
+            {/* Primary Action Button: Pay Now sends USSD request directly to student's phone */}
             {ussdCode ? (
-              <a
-                href={`tel:${encodeURIComponent(ussdCode)}`}
+              <button
+                type="button"
+                onClick={handlePayNow}
                 className="primary-btn full-btn"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '10px',
-                  background: '#0070f3',
-                  borderColor: '#0070f3',
+                  background: provider === 'orange' ? '#ff6600' : '#7c3aed',
+                  borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
                   color: '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: '15px',
+                  fontSize: '15.5px',
                   fontWeight: 800,
-                  height: '48px',
+                  height: '50px',
                   borderRadius: '12px',
-                  boxShadow: '0 4px 14px rgba(0, 112, 243, 0.3)',
-                  marginBottom: '10px'
+                  boxShadow: '0 4px 14px rgba(0, 112, 243, 0.25)',
+                  marginBottom: '10px',
+                  cursor: 'pointer',
+                  width: '100%'
                 }}
               >
-                <PhoneCall size={18} />
+                <PhoneCall size={20} />
                 <span>Pay Now ({ussdCode})</span>
-              </a>
+              </button>
             ) : null}
 
-            {/* Alternative Action: Pay via Monime Web Checkout */}
-            {paymentInfo?.checkoutUrl ? (
-              <a
-                href={paymentInfo.checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="full-btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  background: ussdCode ? '#f8fafc' : (provider === 'orange' ? '#ff6600' : '#7c3aed'),
-                  border: ussdCode ? '1.5px solid #cbd5e1' : 'none',
-                  color: ussdCode ? '#0f172a' : '#ffffff',
-                  textDecoration: 'none',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  height: '44px',
-                  borderRadius: '12px',
-                  marginBottom: '16px'
-                }}
-              >
-                <Smartphone size={16} />
-                <span>{ussdCode ? 'Or Pay via Monime Web Checkout →' : 'Continue to Payment via Monime →'}</span>
-              </a>
-            ) : null}
+            {copiedCode && (
+              <div style={{
+                color: '#059669',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                marginBottom: '12px'
+              }}>
+                ✓ USSD request opened on phone! Enter your secret Mobile Money PIN on your handset to approve.
+              </div>
+            )}
 
             {/* Instructions */}
             <div style={{
@@ -742,27 +745,6 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               <RefreshCw size={15} className="v-spin" style={{ color: '#0284c7' }} />
               <span>Listening for payment confirmation from your phone…</span>
             </div>
-
-            {paymentInfo?.checkoutUrl && (
-              <div style={{ marginBottom: '14px' }}>
-                <a
-                  href={paymentInfo.checkoutUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '11.5px',
-                    color: '#64748b',
-                    textDecoration: 'none'
-                  }}
-                >
-                  <span>Open Monime Checkout Web Screen</span>
-                  <ExternalLink size={12} />
-                </a>
-              </div>
-            )}
 
             {error && (
               <div style={{

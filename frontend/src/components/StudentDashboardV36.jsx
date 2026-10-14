@@ -106,7 +106,65 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
         </div>
       </div>
 
+      {/* Dissertation Research Banner (for Dissertation Students) */}
+      {(student.registration_type === 'dissertation' || profile?.registration_type === 'dissertation' || data?.dissertation) && (
+        <section
+          className="panel"
+          style={{
+            margin: '0 0 20px 0',
+            background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
+            border: '1px solid #bfdbfe',
+            padding: '20px 24px',
+            borderRadius: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ flex: 1, minWidth: '260px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ background: '#2563eb', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                  {data?.dissertation?.status ? data.dissertation.status.replace('_', ' ') : 'RESEARCH STUDENT'}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#1e40af', fontWeight: 600 }}>
+                  Stage: Chapter {data?.dissertation?.current_chapter || 1} of 5
+                </span>
+              </div>
 
+              <h2 style={{ fontSize: '1.25rem', margin: '0 0 6px', color: '#0f172a' }}>
+                {data?.dissertation?.title || 'Academic Dissertation / Research Thesis'}
+              </h2>
+
+              <p style={{ margin: '0 0 12px', fontSize: '0.9rem', color: '#475569' }}>
+                Supervisor: <b>{data?.dissertation?.lecturers?.full_name || 'Department Assigned'}</b>
+              </p>
+
+              {/* Progress bar */}
+              <div style={{ width: '100%', maxWidth: '360px', height: '8px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', marginBottom: '6px' }}>
+                <div
+                  style={{
+                    width: `${data?.dissertation?.progress_percentage || ((data?.dissertation?.current_chapter || 1) * 20)}%`,
+                    height: '100%',
+                    background: '#2563eb',
+                    borderRadius: '999px'
+                  }}
+                />
+              </div>
+              <small style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                Overall Thesis Progress: {data?.dissertation?.progress_percentage || ((data?.dissertation?.current_chapter || 1) * 20)}%
+              </small>
+            </div>
+
+            <div style={{ alignSelf: 'center' }}>
+              <button
+                className="primary-btn"
+                onClick={() => onNavigate?.('dissertation')}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px' }}
+              >
+                <FileText size={16} /> Open Dissertation Workspace <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Primary Key Stats Grid */}
       <div className="stats-grid">

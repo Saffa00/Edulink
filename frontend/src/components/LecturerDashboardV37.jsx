@@ -62,5 +62,19 @@ export default function LecturerDashboardV37({onNavigate}) {
       </article>)}
       {!data.assignments.length && <p>No assignments yet.</p>}
     </section>
+
+    <section>
+      <div className="section-heading">
+        <h2>Research & Dissertation Supervision</h2>
+        <button onClick={()=>onNavigate?.('dissertation')}>Manage</button>
+      </div>
+      <article className="lecturer-list-card" style={{ cursor: 'pointer' }} onClick={()=>onNavigate?.('dissertation')}>
+        <div>
+          <strong>Dissertation & Thesis Supervision Workspace</strong>
+          <span>Review research proposals, track chapters 1 to 5 progression, record feedback, and approve defense drafts.</span>
+        </div>
+        <button onClick={(e)=>{e.stopPropagation(); onNavigate?.('dissertation');}}>Open Workspace</button>
+      </article>
+    </section>
   </main>
 }

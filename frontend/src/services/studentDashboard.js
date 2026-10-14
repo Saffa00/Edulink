@@ -266,8 +266,21 @@ export async function getStudentDashboardSummary(knownProfile = null) {
     }
   ];
 
+  let dissertation = null;
+  if (student?.id) {
+    try {
+      const { data: dData } = await supabase
+        .from('dissertations')
+        .select('id, title, status, current_chapter, progress_percentage, supervisor_notes, lecturers(id, full_name, email)')
+        .eq('student_id', student.id)
+        .maybeSingle();
+      dissertation = dData || null;
+    } catch {}
+  }
+
   return {
     student,
+    dissertation,
     modules: effectiveModules,
     grades: grades.length ? grades : defaultGrades,
     assignments: assignments.length ? assignments : defaultAssignments,

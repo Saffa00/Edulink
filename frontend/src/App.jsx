@@ -2132,6 +2132,7 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
     ["attendance","Attendance",CalendarCheck],
     ["assignments","Assignments",ClipboardList],
     ["grades","Grades",Award],
+    ["dissertation","Dissertation Supervision",FileText],
     ["students","Students",Users],
     ["messages","Messages",MessageSquare],
     ["notifications","Notifications",Bell],
@@ -2140,6 +2141,7 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
 
   const studentItems = [
     ["home","Home",Home],
+    ["dissertation","Dissertation Workspace",FileText],
     ["modules","Module Registration",BookOpen],
     ["timetable","Timetable",Clock3],
     ["attendance","Attendance",CalendarCheck],
@@ -2795,7 +2797,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   else if (page==="attendance") content = <Attendance role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
   else if (page==="assignments") content = <Assignments role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
   else if (page==="grades") content = role === "student" ? <StudentGradeInbox /> : <GradeManagementV41 scopedModule={scopedModule}/>;
-  else if (page==="dissertation") content = <DissertationManagementV42 role={role}/>;
+  else if (page==="dissertation") content = <DissertationManagementV42 role={role} onNavigate={setPage}/>;
   else if (page==="messages") content = <MessagingCenterV44 role={role} profile={profile} onNavigate={setPage}/>;
   else if (page==="notifications") content = <NotificationsCenterV45 onNavigate={setPage}/>;
   else if (page==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <Students/>;

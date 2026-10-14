@@ -372,7 +372,7 @@ export async function getStudentDissertation() {
 
   const { data: diss, error } = await supabase
     .from('dissertations')
-    .select('id, title, status, current_chapter, progress_percentage, supervisor_notes, supervisor_id, lecturers(id, full_name, email)')
+    .select('id, title, status, current_chapter, progress_percentage, supervisor_notes, supervisor_id, created_at, updated_at, lecturers(id, full_name, email, teaching_area, phone)')
     .eq('student_id', student.id)
     .maybeSingle();
 
@@ -388,6 +388,18 @@ export async function getStudentDissertation() {
   return { student, dissertation: diss, versions: versions || [] };
 }
 
+export async function getAvailableSupervisors() {
+  const { data, error } = await supabase
+    .from('lecturers')
+    .select('id, full_name, email, teaching_area, department, faculty_id, department_id')
+    .order('full_name', { ascending: true });
+  if (error) {
+    console.warn('Supervisors fetch notice:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
 export async function registerDissertationTopic(title, supervisorId = null) {
   const student = await getStudentProfile();
   const { data, error } = await supabase
@@ -400,9 +412,27 @@ export async function registerDissertationTopic(title, supervisorId = null) {
       current_chapter: 1,
       progress_percentage: 20
     }, { onConflict: 'student_id' })
-    .select()
+    .select('*, lecturers(id, full_name, email)')
     .single();
   if (error) throw error;
+
+  // Send notification to supervisor if selected
+  if (supervisorId) {
+    try {
+      const { data: lec } = await supabase.from('lecturers').select('auth_user_id').eq('id', supervisorId).maybeSingle();
+      if (lec?.auth_user_id) {
+        await supabase.from('notifications').insert({
+          recipient_user_id: lec.auth_user_id,
+          title: 'New Dissertation Supervisee Proposal',
+          body: `${student.full_name} (${student.student_id}) selected you as supervisor for: "${title.trim()}".`,
+          category: 'dissertation'
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Notification notice:', notifErr.message);
+    }
+  }
+
   return data;
 }
 
@@ -441,10 +471,31 @@ export async function submitDissertationChapterFile({ dissertationId, chapterNam
 
   if (error) throw error;
 
+  // Update dissertation status to chapter_review
   await supabase
     .from('dissertations')
     .update({ status: 'chapter_review', updated_at: new Date().toISOString() })
     .eq('id', dissertationId);
+
+  // Notify supervisor if assigned
+  try {
+    const { data: diss } = await supabase
+      .from('dissertations')
+      .select('supervisor_id, lecturers(auth_user_id)')
+      .eq('id', dissertationId)
+      .maybeSingle();
+
+    if (diss?.lecturers?.auth_user_id) {
+      await supabase.from('notifications').insert({
+        recipient_user_id: diss.lecturers.auth_user_id,
+        title: `Dissertation ${chapterName} Submitted`,
+        body: `${student.full_name} submitted a new draft (v${versionNumber}) for ${chapterName}.`,
+        category: 'dissertation'
+      });
+    }
+  } catch (nErr) {
+    console.warn('Supervisor submission notification notice:', nErr.message);
+  }
 
   return data;
 }
@@ -455,9 +506,9 @@ export async function getSupervisedDissertations() {
   const { data, error } = await supabase
     .from('dissertations')
     .select(`
-      id, title, status, current_chapter, progress_percentage, supervisor_notes, updated_at,
-      students(id, student_id, full_name, email, programme),
-      dissertation_versions(id, chapter, version_number, file_url, lecturer_comment, status, submitted_at)
+      id, title, status, current_chapter, progress_percentage, supervisor_notes, updated_at, created_at,
+      students(id, student_id, full_name, email, programme, phone),
+      dissertation_versions(id, chapter, version_number, file_url, lecturer_comment, status, submitted_at, reviewed_at)
     `)
     .eq('supervisor_id', lecturer.id)
     .order('updated_at', { ascending: false });
@@ -466,8 +517,57 @@ export async function getSupervisedDissertations() {
   return data || [];
 }
 
-export async function reviewDissertationVersion({ versionId, dissertationId, status, comments = '' }) {
+export async function getUnassignedDissertations() {
   const { data, error } = await supabase
+    .from('dissertations')
+    .select(`
+      id, title, status, current_chapter, progress_percentage, supervisor_notes, updated_at, created_at,
+      students(id, student_id, full_name, email, programme, phone),
+      dissertation_versions(id, chapter, version_number, file_url, lecturer_comment, status, submitted_at)
+    `)
+    .is('supervisor_id', null)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Unassigned dissertations query notice:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function claimSupervisee(dissertationId) {
+  const lecturer = await getLecturerProfile();
+  const { data, error } = await supabase
+    .from('dissertations')
+    .update({
+      supervisor_id: lecturer.id,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', dissertationId)
+    .select('*, students(full_name, auth_user_id)')
+    .single();
+
+  if (error) throw error;
+
+  // Notify student that supervisor accepted
+  if (data?.students?.auth_user_id) {
+    try {
+      await supabase.from('notifications').insert({
+        recipient_user_id: data.students.auth_user_id,
+        title: 'Dissertation Supervisor Assigned',
+        body: `${lecturer.full_name} has accepted supervision of your research dissertation.`,
+        category: 'dissertation'
+      });
+    } catch (nErr) {
+      console.warn('Supervisee claim notification notice:', nErr.message);
+    }
+  }
+
+  return data;
+}
+
+export async function reviewDissertationVersion({ versionId, dissertationId, status, comments = '' }) {
+  const { data: ver, error: verErr } = await supabase
     .from('dissertation_versions')
     .update({
       status,
@@ -475,24 +575,77 @@ export async function reviewDissertationVersion({ versionId, dissertationId, sta
       reviewed_at: new Date().toISOString()
     })
     .eq('id', versionId)
-    .select()
+    .select('*, dissertations(id, current_chapter, student_id, students(auth_user_id, full_name))')
     .single();
 
-  if (error) throw error;
+  if (verErr) throw verErr;
 
-  // If approved, calculate progress boost and status
-  let dissStatus = status === 'approved' ? 'approved' : status === 'corrections_needed' ? 'corrections_required' : 'chapter_review';
+  // Retrieve current dissertation state
+  const { data: currentDiss } = await supabase
+    .from('dissertations')
+    .select('id, current_chapter, progress_percentage')
+    .eq('id', dissertationId)
+    .single();
+
+  const currentCh = currentDiss?.current_chapter || 1;
+  const reviewedChNum = parseInt(String(ver?.chapter || '').replace(/\D/g, ''), 10) || currentCh;
+
+  let nextChapter = currentCh;
+  let progressPercentage = currentDiss?.progress_percentage || 20;
+  let dissStatus = 'chapter_review';
+
+  if (status === 'approved') {
+    if (reviewedChNum >= currentCh) {
+      nextChapter = Math.min(5, currentCh + 1);
+    }
+    // Progress calculation: Ch1=20%, Ch2=40%, Ch3=60%, Ch4=80%, Ch5=100%
+    if (reviewedChNum === 5) {
+      nextChapter = 5;
+      progressPercentage = 100;
+      dissStatus = 'approved'; // Final dissertation approved & defense ready
+    } else {
+      progressPercentage = Math.min(95, nextChapter * 20);
+      dissStatus = 'chapter_review';
+    }
+  } else if (status === 'corrections_needed') {
+    dissStatus = 'corrections_required';
+  } else if (status === 'rejected') {
+    dissStatus = 'rejected';
+  }
+
   await supabase
     .from('dissertations')
     .update({
+      current_chapter: nextChapter,
+      progress_percentage: progressPercentage,
       status: dissStatus,
       supervisor_notes: comments,
       updated_at: new Date().toISOString()
     })
     .eq('id', dissertationId);
 
-  return data;
+  // Notify student of supervisor verdict
+  const studentAuthId = ver?.dissertations?.students?.auth_user_id;
+  if (studentAuthId) {
+    try {
+      const verdictLabel = status === 'approved'
+        ? (reviewedChNum === 5 ? 'Dissertation Fully Approved! Ready for Defense.' : `Chapter ${reviewedChNum} Approved! You may proceed to Chapter ${nextChapter}.`)
+        : (status === 'corrections_needed' ? `Corrections Required on Chapter ${reviewedChNum}` : `Chapter ${reviewedChNum} Rejected`);
+
+      await supabase.from('notifications').insert({
+        recipient_user_id: studentAuthId,
+        title: `Supervisor Feedback: ${ver?.chapter || 'Chapter'}`,
+        body: `${verdictLabel} Remarks: "${comments.slice(0, 100)}${comments.length > 100 ? '…' : ''}"`,
+        category: 'dissertation'
+      });
+    } catch (nErr) {
+      console.warn('Student review notification notice:', nErr.message);
+    }
+  }
+
+  return ver;
 }
+
 
 // ============================================================================
 // V43: Timetable & Schedule Management

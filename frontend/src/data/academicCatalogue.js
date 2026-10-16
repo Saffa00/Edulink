@@ -290,6 +290,12 @@ export const CAMPUSES_DATA = [
               { code: "CDS 111", title: "Community Development Studies", level: 1, semester: "First Semester", lecturerName: "Mr. Joseph Kamara", lecturerId: "LECT-2026-1008" },
               { code: "BIO 111", title: "Biology for Health Sciences", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
 
+              // Year 1 / Level 1 Second Semester
+              { code: "PBH 121", title: "Health Demography & Population Studies", level: 1, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 122", title: "Basic Human Anatomy & Physiology for Health", level: 1, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 123", title: "Waste Management & Sanitation Engineering", level: 1, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 124", title: "Public Health Communication & Social Advocacy", level: 1, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
               // Year 2 / Level 2 First Semester
               { code: "PBH 211", title: "Infectious Disease Surveillance & Control", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
               { code: "PBH 212", title: "Occupational Safety & Industrial Health", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
@@ -300,7 +306,13 @@ export const CAMPUSES_DATA = [
               { code: "PBH 216", title: "Public Health Microbiology & Parasitology", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
               { code: "ENG 212", title: "Scientific Writing & Communication", level: 2, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
 
-              // Year 3 / Level 3 First Semester (8 modules)
+              // Year 2 / Level 2 Second Semester
+              { code: "PBH 221", title: "Vector Biology & Vector-Borne Disease Control", level: 2, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 222", title: "Health Education & Behavioural Change", level: 2, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 223", title: "School Health & Adolescent Care", level: 2, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 224", title: "Field Practicum & Environmental Inspection I", level: 2, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+
+              // Year 3 / Level 3 First Semester
               { code: "PBH 311", title: "Advanced Applied Epidemiology & Outbreak Response", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
               { code: "PBH 312", title: "Health Economics, Financing & Management", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
               { code: "PBH 313", title: "Health Information Systems & Digital Informatics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
@@ -308,7 +320,25 @@ export const CAMPUSES_DATA = [
               { code: "PBH 315", title: "Disaster Preparedness & Emergency Health Logistics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
               { code: "PBH 316", title: "Public Health Law, Ethics & Human Rights", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
               { code: "PBH 317", title: "Research Methodology & Applied Bioethics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
-              { code: "PBH 318", title: "Public Health Field Practicum & Community Inspection", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" }
+              { code: "PBH 318", title: "Public Health Field Practicum & Community Inspection", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 3 / Level 3 Second Semester
+              { code: "PBH 321", title: "Chronic Non-Communicable Diseases (NCDs) Management", level: 3, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 322", title: "Global Health Governance & International Treaties", level: 3, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 323", title: "Occupational Toxicology & Hazard Mitigation", level: 3, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 324", title: "Field Attachment & Rural Community Placement", level: 3, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 4 / Level 4 First Semester
+              { code: "PBH 411", title: "Health Policy Analysis, Strategic Planning & Leadership", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 412", title: "Epidemiological Surveillance & Outbreak Management", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 413", title: "Occupational Ergonomics & Environmental Risk Assessment", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 414", title: "Global Health Diplomacy & International Health Regulations", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 4 / Level 4 Second Semester
+              { code: "PBH 421", title: "Health Systems Quality Assurance & Healthcare Accreditation", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 422", title: "Applied Biostatistics & Public Health Data Modeling", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "PBH 423", title: "Community Mental Health & Psychosocial Interventions", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 428", title: "BSc Public Health Senior Honours Dissertation & Defense", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" }
             ]
           }
         ],
@@ -469,6 +499,83 @@ export const CAMPUSES_DATA = [
     longitude: -13.2505,
     radiusMeters: 150,
     faculties: [
+      {
+        id: "faculty-applied-sciences",
+        name: "Faculty of Pure and Applied Sciences",
+        departments: [
+          {
+            id: "dept-public-health",
+            name: "Department of Public Health",
+            modules: [
+              // Year 1 / Level 1 First Semester
+              { code: "PBH 111", title: "Introduction to Public Health & Epidemiology", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 112", title: "Environmental Sanitation & Water Quality", level: 1, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 113", title: "Health Promotion, Policy & Community Hygiene", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 114", title: "Principles of Disease Prevention & Control", level: 1, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "MAT 111", title: "General Mathematics (Pre-Calculus)", level: 1, semester: "First Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "ENG 111", title: "General English", level: 1, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+              { code: "CDS 111", title: "Community Development Studies", level: 1, semester: "First Semester", lecturerName: "Mr. Joseph Kamara", lecturerId: "LECT-2026-1008" },
+              { code: "BIO 111", title: "Biology for Health Sciences", level: 1, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+
+              // Year 1 / Level 1 Second Semester
+              { code: "PBH 121", title: "Health Demography & Population Studies", level: 1, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 122", title: "Basic Human Anatomy & Physiology for Health", level: 1, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 123", title: "Waste Management & Sanitation Engineering", level: 1, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 124", title: "Public Health Communication & Social Advocacy", level: 1, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 2 / Level 2 First Semester
+              { code: "PBH 211", title: "Infectious Disease Surveillance & Control", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 212", title: "Occupational Safety & Industrial Health", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 213", title: "Maternal, Newborn & Child Health (MNCH)", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 214", title: "Public Health Nutrition & Food Security", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "STA 211", title: "Biostatistics & Health Data Analysis", level: 2, semester: "First Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "PBH 215", title: "Global Health Systems & Policy Planning", level: 2, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 216", title: "Public Health Microbiology & Parasitology", level: 2, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "ENG 212", title: "Scientific Writing & Communication", level: 2, semester: "First Semester", lecturerName: "Ms. Fatmata Turay", lecturerId: "LECT-2026-1007" },
+
+              // Year 2 / Level 2 Second Semester
+              { code: "PBH 221", title: "Vector Biology & Vector-Borne Disease Control", level: 2, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 222", title: "Health Education & Behavioural Change", level: 2, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 223", title: "School Health & Adolescent Care", level: 2, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 224", title: "Field Practicum & Environmental Inspection I", level: 2, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+
+              // Year 3 / Level 3 First Semester
+              { code: "PBH 311", title: "Advanced Applied Epidemiology & Outbreak Response", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 312", title: "Health Economics, Financing & Management", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 313", title: "Health Information Systems & Digital Informatics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 314", title: "Community Health Intervention & Behavioral Science", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 315", title: "Disaster Preparedness & Emergency Health Logistics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 316", title: "Public Health Law, Ethics & Human Rights", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 317", title: "Research Methodology & Applied Bioethics", level: 3, semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 318", title: "Public Health Field Practicum & Community Inspection", level: 3, semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 3 / Level 3 Second Semester
+              { code: "PBH 321", title: "Chronic Non-Communicable Diseases (NCDs) Management", level: 3, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 322", title: "Global Health Governance & International Treaties", level: 3, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 323", title: "Occupational Toxicology & Hazard Mitigation", level: 3, semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 324", title: "Field Attachment & Rural Community Placement", level: 3, semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 4 / Level 4 First Semester
+              { code: "PBH 411", title: "Health Policy Analysis, Strategic Planning & Leadership", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 412", title: "Epidemiological Surveillance & Outbreak Management", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 413", title: "Occupational Ergonomics & Environmental Risk Assessment", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 414", title: "Global Health Diplomacy & International Health Regulations", level: 4, programme: "BSc", semester: "First Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+
+              // Year 4 / Level 4 Second Semester
+              { code: "PBH 421", title: "Health Systems Quality Assurance & Healthcare Accreditation", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" },
+              { code: "PBH 422", title: "Applied Biostatistics & Public Health Data Modeling", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Ibrahim Sesay", lecturerId: "LECT-2026-1006" },
+              { code: "PBH 423", title: "Community Mental Health & Psychosocial Interventions", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Alimamy Conteh", lecturerId: "LECT-2026-1031" },
+              { code: "PBH 428", title: "BSc Public Health Senior Honours Dissertation & Defense", level: 4, programme: "BSc", semester: "Second Semester", lecturerName: "Dr. Isatu Bah", lecturerId: "LECT-2026-1030" }
+            ]
+          }
+        ],
+        programmes: [
+          "Bachelor of Science (B.Sc.) Public Health",
+          "Diploma in Public Health",
+          "Higher National Diploma (HND) in Public Health",
+          "Certificate in Community Health & Disease Control"
+        ]
+      },
       {
         id: "faculty-hotel-tourism",
         name: "Faculty of Hotel, Tourism and Nutritional Sciences",

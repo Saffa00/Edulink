@@ -227,6 +227,16 @@ export async function activateStudentModules(db, studentRecordId, moduleCodes = 
           current_chapter: 1,
           progress_percentage: 20
         }, { onConflict: 'student_id', ignoreDuplicates: true });
+
+        // Institutional Rule 6: Upon confirmed payment, mark term registration paid and approved
+        const { data: currentTerm } = await db.from('academic_terms').select('id').eq('is_current', true).limit(1);
+        if (currentTerm && currentTerm.length > 0) {
+          await db.from('student_term_registrations').update({
+            payment_status: 'paid',
+            status: 'approved',
+            updated_at: new Date().toISOString()
+          }).eq('student_id', student.id).eq('term_id', currentTerm[0].id);
+        }
       } catch (dErr) {
         console.warn('Dissertation activation notice:', dErr.message);
       }
@@ -305,6 +315,33 @@ router.post('/initiate-momo', async (req, res) => {
 
     if (!student) {
       return res.status(404).json({ error: `Student profile not found for: ${cleanStudentId}` });
+    }
+
+    // Institutional Rule 6 & 10: Reject dissertation payment before supervisor confirmation
+    if (cleanType === 'dissertation') {
+      try {
+        const { data: confirmedReq, error: reqErr } = await db
+          .from('dissertation_requests')
+          .select('id, status, supervisor_id')
+          .eq('student_id', student.id)
+          .eq('status', 'confirmed')
+          .maybeSingle();
+
+        const { data: dissRecord } = await db
+          .from('dissertations')
+          .select('id, supervisor_id')
+          .eq('student_id', student.id)
+          .not('supervisor_id', 'is', null)
+          .maybeSingle();
+
+        if (!confirmedReq && !dissRecord) {
+          return res.status(400).json({
+            error: 'Dissertation fee payment cannot be processed before a faculty supervisor has confirmed your supervision request.'
+          });
+        }
+      } catch (checkErr) {
+        console.warn('Supervisor confirmation check notice:', checkErr.message);
+      }
     }
 
     const reference = `REG-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -687,6 +724,34 @@ router.post('/initialize', async (req, res) => {
 
     if (student.account_status === 'active') {
       return res.status(409).json({ error: 'Student account is already active.' });
+    }
+
+    // Institutional Rule 6 & 10: Reject dissertation payment before supervisor confirmation
+    if (registrationType === 'dissertation') {
+      const db = getAdminSupabase();
+      try {
+        const { data: confirmedReq } = await db
+          .from('dissertation_requests')
+          .select('id, status, supervisor_id')
+          .eq('student_id', student.id)
+          .eq('status', 'confirmed')
+          .maybeSingle();
+
+        const { data: dissRecord } = await db
+          .from('dissertations')
+          .select('id, supervisor_id')
+          .eq('student_id', student.id)
+          .not('supervisor_id', 'is', null)
+          .maybeSingle();
+
+        if (!confirmedReq && !dissRecord) {
+          return res.status(400).json({
+            error: 'Dissertation fee payment cannot be processed before a faculty supervisor has confirmed your supervision request.'
+          });
+        }
+      } catch (checkErr) {
+        console.warn('Supervisor confirmation check notice:', checkErr.message);
+      }
     }
 
     const amount = registrationFee(registrationType);

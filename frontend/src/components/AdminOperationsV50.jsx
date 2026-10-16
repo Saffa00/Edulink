@@ -324,7 +324,6 @@ export default function AdminOperationsV50() {
                       <th>Level</th>
                       <th>Fee Payment</th>
                       <th>Status</th>
-                      <th>Assign Supervisor</th>
                       <th>Carry-Over Override</th>
                       <th>Actions</th>
                     </tr>
@@ -349,18 +348,6 @@ export default function AdminOperationsV50() {
                             <span className={`v-chip ${reg.status === 'approved' ? 'present' : reg.status === 'rejected' ? 'absent' : 'late'}`}>
                               {reg.status ? reg.status.toUpperCase() : 'PENDING'}
                             </span>
-                          </td>
-                          <td>
-                            <select
-                              value={selectedSupervisors[reg.student_id] || ''}
-                              onChange={(e) => setSelectedSupervisors({ ...selectedSupervisors, [reg.student_id]: e.target.value })}
-                              style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px' }}
-                            >
-                              <option value="">-- Choose Supervisor --</option>
-                              {supervisors.map(sup => (
-                                <option key={sup.id} value={sup.id}>{sup.full_name}</option>
-                              ))}
-                            </select>
                           </td>
                           <td>
                             <button

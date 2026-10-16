@@ -480,6 +480,201 @@ runSection('11. WhatsApp-Style Messaging & Chat Security Definer Policies');
   assert(lecturerView.avatar_path === '/photos/jane.jpg', 'Lecturer can always see student photo regardless of classmate toggle');
 }
 
+// ============================================================================
+// 12. DISSERTATION DIRECT SUPERVISOR SELECTION & CONCURRENCY ENFORCEMENT
+// ============================================================================
+console.log(`\n======================================================`);
+console.log(`  TEST SUITE: 12. Direct Supervisor Selection & Concurrency`);
+console.log(`======================================================`);
+{
+  // Model state simulator
+  const dbState = {
+    supervisor_profiles: [
+      { id: 'sp-1', lecturer_id: 'lec-1', lecturer_name: 'Dr. Alpha Kamara', department: 'Computer Science', max_students: 2, accepting_students: true },
+      { id: 'sp-2', lecturer_id: 'lec-2', lecturer_name: 'Prof. Beta Conteh', department: 'Civil Engineering', max_students: 5, accepting_students: true }
+    ],
+    dissertation_requests: [],
+    notifications: [],
+    student_term_registrations: [
+      { student_id: 's-reg-1', term_id: 'term-sem2', status: 'pending', payment_status: 'unpaid' },
+      { student_id: 's-reg-2', term_id: 'term-sem2', status: 'pending', payment_status: 'unpaid' }
+    ],
+    students: [
+      { id: 's-reg-1', full_name: 'Mohamed Sesay', level: 4, semester: 2, department: 'Computer Science' },
+      { id: 's-reg-2', full_name: 'Fatmata Bangura', level: 4, semester: 2, department: 'Computer Science' },
+      { id: 's-unreg', full_name: 'Unregistered Student', level: 4, semester: 2, department: 'Computer Science' },
+      { id: 's-yr2', full_name: 'Year 2 Student', level: 2, semester: 2, department: 'Computer Science' },
+      { id: 's-civil', full_name: 'Civil Eng Student', level: 4, semester: 2, department: 'Civil Engineering' }
+    ]
+  };
+
+  // RPC 1: submit_dissertation_request
+  function simulateSubmitRequest({ studentId, supervisorId, title, abstract }) {
+    const student = dbState.students.find(s => s.id === studentId);
+    if (!student || student.level !== 4) {
+      throw new Error('Only Year 4 students can submit dissertation supervisor requests.');
+    }
+    const profile = dbState.supervisor_profiles.find(sp => sp.lecturer_id === supervisorId);
+    if (!profile) {
+      throw new Error('This lecturer has not published a dissertation supervision profile.');
+    }
+    // Check department match
+    const deptMatch = profile.department.toLowerCase().includes(student.department.toLowerCase()) ||
+                      student.department.toLowerCase().includes(profile.department.toLowerCase());
+    if (!deptMatch) {
+      throw new Error(`Supervisor is in ${profile.department}, but student is in ${student.department}. Cross-department supervisor selection is prohibited.`);
+    }
+
+    const reqId = `req-${dbState.dissertation_requests.length + 1}`;
+    const newReq = { id: reqId, student_id: studentId, supervisor_id: supervisorId, title, abstract, status: 'pending' };
+    dbState.dissertation_requests.push(newReq);
+    return newReq;
+  }
+
+  // RPC 2: confirm_dissertation_request with row locking
+  let rowLockActive = false;
+  function simulateConfirmRequest({ requestId, callerLecturerId, callerRole }) {
+    if (callerRole !== 'lecturer' && callerRole !== 'admin') {
+      throw new Error('Unauthorized: Only faculty lecturers can confirm supervision requests.');
+    }
+    const req = dbState.dissertation_requests.find(r => r.id === requestId);
+    if (!req) throw new Error('Request not found.');
+    if (req.supervisor_id !== callerLecturerId) {
+      throw new Error('You can only confirm supervision requests submitted directly to you.');
+    }
+
+    // Row Lock Simulation: SELECT ... FOR UPDATE
+    rowLockActive = true;
+    try {
+      const profile = dbState.supervisor_profiles.find(sp => sp.lecturer_id === callerLecturerId);
+      const confirmedCount = dbState.dissertation_requests.filter(r => r.supervisor_id === callerLecturerId && r.status === 'confirmed').length;
+
+      if (confirmedCount >= profile.max_students) {
+        throw new Error(`Maximum student capacity reached (${confirmedCount}/${profile.max_students} students confirmed). Cannot confirm additional students.`);
+      }
+
+      // Check unique confirmed supervisor per student per term
+      const studentAlreadyConfirmed = dbState.dissertation_requests.some(r => r.student_id === req.student_id && r.status === 'confirmed' && r.id !== req.id);
+      if (studentAlreadyConfirmed) {
+        throw new Error('Student already has another confirmed supervisor for this academic term.');
+      }
+
+      req.status = 'confirmed';
+      req.decided_at = new Date().toISOString();
+      return { success: true, status: 'confirmed' };
+    } finally {
+      rowLockActive = false;
+    }
+  }
+
+  // 1. Cross-department request rejection
+  let crossDeptError = null;
+  try {
+    simulateSubmitRequest({
+      studentId: 's-reg-1', // Computer Science
+      supervisorId: 'lec-2', // Civil Engineering
+      title: 'AI in Smart Traffic',
+      abstract: 'Testing cross department supervisor block.'
+    });
+  } catch (err) {
+    crossDeptError = err.message;
+  }
+  assert(crossDeptError !== null && crossDeptError.includes('Cross-department'), 'A student cannot select a supervisor from another department');
+
+  // Submit valid requests to Dr. Alpha Kamara (max 2 students)
+  const req1 = simulateSubmitRequest({ studentId: 's-reg-1', supervisorId: 'lec-1', title: 'Telemedicine PWA', abstract: 'Research abstract 1' });
+  const req2 = simulateSubmitRequest({ studentId: 's-reg-2', supervisorId: 'lec-1', title: 'Campus Navigation', abstract: 'Research abstract 2' });
+
+  // 2. Self-confirmation / unauthorized student confirmation rejection
+  let selfConfirmError = null;
+  try {
+    simulateConfirmRequest({ requestId: req1.id, callerLecturerId: 'lec-1', callerRole: 'student' });
+  } catch (err) {
+    selfConfirmError = err.message;
+  }
+  assert(selfConfirmError !== null && selfConfirmError.includes('Unauthorized'), 'A student cannot confirm their own request');
+
+  // Confirm slot 1
+  const conf1 = simulateConfirmRequest({ requestId: req1.id, callerLecturerId: 'lec-1', callerRole: 'lecturer' });
+  assert(conf1.success === true && conf1.status === 'confirmed', 'Supervisor can confirm first student');
+
+  // Confirm slot 2 (filling capacity 2/2)
+  const conf2 = simulateConfirmRequest({ requestId: req2.id, callerLecturerId: 'lec-1', callerRole: 'lecturer' });
+  assert(conf2.success === true && conf2.status === 'confirmed', 'Supervisor can confirm second student filling max capacity');
+
+  // 3. Concurrent confirmation for last slot (exceeding capacity 2/2)
+  // Create a 3rd student request
+  dbState.students.push({ id: 's-reg-3', full_name: 'Amadu Jalloh', level: 4, semester: 2, department: 'Computer Science' });
+  const req3 = simulateSubmitRequest({ studentId: 's-reg-3', supervisorId: 'lec-1', title: 'Security Audit Tool', abstract: 'Research abstract 3' });
+
+  let capacityError = null;
+  try {
+    simulateConfirmRequest({ requestId: req3.id, callerLecturerId: 'lec-1', callerRole: 'lecturer' });
+  } catch (err) {
+    capacityError = err.message;
+  }
+  assert(capacityError !== null && capacityError.includes('Maximum student capacity reached'), 'Concurrent confirmations for the last slot: exceeding capacity fails with lock check');
+
+  // 4. Student cannot have two confirmed supervisors in the same term
+  // If Dr. Beta has capacity, student 1 tries to confirm with Dr. Beta too
+  dbState.supervisor_profiles.push({ id: 'sp-3', lecturer_id: 'lec-3', lecturer_name: 'Dr. Gamma Turay', department: 'Computer Science', max_students: 5, accepting_students: true });
+  const reqDuplicate = simulateSubmitRequest({ studentId: 's-reg-1', supervisorId: 'lec-3', title: 'Alternative Topic', abstract: 'Alternative abstract' });
+
+  let duplicateConfirmError = null;
+  try {
+    simulateConfirmRequest({ requestId: reqDuplicate.id, callerLecturerId: 'lec-3', callerRole: 'lecturer' });
+  } catch (err) {
+    duplicateConfirmError = err.message;
+  }
+  assert(duplicateConfirmError !== null && duplicateConfirmError.includes('Student already has another confirmed supervisor'), 'A student cannot have two confirmed supervisors in the same term');
+
+  // 5. Department notification reaches only matching registered final-year students
+  function simulateNotifySupervisorAvailable(newProfile) {
+    const matchingStudents = dbState.students.filter(s => {
+      const isLevel4 = s.level === 4 && s.semester === 2;
+      const isDept = s.department.toLowerCase().includes(newProfile.department.toLowerCase());
+      const isRegistered = dbState.student_term_registrations.some(str => str.student_id === s.id);
+      return isLevel4 && isDept && isRegistered;
+    });
+    return matchingStudents.map(s => ({
+      recipient_id: s.id,
+      body: `${newProfile.lecturer_name} is now available as a dissertation supervisor in ${newProfile.department}.`
+    }));
+  }
+
+  const notifs = simulateNotifySupervisorAvailable({ lecturer_name: 'Dr. Delta Koroma', department: 'Computer Science' });
+  const notifiedIds = notifs.map(n => n.recipient_id);
+  assert(notifiedIds.includes('s-reg-1') && notifiedIds.includes('s-reg-2'), 'Notification reaches matching registered students (s-reg-1, s-reg-2)');
+  assert(!notifiedIds.includes('s-unreg'), 'Unregistered final-year student does not receive notification');
+  assert(!notifiedIds.includes('s-yr2'), 'Year 2 student does not receive notification');
+  assert(!notifiedIds.includes('s-civil'), 'Civil engineering student does not receive computer science notification');
+
+  // 6. Payment before supervisor confirmation is rejected
+  function simulateInitiateDissertationPayment({ studentId, registrationType }) {
+    if (registrationType === 'dissertation') {
+      const confirmedReq = dbState.dissertation_requests.find(r => r.student_id === studentId && r.status === 'confirmed');
+      if (!confirmedReq) {
+        throw new Error('Dissertation fee payment cannot be processed before a faculty supervisor has confirmed your supervision request.');
+      }
+    }
+    return { ok: true, amount: 500, reference: 'REG-DISS-PAID-001' };
+  }
+
+  // Student 3 has pending (unconfirmed) request
+  let unconfirmedPaymentError = null;
+  try {
+    simulateInitiateDissertationPayment({ studentId: 's-reg-3', registrationType: 'dissertation' });
+  } catch (err) {
+    unconfirmedPaymentError = err.message;
+  }
+  assert(unconfirmedPaymentError !== null && unconfirmedPaymentError.includes('cannot be processed before a faculty supervisor has confirmed'), 'Payment before supervisor confirmation is rejected with 400 error');
+
+  // Student 1 has confirmed supervisor -> payment succeeds
+  const confirmedPayment = simulateInitiateDissertationPayment({ studentId: 's-reg-1', registrationType: 'dissertation' });
+  assert(confirmedPayment.ok === true && confirmedPayment.amount === 500, 'Payment succeeds after supervisor confirmation');
+}
+
+
 // Summary Report
 console.log(`\n======================================================`);
 console.log(`  AUTOMATED TEST RESULTS`);

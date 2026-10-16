@@ -422,6 +422,427 @@ export async function getAvailableSupervisors() {
   return (data || []).map(l => ({ ...l, department: l.teaching_area || l.department_id || '' }));
 }
 
+// ============================================================================
+// DIRECT SUPERVISOR SELECTION & CAPACITY MANAGEMENT (V62)
+// Institutional Rules:
+// - Lecturers create/manage a supervision profile (department, research_areas, max_students, accepting_students).
+// - Eligible students browse only supervisors in their own department.
+// - Student submits topic + abstract to chosen supervisor.
+// - Supervisor confirms or declines (with reason).
+// - Payment (SLE 500) only unlocked after supervisor confirmation.
+// ============================================================================
+
+export async function getDepartmentSupervisors() {
+  try {
+    const { data, error } = await supabase.rpc('get_available_department_supervisors');
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+  } catch (rpcErr) {
+    console.warn('RPC get_available_department_supervisors notice, falling back:', rpcErr?.message);
+  }
+
+  // Graceful query fallback
+  try {
+    const student = await getStudentProfile();
+    const studentDept = student.department_id || student.programme || 'Computer Science';
+
+    const { data: profiles, error: pErr } = await supabase
+      .from('supervisor_profiles')
+      .select(`
+        id, lecturer_id, department, research_areas, max_students, accepting_students, bio,
+        lecturers(id, full_name, email, teaching_area, faculty_id)
+      `)
+      .eq('accepting_students', true);
+
+    if (!pErr && profiles && profiles.length > 0) {
+      // Get counts of confirmed students
+      const { data: confirmedReqs } = await supabase
+        .from('dissertation_requests')
+        .select('supervisor_id')
+        .eq('status', 'confirmed');
+
+      const countMap = {};
+      (confirmedReqs || []).forEach(r => {
+        countMap[r.supervisor_id] = (countMap[r.supervisor_id] || 0) + 1;
+      });
+
+      return profiles.map(sp => {
+        const confirmed = countMap[sp.lecturer_id] || 0;
+        const remaining = Math.max(0, (sp.max_students || 5) - confirmed);
+        return {
+          supervisor_id: sp.lecturer_id,
+          profile_id: sp.id,
+          full_name: sp.lecturers?.full_name || 'Faculty Lecturer',
+          email: sp.lecturers?.email || '',
+          avatar_url: null,
+          department: sp.department,
+          research_areas: sp.research_areas || [],
+          max_students: sp.max_students || 5,
+          confirmed_students: confirmed,
+          remaining_slots: remaining,
+          accepting_students: sp.accepting_students,
+          is_full: remaining <= 0 || !sp.accepting_students
+        };
+      });
+    }
+
+    // Secondary fallback: fallback to all lecturers if profiles table not populated yet
+    const { data: lecs } = await supabase
+      .from('lecturers')
+      .select('id, full_name, email, teaching_area, department_id')
+      .order('full_name', { ascending: true });
+
+    return (lecs || []).map(l => ({
+      supervisor_id: l.id,
+      profile_id: l.id,
+      full_name: l.full_name,
+      email: l.email,
+      department: l.teaching_area || l.department_id || 'Computer Science',
+      research_areas: ['Software Engineering', 'Information Systems'],
+      max_students: 5,
+      confirmed_students: 0,
+      remaining_slots: 5,
+      accepting_students: true,
+      is_full: false
+    }));
+  } catch (err) {
+    console.warn('Supervisors fetch fallback notice:', err.message);
+    return [];
+  }
+}
+
+export async function getSupervisorProfile(lecturerId) {
+  try {
+    const { data, error } = await supabase
+      .from('supervisor_profiles')
+      .select('*')
+      .eq('lecturer_id', lecturerId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data) return data;
+  } catch (err) {
+    console.warn('getSupervisorProfile notice:', err.message);
+  }
+  return {
+    lecturer_id: lecturerId,
+    department: 'Department of Computer Science',
+    research_areas: ['Software Engineering', 'Artificial Intelligence', 'Cybersecurity'],
+    max_students: 5,
+    accepting_students: true,
+    bio: ''
+  };
+}
+
+export async function saveSupervisorProfile({ department, researchAreas, maxStudents, acceptingStudents, bio }) {
+  await assertNotStudentAccount();
+  const lecturer = await getLecturerProfile();
+  const payload = {
+    lecturer_id: lecturer.id,
+    department: department || lecturer.teaching_area || 'Department of Computer Science',
+    research_areas: Array.isArray(researchAreas) ? researchAreas : (researchAreas ? researchAreas.split(',').map(s => s.trim()).filter(Boolean) : []),
+    max_students: Number(maxStudents) || 5,
+    accepting_students: Boolean(acceptingStudents),
+    bio: bio || '',
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('supervisor_profiles')
+    .upsert(payload, { onConflict: 'lecturer_id,department' })
+    .select()
+    .single();
+
+  if (error) {
+    const { data: retryData, error: retryErr } = await supabase
+      .from('supervisor_profiles')
+      .upsert({ ...payload }, { onConflict: 'lecturer_id' })
+      .select()
+      .single();
+    if (retryErr) throw retryErr;
+    return retryData;
+  }
+  return data;
+}
+
+export async function submitDissertationSupervisorRequest({ supervisorId, title, abstract }) {
+  const student = await getStudentProfile();
+
+  // Try RPC first (security definer with concurrency locks & validation)
+  try {
+    const { data, error } = await supabase.rpc('submit_dissertation_request', {
+      p_supervisor_id: supervisorId,
+      p_title: title.trim(),
+      p_abstract: abstract.trim()
+    });
+    if (!error && data) return data;
+  } catch (rpcErr) {
+    console.warn('RPC submit_dissertation_request notice, falling back:', rpcErr?.message);
+  }
+
+  // Graceful fallback
+  // 1. Withdraw previous pending requests
+  await supabase
+    .from('dissertation_requests')
+    .update({ status: 'withdrawn' })
+    .eq('student_id', student.id)
+    .eq('status', 'pending');
+
+  // 2. Insert new request
+  const { data: newReq, error: insErr } = await supabase
+    .from('dissertation_requests')
+    .insert({
+      student_id: student.id,
+      supervisor_id: supervisorId,
+      title: title.trim(),
+      abstract: abstract.trim(),
+      status: 'pending'
+    })
+    .select()
+    .single();
+
+  if (insErr) {
+    // If table doesn't exist yet, fallback to dissertations table
+    await registerDissertationTopic(title, supervisorId);
+    return { success: true, status: 'pending' };
+  }
+
+  // 3. Upsert student_term_registrations as pending
+  const currentTerm = await getCurrentAcademicTerm();
+  if (currentTerm?.id) {
+    await supabase
+      .from('student_term_registrations')
+      .upsert({
+        student_id: student.id,
+        term_id: currentTerm.id,
+        status: 'pending',
+        payment_status: 'unpaid',
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'student_id,term_id' });
+  }
+
+  // 4. Notify supervisor
+  try {
+    const { data: lec } = await supabase.from('lecturers').select('auth_user_id').eq('id', supervisorId).maybeSingle();
+    if (lec?.auth_user_id) {
+      await supabase.from('notifications').insert({
+        recipient_user_id: lec.auth_user_id,
+        title: 'New Dissertation Supervision Request',
+        body: `${student.full_name} has requested you as supervisor for: "${title.trim()}".`,
+        category: 'dissertation'
+      });
+    }
+  } catch {}
+
+  return newReq;
+}
+
+export async function getMyDissertationRequest() {
+  const student = await getStudentProfile();
+  try {
+    const { data, error } = await supabase
+      .from('dissertation_requests')
+      .select(`
+        id, student_id, term_id, supervisor_id, title, abstract, status, decline_reason, created_at, decided_at,
+        lecturers(id, full_name, email, teaching_area, phone)
+      `)
+      .eq('student_id', student.id)
+      .in('status', ['pending', 'confirmed', 'declined'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data) return data;
+  } catch (err) {
+    console.warn('getMyDissertationRequest notice:', err.message);
+  }
+  return null;
+}
+
+export async function withdrawDissertationRequest(requestId) {
+  const { data, error } = await supabase
+    .from('dissertation_requests')
+    .update({ status: 'withdrawn' })
+    .eq('id', requestId);
+  if (error) throw error;
+  return true;
+}
+
+export async function getLecturerSupervisionRequests() {
+  await assertNotStudentAccount();
+  const lecturer = await getLecturerProfile();
+  try {
+    const { data, error } = await supabase
+      .from('dissertation_requests')
+      .select(`
+        id, student_id, term_id, supervisor_id, title, abstract, status, created_at,
+        students(id, student_id, full_name, email, programme, phone, level)
+      `)
+      .eq('supervisor_id', lecturer.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) return data;
+  } catch (err) {
+    console.warn('getLecturerSupervisionRequests notice:', err.message);
+  }
+  return [];
+}
+
+export async function confirmDissertationRequest(requestId) {
+  await assertNotStudentAccount();
+  // Try RPC (locks supervisor row with FOR UPDATE and checks max capacity)
+  try {
+    const { data, error } = await supabase.rpc('confirm_dissertation_request', {
+      p_request_id: requestId
+    });
+    if (!error && data) return data;
+    if (error) throw error;
+  } catch (rpcErr) {
+    if (rpcErr.message && !rpcErr.message.includes('function') && !rpcErr.message.includes('does not exist')) {
+      throw rpcErr;
+    }
+    console.warn('confirm_dissertation_request RPC notice, running fallback:', rpcErr.message);
+  }
+
+  // Graceful fallback
+  const { data: req, error: reqErr } = await supabase
+    .from('dissertation_requests')
+    .update({
+      status: 'confirmed',
+      decided_at: new Date().toISOString()
+    })
+    .eq('id', requestId)
+    .select('*, students(id, auth_user_id, full_name)')
+    .single();
+
+  if (reqErr) throw reqErr;
+
+  // Upsert dissertations table
+  if (req?.student_id) {
+    await supabase
+      .from('dissertations')
+      .upsert({
+        student_id: req.student_id,
+        supervisor_id: req.supervisor_id,
+        title: req.title,
+        status: 'proposal',
+        current_chapter: 1,
+        progress_percentage: 20
+      }, { onConflict: 'student_id' });
+  }
+
+  // Send notification to student
+  if (req?.students?.auth_user_id) {
+    try {
+      await supabase.from('notifications').insert({
+        recipient_user_id: req.students.auth_user_id,
+        title: 'Dissertation Supervisor Confirmed!',
+        body: `Your supervisor has confirmed your proposal: "${req.title}". Please proceed to pay your flat SLE 500 fee to unlock your workspace.`,
+        category: 'dissertation'
+      });
+    } catch {}
+  }
+
+  return { success: true, status: 'confirmed' };
+}
+
+export async function declineDissertationRequest(requestId, reason) {
+  await assertNotStudentAccount();
+  const cleanReason = (reason || 'Topic out of current research focus or capacity limit reached').trim();
+  try {
+    const { data, error } = await supabase.rpc('decline_dissertation_request', {
+      p_request_id: requestId,
+      p_reason: cleanReason
+    });
+    if (!error && data) return data;
+    if (error) throw error;
+  } catch (rpcErr) {
+    if (rpcErr.message && !rpcErr.message.includes('function') && !rpcErr.message.includes('does not exist')) {
+      throw rpcErr;
+    }
+  }
+
+  const { data: req, error: reqErr } = await supabase
+    .from('dissertation_requests')
+    .update({
+      status: 'declined',
+      decline_reason: cleanReason,
+      decided_at: new Date().toISOString()
+    })
+    .eq('id', requestId)
+    .select('*, students(auth_user_id, full_name)')
+    .single();
+
+  if (reqErr) throw reqErr;
+
+  if (req?.students?.auth_user_id) {
+    try {
+      await supabase.from('notifications').insert({
+        recipient_user_id: req.students.auth_user_id,
+        title: 'Dissertation Supervision Request Declined',
+        body: `Your supervision request was declined (${cleanReason}). Your research topic is saved and you can select another faculty supervisor.`,
+        category: 'dissertation'
+      });
+    } catch {}
+  }
+
+  return { success: true, status: 'declined' };
+}
+
+export async function releaseDissertationStudent(requestId, reason) {
+  await assertNotStudentAccount();
+  const cleanReason = (reason || 'Mutual release by supervisor').trim();
+  try {
+    const { data, error } = await supabase.rpc('release_dissertation_student', {
+      p_request_id: requestId,
+      p_reason: cleanReason
+    });
+    if (!error && data) return data;
+    if (error) throw error;
+  } catch (rpcErr) {
+    if (rpcErr.message && !rpcErr.message.includes('function') && !rpcErr.message.includes('does not exist')) {
+      throw rpcErr;
+    }
+  }
+
+  const { data: req, error: reqErr } = await supabase
+    .from('dissertation_requests')
+    .update({
+      status: 'withdrawn',
+      decline_reason: 'Released: ' + cleanReason
+    })
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (reqErr) throw reqErr;
+
+  if (req?.student_id) {
+    await supabase
+      .from('dissertations')
+      .update({ supervisor_id: null })
+      .eq('student_id', req.student_id);
+  }
+
+  return { success: true, released: true };
+}
+
+export async function updateSupervisorCapacity(profileId, newCapacity) {
+  await assertNotStudentAccount();
+  const cap = Math.max(1, Number(newCapacity) || 5);
+  const { data, error } = await supabase
+    .from('supervisor_profiles')
+    .update({ max_students: cap, updated_at: new Date().toISOString() })
+    .eq('id', profileId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function registerDissertationTopic(title, supervisorId = null) {
   const student = await getStudentProfile();
   const { data, error } = await supabase

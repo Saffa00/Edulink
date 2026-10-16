@@ -2,12 +2,15 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   BookOpen, FileText, CheckCircle2, AlertCircle, Upload, Download,
   Clock, ChevronRight, MessageSquare, Award, RefreshCw, UserCheck,
-  Search, Filter, Check, X, Users, AlertTriangle, ArrowRight, ShieldCheck
+  Search, Filter, Check, X, Users, AlertTriangle, ArrowRight, ShieldCheck,
+  UserX, Settings, Send, Info
 } from 'lucide-react';
 import {
   getStudentDissertation, registerDissertationTopic, submitDissertationChapterFile,
-  getSupervisedDissertations, getUnassignedDissertations, claimSupervisee,
-  reviewDissertationVersion, getAvailableSupervisors
+  getSupervisedDissertations, reviewDissertationVersion, getAvailableSupervisors,
+  getDepartmentSupervisors, getLecturerSupervisionRequests, confirmDissertationRequest,
+  declineDissertationRequest, releaseDissertationStudent, getSupervisorProfile,
+  saveSupervisorProfile
 } from '../services/academicMasterV41toV55.js';
 import { getSignedFileUrl } from '../services/assignmentsV40.js';
 
@@ -22,21 +25,32 @@ const CHAPTER_DESCRIPTIONS = {
 export default function DissertationManagementV42({ role = 'student', onNavigate }) {
   const [studentData, setStudentData] = useState(null);
   const [supervisedList, setSupervisedList] = useState([]);
-  const [unassignedList, setUnassignedList] = useState([]);
+  const [supervisionRequests, setSupervisionRequests] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
+  const [profileData, setProfileData] = useState({
+    department: 'Department of Computer Science',
+    research_areas: ['Software Engineering', 'Information Systems'],
+    max_students: 5,
+    accepting_students: true,
+    bio: ''
+  });
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // Lecturer view state
-  const [lecturerTab, setLecturerTab] = useState('assigned'); // 'assigned' | 'unassigned'
+  // Lecturer view state: 'assigned' | 'requests' | 'profile'
+  const [lecturerTab, setLecturerTab] = useState('assigned');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Topic registration state
-  const [topicInput, setTopicInput] = useState('');
-  const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
+  // Decline request modal state
+  const [declineModalItem, setDeclineModalItem] = useState(null);
+  const [declineReason, setDeclineReason] = useState('');
+
+  // Release student modal state
+  const [releaseModalItem, setReleaseModalItem] = useState(null);
+  const [releaseReason, setReleaseReason] = useState('');
 
   // Student Chapter upload state
   const [selectedChapter, setSelectedChapter] = useState('Chapter 1');
@@ -60,7 +74,7 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
       if (role === 'student') {
         const [data, sups] = await Promise.all([
           getStudentDissertation(),
-          getAvailableSupervisors()
+          getDepartmentSupervisors()
         ]);
         setStudentData(data);
         setSupervisors(sups || []);
@@ -68,9 +82,17 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
           setSelectedChapter(`Chapter ${data.dissertation.current_chapter}`);
         }
       } else {
-        const assigned = await getSupervisedDissertations();
+        const [assigned, reqs] = await Promise.all([
+          getSupervisedDissertations(),
+          getLecturerSupervisionRequests()
+        ]);
         setSupervisedList(assigned || []);
-        setUnassignedList([]);
+        setSupervisionRequests(reqs || []);
+
+        try {
+          const prof = await getSupervisorProfile();
+          if (prof) setProfileData(prof);
+        } catch {}
       }
     } catch (err) {
       setError(err.message || 'Failed to load dissertation information.');
@@ -83,18 +105,68 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
     loadData();
   }, [loadData]);
 
-  const handleRegisterTopic = async (e) => {
-    e.preventDefault();
-    if (!topicInput.trim()) return setError('Please enter a dissertation research topic title.');
+  const handleConfirmRequest = async (requestId, studentName) => {
     try {
       setActionBusy(true);
-      await registerDissertationTopic(topicInput, selectedSupervisorId || null);
-      setMessage('Dissertation topic proposed successfully. You can now begin drafting Chapter 1.');
-      setTopicInput('');
-      setSelectedSupervisorId('');
+      await confirmDissertationRequest(requestId);
+      setMessage(`Successfully confirmed ${studentName} as your supervisee!`);
       await loadData();
     } catch (err) {
-      setError(err.message || 'Failed to register topic.');
+      setError(err.message || 'Failed to confirm request.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleDeclineRequestSubmit = async (e) => {
+    e.preventDefault();
+    if (!declineModalItem?.id) return;
+    try {
+      setActionBusy(true);
+      await declineDissertationRequest(declineModalItem.id, declineReason);
+      setMessage(`Supervision request declined. The student has been notified.`);
+      setDeclineModalItem(null);
+      setDeclineReason('');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to decline request.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleReleaseStudentSubmit = async (e) => {
+    e.preventDefault();
+    if (!releaseModalItem?.id) return;
+    try {
+      setActionBusy(true);
+      await releaseDissertationStudent(releaseModalItem.id, releaseReason);
+      setMessage(`Student released from supervision pairing.`);
+      setReleaseModalItem(null);
+      setReleaseReason('');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to release student.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    try {
+      setActionBusy(true);
+      await saveSupervisorProfile({
+        department: profileData.department,
+        researchAreas: profileData.research_areas,
+        maxStudents: profileData.max_students,
+        acceptingStudents: profileData.accepting_students,
+        bio: profileData.bio
+      });
+      setMessage('Supervision profile updated successfully! Eligible final-year students in your department will see your updated availability.');
+      await loadData();
+    } catch (err) {
+      setError(err.message || 'Failed to save supervision profile.');
     } finally {
       setActionBusy(false);
     }
@@ -134,19 +206,6 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
     }
   };
 
-  const handleClaimStudent = async (dissertationId, studentName) => {
-    try {
-      setActionBusy(true);
-      await claimSupervisee(dissertationId);
-      setMessage(`You are now supervising ${studentName}.`);
-      await loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to accept student supervision.');
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
   const handleSaveReview = async (e) => {
     e.preventDefault();
     if (!reviewModalItem) return;
@@ -155,10 +214,10 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
       await reviewDissertationVersion({
         versionId: reviewModalItem.versionId,
         dissertationId: reviewModalItem.dissertationId,
-        status: reviewVerdict,
+        status: reviewVerdict === 'approved' ? 'approved' : reviewVerdict === 'corrections_needed' ? 'corrections_needed' : 'rejected',
         comments: reviewNotes
       });
-      setMessage(`Verdict recorded for ${reviewModalItem.chapter}. Student has been notified.`);
+      setMessage(`Review feedback recorded for ${reviewModalItem.chapter}. Student has been notified.`);
       setReviewModalItem(null);
       setReviewNotes('');
       await loadData();
@@ -175,7 +234,7 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
         <div className="v-card text-center" style={{ padding: '60px 20px' }}>
           <RefreshCw className="v-spin" size={32} style={{ color: '#2563eb', margin: '0 auto 16px' }} />
           <h3>Loading Dissertation Workspace…</h3>
-          <p style={{ color: '#64748b' }}>Connecting to research records and chapter submissions</p>
+          <p style={{ color: '#64748b' }}>Connecting to research records and supervision details</p>
         </div>
       </div>
     );
@@ -197,11 +256,11 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
         <header className="v-master-header">
           <div>
             <h1>Dissertation & Thesis Workspace</h1>
-            <p>Supervised academic research, chapter 1 to 5 progression, feedback, and defense clearance.</p>
+            <p>Supervised academic research, chapter 1 to 5 progression, supervisor feedback, and defense clearance.</p>
           </div>
           {supervisor && (
             <div style={{ textAlign: 'right' }}>
-              <span className="v-sub" style={{ display: 'block', fontSize: '0.8rem' }}>Assigned Supervisor</span>
+              <span className="v-sub" style={{ display: 'block', fontSize: '0.8rem' }}>Faculty Supervisor</span>
               <strong style={{ color: '#0f172a' }}>{supervisor.full_name}</strong>
             </div>
           )}
@@ -211,59 +270,20 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
         {error && <div className="v-banner error"><AlertCircle size={18} /> {error}</div>}
 
         {!diss ? (
-          <section className="v-card v-create-box">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <BookOpen size={28} style={{ color: '#2563eb' }} />
-              <div>
-                <h2 style={{ margin: 0 }}>Register Dissertation Topic Proposal</h2>
-                <p style={{ margin: '4px 0 0', color: '#64748b' }}>
-                  Propose your undergraduate or postgraduate research topic to begin chapter drafting and supervisor assignment.
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleRegisterTopic} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                  Proposed Research Topic / Dissertation Title:
-                </label>
-                <input
-                  required
-                  type="text"
-                  placeholder="e.g. Design and Implementation of a Secure Campus PWA for Goderich Campus"
-                  value={topicInput}
-                  onChange={e => setTopicInput(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                  Preferred Academic Supervisor (Optional):
-                </label>
-                <select
-                  value={selectedSupervisorId}
-                  onChange={e => setSelectedSupervisorId(e.target.value)}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                >
-                  <option value="">-- Let Department Assign Supervisor --</option>
-                  {supervisors.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name} {s.department ? `(${s.department})` : ''} {s.teaching_area ? `— ${s.teaching_area}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <small style={{ color: '#64748b', display: 'block', marginTop: '4px' }}>
-                  If left unassigned, faculty lecturers in your department will review and claim your research topic.
-                </small>
-              </div>
-
-              <div style={{ marginTop: '8px' }}>
-                <button type="submit" className="v-btn primary" disabled={actionBusy}>
-                  {actionBusy ? 'Submitting Topic…' : 'Submit Dissertation Proposal'}
-                </button>
-              </div>
-            </form>
+          <section className="v-card v-create-box" style={{ textAlign: 'center', padding: '40px 24px' }}>
+            <BookOpen size={36} style={{ color: '#0284c7', margin: '0 auto 14px' }} />
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 800 }}>Choose Your Faculty Supervisor</h2>
+            <p style={{ margin: '0 auto 20px auto', maxWidth: '480px', color: '#64748b', fontSize: '13.5px', lineHeight: 1.5 }}>
+              Under institutional guidelines for Year 4 Semester 2, you directly choose a supervisor in your department with your proposed topic and abstract.
+            </p>
+            <button
+              type="button"
+              className="v-btn primary"
+              onClick={() => onNavigate?.('home')}
+              style={{ padding: '12px 24px', fontWeight: 700 }}
+            >
+              Select Department Supervisor on Home Screen
+            </button>
           </section>
         ) : (
           <>
@@ -282,185 +302,196 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
                   <h2 style={{ fontSize: '1.4rem', margin: '0 0 10px', color: '#0f172a' }}>{diss.title}</h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.9rem' }}>
                     <Users size={16} />
-                    <span>Supervisor: <b>{supervisor?.full_name || 'Department Assigned Pending'}</b></span>
-                    {supervisor?.email && <small>({supervisor.email})</small>}
+                    <span>Supervisor: <b>{supervisor?.full_name || 'Department Faculty Supervisor'}</b></span>
+                    {supervisor?.email && <span>({supervisor.email})</span>}
                   </div>
                 </div>
 
-                <div className="v-progress-radial" style={{ textAlign: 'center', background: '#f8fafc', padding: '16px 24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <strong style={{ fontSize: '1.8rem', color: '#2563eb', display: 'block' }}>
-                    {diss.progress_percentage || (currentCh * 20)}%
-                  </strong>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {isFullyApproved ? 'Defense Ready' : 'Overall Progress'}
-                  </span>
+                <div className="v-diss-progress-box" style={{ minWidth: '180px', textAlign: 'right' }}>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2563eb' }}>
+                    {diss.progress_percentage || 20}%
+                  </div>
+                  <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Overall Completion</span>
+                  <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', marginTop: '8px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${diss.progress_percentage || 20}%`, background: '#2563eb', borderRadius: '4px', transition: 'width 0.4s' }} />
+                  </div>
                 </div>
               </div>
 
-              {/* 5-Chapter Stepper */}
-              <div className="v-stepper" style={{ margin: '30px 0 16px' }}>
-                {chapters.map((ch, idx) => {
+              {/* Defense Scheduled Notice */}
+              {diss.defense_date && (
+                <div className="v-defense-alert" style={{ marginTop: '16px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Award size={24} style={{ color: '#16a34a' }} />
+                  <div>
+                    <strong style={{ color: '#166534' }}>Final Defense Scheduled!</strong>
+                    <div style={{ color: '#15803d', fontSize: '0.9rem' }}>
+                      Date: {new Date(diss.defense_date).toLocaleString()} • Venue: {diss.defense_location || 'Main Auditorium'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Chapter Stepper Tracker */}
+            <section className="v-card">
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem' }}>Chapter Milestones & Review Progression</h3>
+              <div className="v-chapter-steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                {chapters.map((chName, idx) => {
                   const chNum = idx + 1;
-                  const isDone = currentCh > chNum || (isFullyApproved && chNum === 5);
-                  const isCurrent = currentCh === chNum && !isFullyApproved;
+                  const isDone = currentCh > chNum || (currentCh === 5 && diss.status === 'approved');
+                  const isCurrent = currentCh === chNum && !isDone;
                   return (
                     <div
-                      key={ch}
-                      className={`v-step-node ${isDone ? 'done' : isCurrent ? 'active' : ''}`}
-                      onClick={() => setSelectedChapter(ch)}
-                      style={{ cursor: 'pointer' }}
-                      title={`Click to view/submit ${ch}`}
+                      key={chName}
+                      className={`v-ch-card ${isDone ? 'done' : isCurrent ? 'active' : 'locked'}`}
+                      style={{
+                        padding: '14px',
+                        borderRadius: '10px',
+                        border: `2px solid ${isDone ? '#16a34a' : isCurrent ? '#2563eb' : '#e2e8f0'}`,
+                        background: isDone ? '#f0fdf4' : isCurrent ? '#eff6ff' : '#f8fafc'
+                      }}
                     >
-                      <span className="v-step-circle">
-                        {isDone ? <Check size={16} /> : chNum}
-                      </span>
-                      <small style={{ fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#2563eb' : '#64748b' }}>
-                        {ch}
-                      </small>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isDone ? '#166534' : isCurrent ? '#1e40af' : '#64748b' }}>
+                          {chName}
+                        </span>
+                        {isDone ? (
+                          <CheckCircle2 size={18} style={{ color: '#16a34a' }} />
+                        ) : isCurrent ? (
+                          <Clock size={18} style={{ color: '#2563eb' }} />
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Locked</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>
+                        {CHAPTER_DESCRIPTIONS[chName]}
+                      </div>
                     </div>
                   );
                 })}
               </div>
-
-              {/* Current Chapter Description Pill */}
-              <div style={{ background: '#eff6ff', borderRadius: '8px', padding: '10px 14px', border: '1px solid #bfdbfe', fontSize: '0.88rem', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BookOpen size={16} />
-                <span><b>{selectedChapter}:</b> {CHAPTER_DESCRIPTIONS[selectedChapter] || 'Dissertation research documentation'}</span>
-              </div>
             </section>
 
-            {/* Supervisor Feedback Banner if corrections required */}
-            {isCorrectionsRequired && diss.supervisor_notes && (
-              <section className="v-card" style={{ borderLeft: '4px solid #f59e0b', background: '#fffbeb' }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <AlertTriangle size={24} style={{ color: '#d97706', flexShrink: 0 }} />
-                  <div>
-                    <h3 style={{ margin: '0 0 6px', color: '#92400e' }}>Supervisor Corrections Required</h3>
-                    <p style={{ margin: 0, color: '#b45309', whiteSpace: 'pre-wrap' }}>{diss.supervisor_notes}</p>
-                    <small style={{ display: 'block', marginTop: '8px', color: '#78350f', fontWeight: 600 }}>
-                      Please revise your draft according to the feedback above and submit a revised version below.
-                    </small>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Fully Approved Celebration */}
-            {isFullyApproved && (
-              <section className="v-card" style={{ borderLeft: '4px solid #16a34a', background: '#f0fdf4' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  <ShieldCheck size={32} style={{ color: '#16a34a' }} />
-                  <div>
-                    <h3 style={{ margin: '0 0 4px', color: '#166534' }}>Dissertation Chapters Fully Approved</h3>
-                    <p style={{ margin: 0, color: '#15803d' }}>
-                      Congratulations! All 5 research chapters have been reviewed and approved by your supervisor. You are cleared for final defense and thesis binding.
-                    </p>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Chapter Submission Form */}
+            {/* Submission Section */}
             {!isFullyApproved && (
               <section className="v-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
                   <Upload size={20} style={{ color: '#2563eb' }} />
-                  <h3 style={{ margin: 0 }}>
-                    {isCorrectionsRequired ? `Submit Revision for ${selectedChapter}` : `Submit Draft for ${selectedChapter}`}
-                  </h3>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Submit Draft for Review</h3>
                 </div>
 
-                <form onSubmit={handleChapterSubmit} className="v-form-grid">
-                  <div className="v-form-group">
-                    <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Target Chapter:</label>
-                    <select
-                      value={selectedChapter}
-                      onChange={e => setSelectedChapter(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                    >
-                      {chapters.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                {isCorrectionsRequired && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b45309', fontWeight: 600, marginBottom: '4px' }}>
+                      <AlertTriangle size={16} /> Corrections Requested by Supervisor
+                    </div>
+                    <div style={{ color: '#92400e', fontSize: '0.9rem' }}>
+                      Please review your supervisor's feedback below, revise your chapter draft, and upload version 2 (or higher).
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleChapterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                    <div>
+                      <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Current Chapter Stage:</label>
+                      <select
+                        value={selectedChapter}
+                        onChange={e => setSelectedChapter(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                      >
+                        {chapters.map((ch, i) => (
+                          <option key={ch} value={ch} disabled={i + 1 > currentCh}>
+                            {ch} {i + 1 === currentCh ? '(Active Stage)' : i + 1 < currentCh ? '(Completed)' : '(Locked)'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>
+                        Attach Chapter Document (.pdf, .docx, .zip):
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf,.docx,.doc,.zip"
+                        onChange={e => setUploadDoc(e.target.files?.[0] || null)}
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#ffffff' }}
+                      />
+                    </div>
                   </div>
 
-                  <div className="v-form-group">
-                    <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                      Document File (.pdf, .docx, .zip):
-                    </label>
-                    <input
-                      required
-                      type="file"
-                      accept=".pdf,.doc,.docx,.zip"
-                      onChange={e => setUploadDoc(e.target.files?.[0] || null)}
-                      style={{ width: '100%', padding: '8px', border: '1px dashed #cbd5e1', borderRadius: '8px' }}
-                    />
-                  </div>
-
-                  <div className="v-form-group full-width">
-                    <button type="submit" className="v-btn primary" disabled={actionBusy}>
-                      {actionBusy ? 'Uploading Document…' : (isCorrectionsRequired ? `Upload Revised ${selectedChapter} Draft` : `Upload ${selectedChapter} Draft`)}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                    <button type="submit" className="v-btn primary" disabled={actionBusy || !uploadDoc}>
+                      {actionBusy ? 'Uploading & Submitting…' : `Submit ${selectedChapter} Draft`}
                     </button>
                   </div>
                 </form>
               </section>
             )}
 
-            {/* Version History & Feedback Table */}
+            {/* Submission History and Supervisor Feedback */}
             <section className="v-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ margin: 0 }}>Version History & Review Records</h3>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  {studentData.versions.length} draft{studentData.versions.length === 1 ? '' : 's'} recorded
-                </span>
-              </div>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem' }}>Chapter Submission History & Feedback Log</h3>
+              {!studentData.versions?.length ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                  No chapter drafts submitted yet. Upload Chapter 1 above to initiate supervisor review.
+                </div>
+              ) : (
+                <div className="v-history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {studentData.versions.map(ver => (
+                    <article
+                      key={ver.id}
+                      style={{
+                        padding: '14px 16px',
+                        borderRadius: '10px',
+                        border: '1px solid #e2e8f0',
+                        background: '#ffffff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div>
+                          <strong style={{ fontSize: '1rem', color: '#0f172a' }}>{ver.chapter}</strong>
+                          <span style={{ marginLeft: '8px', fontSize: '0.85rem', color: '#64748b' }}>
+                            Version {ver.version_number} · {new Date(ver.submitted_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className={`v-status-pill ${ver.status}`}>
+                            {ver.status === 'corrections_needed' ? 'CORRECTIONS NEEDED' : ver.status.toUpperCase()}
+                          </span>
+                          <button
+                            type="button"
+                            className="v-btn-mini secondary"
+                            onClick={() => handleDownload(ver.file_url)}
+                          >
+                            <Download size={13} /> Download
+                          </button>
+                        </div>
+                      </div>
 
-              <div className="v-table-responsive">
-                <table className="v-table">
-                  <thead>
-                    <tr>
-                      <th>Chapter</th>
-                      <th>Version</th>
-                      <th>Submitted Date</th>
-                      <th>Review Status</th>
-                      <th>Supervisor Notes</th>
-                      <th>Document</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {!studentData.versions.length ? (
-                      <tr>
-                        <td colSpan="6" className="v-no-data" style={{ textAlign: 'center', padding: '32px' }}>
-                          No chapter drafts submitted yet. Upload Chapter 1 to start supervision.
-                        </td>
-                      </tr>
-                    ) : (
-                      studentData.versions.map(v => (
-                        <tr key={v.id}>
-                          <td><b>{v.chapter}</b></td>
-                          <td><span className="v-id-badge">v{v.version_number}</span></td>
-                          <td>{new Date(v.submitted_at).toLocaleDateString()}</td>
-                          <td>
-                            <span className={`v-status-pill ${v.status}`}>
-                              {v.status === 'corrections_needed' ? 'CORRECTIONS' : v.status.toUpperCase()}
+                      {ver.lecturer_comment && (
+                        <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid #2563eb', marginTop: '4px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
+                            Supervisor Feedback:
+                          </span>
+                          <p style={{ margin: 0, fontSize: '0.9rem', color: '#1e293b' }}>
+                            {ver.lecturer_comment}
+                          </p>
+                          {ver.reviewed_at && (
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                              Reviewed on {new Date(ver.reviewed_at).toLocaleString()}
                             </span>
-                          </td>
-                          <td style={{ maxWidth: '280px' }}>
-                            {v.lecturer_comment ? (
-                              <span>{v.lecturer_comment}</span>
-                            ) : (
-                              <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Pending review</span>
-                            )}
-                          </td>
-                          <td>
-                            <button className="v-btn-mini secondary" onClick={() => handleDownload(v.file_url)}>
-                              <Download size={13} /> Download
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         )}
@@ -494,7 +525,7 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
       <header className="v-master-header">
         <div>
           <h1>Dissertation & Thesis Supervision</h1>
-          <p>Supervise assigned undergraduate research students, review chapter progression, and approve defense drafts.</p>
+          <p>Direct student supervision, proposal confirmations, chapter draft reviews, and defense approvals.</p>
         </div>
       </header>
 
@@ -508,6 +539,10 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
           <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Active Supervisees</span>
         </div>
         <div className="v-card" style={{ padding: '16px', textAlign: 'center' }}>
+          <strong style={{ fontSize: '1.6rem', color: '#0284c7', display: 'block' }}>{supervisionRequests.length}</strong>
+          <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Pending Requests</span>
+        </div>
+        <div className="v-card" style={{ padding: '16px', textAlign: 'center' }}>
           <strong style={{ fontSize: '1.6rem', color: '#f59e0b', display: 'block' }}>{pendingReviewCount}</strong>
           <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Drafts Pending Review</span>
         </div>
@@ -515,17 +550,72 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
           <strong style={{ fontSize: '1.6rem', color: '#16a34a', display: 'block' }}>{approvedCount}</strong>
           <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Approved for Defense</span>
         </div>
-        <div className="v-card" style={{ padding: '16px', textAlign: 'center' }}>
-          <strong style={{ fontSize: '1.6rem', color: '#0284c7', display: 'block' }}>
-            {supervisedList.filter(s => s.defense_date).length}
-          </strong>
-          <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Defenses Scheduled</span>
-        </div>
       </div>
 
-      {/* Supervisees Area */}
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => setLecturerTab('assigned')}
+          style={{
+            padding: '10px 16px',
+            borderRadius: '10px',
+            border: 'none',
+            background: lecturerTab === 'assigned' ? '#0284c7' : '#f1f5f9',
+            color: lecturerTab === 'assigned' ? '#ffffff' : '#475569',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Users size={16} /> Active Supervisees ({supervisedList.length})
+        </button>
 
-      {/* ASSIGNED SUPERVISEES TAB */}
+        <button
+          type="button"
+          onClick={() => setLecturerTab('requests')}
+          style={{
+            padding: '10px 16px',
+            borderRadius: '10px',
+            border: 'none',
+            background: lecturerTab === 'requests' ? '#0284c7' : '#f1f5f9',
+            color: lecturerTab === 'requests' ? '#ffffff' : '#475569',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Clock size={16} /> Supervision Requests ({supervisionRequests.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setLecturerTab('profile')}
+          style={{
+            padding: '10px 16px',
+            borderRadius: '10px',
+            border: 'none',
+            background: lecturerTab === 'profile' ? '#0284c7' : '#f1f5f9',
+            color: lecturerTab === 'profile' ? '#ffffff' : '#475569',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Settings size={16} /> Supervision Profile & Capacity
+        </button>
+      </div>
+
+      {/* TAB 1: ASSIGNED SUPERVISEES */}
       {lecturerTab === 'assigned' && (
         <>
           {/* Filter Bar */}
@@ -562,7 +652,7 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
                 <Users size={36} style={{ color: '#94a3b8', margin: '0 auto 12px' }} />
                 <h3>No Supervisees Found</h3>
                 <p style={{ color: '#64748b' }}>
-                  {searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Check the "Unassigned Research Topics" tab to claim students in your department.'}
+                  {searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Check the "Supervision Requests" tab to view proposals submitted to you by students.'}
                 </p>
               </div>
             ) : (
@@ -600,6 +690,7 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
                         </div>
                         <div className="v-action-row" style={{ display: 'flex', gap: '8px' }}>
                           <button
+                            type="button"
                             className="v-btn-mini secondary"
                             onClick={() => handleDownload(latestVer.file_url)}
                             style={{ flex: 1 }}
@@ -607,6 +698,7 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
                             <Download size={13} /> Download File
                           </button>
                           <button
+                            type="button"
                             className="v-btn-mini primary"
                             onClick={() => setReviewModalItem({
                               dissertationId: item.id,
@@ -628,6 +720,26 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
                         Awaiting student's Chapter 1 draft upload.
                       </div>
                     )}
+
+                    {/* Release Student Action */}
+                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => setReleaseModalItem(item)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          fontSize: '11.5px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <UserX size={13} /> Release Student
+                      </button>
+                    </div>
                   </article>
                 );
               })
@@ -636,48 +748,273 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
         </>
       )}
 
-      {/* UNASSIGNED TOPICS TAB */}
-      {lecturerTab === 'unassigned' && (
-        <div className="v-cards-grid">
-          {!unassignedList.length ? (
+      {/* TAB 2: SUPERVISION REQUESTS INBOX */}
+      {lecturerTab === 'requests' && (
+        <div>
+          {!supervisionRequests.length ? (
             <div className="v-card v-no-data full-width" style={{ textAlign: 'center', padding: '40px' }}>
               <CheckCircle2 size={36} style={{ color: '#16a34a', margin: '0 auto 12px' }} />
-              <h3>All Topics Assigned</h3>
-              <p style={{ color: '#64748b' }}>Every registered research student currently has an assigned supervisor.</p>
+              <h3>No Pending Supervision Requests</h3>
+              <p style={{ color: '#64748b' }}>When final-year students in your department select you, their proposals will appear here for your review.</p>
             </div>
           ) : (
-            unassignedList.map(item => {
-              const student = item.students;
-              return (
-                <article key={item.id} className="v-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span className="v-id-badge">{student?.student_id || 'STU'}</span>
-                      <span className="v-status-pill yellow">Awaiting Supervisor</span>
-                    </div>
-
-                    <h3 style={{ fontSize: '1.1rem', margin: '0 0 6px', color: '#0f172a' }}>{item.title}</h3>
-                    <p style={{ color: '#475569', fontSize: '0.9rem', margin: '0 0 12px' }}>
-                      <b>{student?.full_name}</b> · {student?.programme || 'Undergraduate'}
-                    </p>
-
-                    <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
-                      Proposed: {new Date(item.created_at || item.updated_at).toLocaleDateString()}
-                    </div>
-                  </div>
-
-                  <button
-                    className="v-btn primary"
-                    onClick={() => handleClaimStudent(item.id, student?.full_name || 'Student')}
-                    disabled={actionBusy}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {supervisionRequests.map(req => {
+                const s = req.students;
+                return (
+                  <article
+                    key={req.id}
+                    className="v-card"
+                    style={{
+                      borderLeft: '4px solid #0284c7',
+                      padding: '18px 20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}
                   >
-                    <UserCheck size={16} /> Accept Supervision
-                  </button>
-                </article>
-              );
-            })
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <strong style={{ fontSize: '15px', color: '#0f172a' }}>{s?.full_name || 'Final Year Student'}</strong>
+                        <span style={{ fontSize: '12.5px', color: '#64748b', marginLeft: '8px' }}>
+                          • ID: {s?.student_id} • {s?.programme || 'Computer Science'}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '11.5px', color: '#64748b' }}>
+                        Requested: {new Date(req.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#1e293b' }}>
+                        Proposed Topic: "{req.title}"
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: 1.5, background: '#f8fafc', padding: '10px 12px', borderRadius: '8px' }}>
+                        {req.abstract}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+                      <button
+                        type="button"
+                        className="v-btn outline"
+                        disabled={actionBusy}
+                        onClick={() => {
+                          setDeclineModalItem(req);
+                          setDeclineReason('');
+                        }}
+                        style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                      >
+                        <X size={15} /> Decline Request
+                      </button>
+
+                      <button
+                        type="button"
+                        className="v-btn primary"
+                        disabled={actionBusy}
+                        onClick={() => handleConfirmRequest(req.id, s?.full_name || 'Student')}
+                        style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                      >
+                        <Check size={15} /> Confirm as Supervisee
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 3: SUPERVISION PROFILE & CAPACITY */}
+      {lecturerTab === 'profile' && (
+        <section className="v-card" style={{ maxWidth: '640px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            <ShieldCheck size={22} style={{ color: '#0284c7' }} />
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Supervision Profile & Availability</h3>
+              <p style={{ margin: 0, fontSize: '12.5px', color: '#64748b' }}>
+                Students in your department see these details when browsing faculty supervisors.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                Academic Department
+              </label>
+              <input
+                type="text"
+                required
+                value={profileData.department}
+                onChange={e => setProfileData({ ...profileData, department: e.target.value })}
+                placeholder="e.g. Department of Computer Science"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                Research Areas & Specialties (Comma-separated)
+              </label>
+              <input
+                type="text"
+                value={Array.isArray(profileData.research_areas) ? profileData.research_areas.join(', ') : profileData.research_areas}
+                onChange={e => setProfileData({ ...profileData, research_areas: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                placeholder="e.g. Distributed Systems, Mobile Computing, Machine Learning, Cyber Security"
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                  Maximum Student Capacity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="25"
+                  required
+                  value={profileData.max_students}
+                  onChange={e => setProfileData({ ...profileData, max_students: parseInt(e.target.value, 10) || 5 })}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+                <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                  Current active supervisees: {supervisedList.length} / {profileData.max_students}
+                </span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '10px' }}>
+                  Accepting New Supervisees
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input
+                    type="checkbox"
+                    checked={profileData.accepting_students}
+                    onChange={e => setProfileData({ ...profileData, accepting_students: e.target.checked })}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span>Open for new supervision requests</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                Supervisor Bio / Research Focus (Optional)
+              </label>
+              <textarea
+                rows={3}
+                value={profileData.bio || ''}
+                onChange={e => setProfileData({ ...profileData, bio: e.target.value })}
+                placeholder="Brief summary of research interests or guidance notes for prospective students..."
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="v-btn primary"
+              disabled={actionBusy}
+              style={{ width: '100%', justifyContent: 'center', padding: '12px', fontWeight: 700 }}
+            >
+              {actionBusy ? 'Saving Profile…' : 'Save Supervision Profile & Availability'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* DECLINE REQUEST MODAL */}
+      {declineModalItem && (
+        <div className="v-modal-overlay">
+          <div className="v-modal-card" style={{ maxWidth: '480px' }}>
+            <div className="v-modal-head">
+              <div>
+                <h3 style={{ margin: 0 }}>Decline Supervision Request</h3>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  {declineModalItem.students?.full_name} · "{declineModalItem.title}"
+                </span>
+              </div>
+              <button className="v-close-btn" onClick={() => setDeclineModalItem(null)}>✕</button>
+            </div>
+
+            <form onSubmit={handleDeclineRequestSubmit} className="v-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+              <div>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '13px' }}>
+                  Reason for Declining (Sent to Student):
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="e.g. Research topic outside my primary area, or maximum capacity already reached for this term…"
+                  value={declineReason}
+                  onChange={e => setDeclineReason(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+                <span style={{ fontSize: '11.5px', color: '#64748b', display: 'block', marginTop: '4px' }}>
+                  The student will be able to select another available supervisor in the department.
+                </span>
+              </div>
+
+              <div className="v-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" className="v-btn outline" onClick={() => setDeclineModalItem(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="v-btn" style={{ background: '#dc2626', color: '#ffffff' }} disabled={actionBusy}>
+                  {actionBusy ? 'Declining…' : 'Confirm Decline'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RELEASE STUDENT MODAL */}
+      {releaseModalItem && (
+        <div className="v-modal-overlay">
+          <div className="v-modal-card" style={{ maxWidth: '480px' }}>
+            <div className="v-modal-head">
+              <div>
+                <h3 style={{ margin: 0 }}>Release Supervisee</h3>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  {releaseModalItem.students?.full_name} · "{releaseModalItem.title}"
+                </span>
+              </div>
+              <button className="v-close-btn" onClick={() => setReleaseModalItem(null)}>✕</button>
+            </div>
+
+            <form onSubmit={handleReleaseStudentSubmit} className="v-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' }}>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: '12px', borderRadius: '8px', fontSize: '12.5px', color: '#92400e' }}>
+                Releasing this student frees up 1 supervision slot in your capacity and allows the student to pair with another faculty supervisor. This action is recorded in the audit log.
+              </div>
+
+              <div>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px', fontSize: '13px' }}>
+                  Release Reason:
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Scope change requested, or mutual agreement to transfer supervisor"
+                  value={releaseReason}
+                  onChange={e => setReleaseReason(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+                />
+              </div>
+
+              <div className="v-modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" className="v-btn outline" onClick={() => setReleaseModalItem(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="v-btn" style={{ background: '#dc2626', color: '#ffffff' }} disabled={actionBusy}>
+                  {actionBusy ? 'Releasing…' : 'Release Student'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

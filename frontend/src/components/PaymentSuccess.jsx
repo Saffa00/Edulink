@@ -57,10 +57,10 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
   if (loading) {
     return (
       <main className="auth-screen">
-        <section className="auth-card" style={{ textAlign: 'center', padding: '50px 24px' }}>
+        <section className="auth-card" style={{ textAlign: 'center', padding: 'clamp(28px, 6vw, 50px) clamp(16px, 4.5vw, 24px)', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           <RefreshCw className="v-spin" size={36} style={{ margin: '0 auto 16px auto', color: '#0a2540' }} />
-          <h2 style={{ fontSize: '19px', color: '#061626', margin: '0 0 8px 0' }}>Verifying Registration Payment</h2>
-          <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
+          <h2 style={{ fontSize: '19px', color: '#061626', margin: '0 0 8px 0', overflowWrap: 'anywhere' }}>Verifying Registration Payment</h2>
+          <p style={{ color: '#64748b', fontSize: '13px', margin: 0, overflowWrap: 'anywhere' }}>
             Confirming your Monime transaction and provisioning your student account…
           </p>
         </section>
@@ -71,10 +71,10 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
   if (error && !data) {
     return (
       <main className="auth-screen">
-        <section className="auth-card" style={{ textAlign: 'center', padding: '40px 24px' }}>
+        <section className="auth-card" style={{ textAlign: 'center', padding: 'clamp(24px, 6vw, 40px) clamp(16px, 4.5vw, 24px)', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           <AlertCircle size={40} color="#dc2626" style={{ margin: '0 auto 14px auto' }} />
-          <h2 style={{ fontSize: '19px', color: '#061626', margin: '0 0 8px 0' }}>Payment Confirmation Pending</h2>
-          <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '20px' }}>{error}</p>
+          <h2 style={{ fontSize: '19px', color: '#061626', margin: '0 0 8px 0', overflowWrap: 'anywhere' }}>Payment Confirmation Pending</h2>
+          <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '20px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{error}</p>
           <button
             type="button"
             className="primary-btn full-btn"
@@ -97,8 +97,8 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
 
   return (
     <main className="auth-screen">
-      <section className="auth-card wide" style={{ maxWidth: '560px', padding: '32px 28px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+      <section className="auth-card wide" style={{ maxWidth: '560px', width: '100%', minWidth: 0, boxSizing: 'border-box', padding: 'clamp(18px, 4.5vw, 32px) clamp(14px, 4vw, 28px)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', maxWidth: '100%', minWidth: 0 }}>
           <div style={{
             width: '60px',
             height: '60px',
@@ -111,8 +111,8 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           }}>
             <CheckCircle2 size={32} />
           </div>
-          <h1 style={{ fontSize: '22px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>Payment Confirmed & Account Activated!</h1>
-          <p style={{ color: '#15803d', fontSize: '14px', fontWeight: 700, margin: '0 0 14px 0' }}>
+          <h1 style={{ fontSize: 'clamp(19px, 5vw, 22px)', color: '#061626', margin: '0 0 6px 0', fontWeight: 800, overflowWrap: 'anywhere' }}>Payment Confirmed & Account Activated!</h1>
+          <p style={{ color: '#15803d', fontSize: '14px', fontWeight: 700, margin: '0 0 14px 0', overflowWrap: 'anywhere' }}>
             Payment Successful ✓ SLE {data?.amount || 100}.00 paid • {data?.modulesCount || 1} {data?.modulesCount === 1 ? 'module' : 'modules'} registered
           </p>
 
@@ -121,10 +121,12 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
               borderRadius: '12px',
-              padding: '12px 16px',
+              padding: '12px 14px',
               marginTop: '10px',
               marginBottom: '14px',
-              textAlign: 'left'
+              textAlign: 'left',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
               <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
                 {data.modules.length} {data.modules.length === 1 ? 'Module' : 'Modules'} Activated
@@ -133,12 +135,12 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
                 const code = typeof m === 'string' ? m : (m.code || `Module ${idx + 1}`);
                 const title = typeof m === 'object' && m.title ? m.title : '';
                 return (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: idx < data.modules.length - 1 ? '1px solid #edf2f7' : 'none', fontSize: '12.5px' }}>
-                    <span>
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '5px 0', borderBottom: idx < data.modules.length - 1 ? '1px solid #edf2f7' : 'none', fontSize: '12.5px' }}>
+                    <span style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>
                       <strong style={{ color: '#0284c7', marginRight: '6px' }}>{code}</strong>
                       <span style={{ color: '#475569' }}>{title}</span>
                     </span>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: '99px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '2px 8px', borderRadius: '99px', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       Active
                     </span>
                   </div>
@@ -150,16 +152,22 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '8px',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '6px',
             background: '#f1f5f9',
             padding: '5px 12px',
             borderRadius: '8px',
             fontSize: '12px',
             color: '#475569',
-            fontFamily: 'monospace'
+            fontFamily: 'monospace',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-all'
           }}>
             <span>Transaction ID:</span>
-            <strong>{data?.transactionId || data?.reference || 'REG-CONFIRMED'}</strong>
+            <strong style={{ overflowWrap: 'anywhere' }}>{data?.transactionId || data?.reference || 'REG-CONFIRMED'}</strong>
           </div>
         </div>
 
@@ -168,14 +176,17 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           background: '#061626',
           color: '#ffffff',
           borderRadius: '16px',
-          padding: '20px',
+          padding: 'clamp(16px, 4vw, 20px)',
           marginBottom: '20px',
-          boxShadow: '0 10px 30px rgba(6, 22, 38, 0.25)'
+          boxShadow: '0 10px 30px rgba(6, 22, 38, 0.25)',
+          boxSizing: 'border-box',
+          maxWidth: '100%',
+          minWidth: 0
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.12)', paddingBottom: '10px' }}>
-            <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.12)', paddingBottom: '10px' }}>
+            <div style={{ minWidth: 0 }}>
               <small style={{ color: '#93b3d4', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.6px', fontWeight: 700 }}>Your Student ID</small>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.5px' }}>{data?.studentId}</div>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.5px', overflowWrap: 'anywhere' }}>{data?.studentId}</div>
             </div>
             <span style={{
               background: '#059669',
@@ -183,7 +194,9 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
               fontSize: '11px',
               fontWeight: 700,
               padding: '3px 9px',
-              borderRadius: '99px'
+              borderRadius: '99px',
+              flexShrink: 0,
+              whiteSpace: 'nowrap'
             }}>
               Paid & Active
             </span>
@@ -191,19 +204,23 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
 
           <div style={{ marginBottom: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-              <KeyRound size={15} color="#38bdf8" />
+              <KeyRound size={15} color="#38bdf8" style={{ flexShrink: 0 }} />
               <small style={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 600 }}>Your Temporary Password:</small>
             </div>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid rgba(255, 255, 255, 0.15)',
               borderRadius: '10px',
-              padding: '10px 14px'
+              padding: '10px 14px',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
-              <code style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '1px', color: '#ffffff' }}>
+              <code style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '1px', color: '#ffffff', overflowWrap: 'anywhere', wordBreak: 'break-all', minWidth: 0 }}>
                 {data?.temporaryPassword}
               </code>
               <button
@@ -220,7 +237,8 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  flexShrink: 0
                 }}
               >
                 {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -229,24 +247,24 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#93b3d4' }}>
-            <Mail size={13} color="#93b3d4" style={{ flexShrink: 0 }} />
-            <span>Credentials have also been dispatched to <strong>{data?.email}</strong></span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '11px', color: '#93b3d4', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+            <Mail size={13} color="#93b3d4" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span style={{ minWidth: 0 }}>Credentials have also been dispatched to <strong>{data?.email}</strong></span>
           </div>
         </div>
 
         {/* Security & First Login Note */}
-        <div className="security-note" style={{ marginBottom: '14px', background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
-          <ShieldCheck size={18} color="#16a34a" />
-          <div>
+        <div className="security-note" style={{ marginBottom: '14px', background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534', maxWidth: '100%', boxSizing: 'border-box' }}>
+          <ShieldCheck size={18} color="#16a34a" style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             <strong style={{ color: '#14532d' }}>Device Registered (One Device Per Account)</strong>
             <span style={{ color: '#15803d' }}>This device has been automatically bound to your account. You will not need to type in your device name when logging in.</span>
           </div>
         </div>
 
-        <div className="security-note" style={{ marginBottom: '20px', background: '#f8fafc', borderColor: '#e2e8f0', color: '#334155' }}>
-          <ShieldCheck size={18} color="#0a2540" />
-          <div>
+        <div className="security-note" style={{ marginBottom: '20px', background: '#f8fafc', borderColor: '#e2e8f0', color: '#334155', maxWidth: '100%', boxSizing: 'border-box' }}>
+          <ShieldCheck size={18} color="#0a2540" style={{ flexShrink: 0 }} />
+          <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             <strong style={{ color: '#061626' }}>Mandatory Password Update</strong>
             <span>Upon logging in with your temporary password, you will be prompted to set your personal permanent password to secure your account.</span>
           </div>
@@ -256,7 +274,7 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
         <button
           type="button"
           className="primary-btn full-btn"
-          style={{ height: '48px', fontSize: '15px' }}
+          style={{ minHeight: '48px', height: 'auto', width: '100%', maxWidth: '100%', boxSizing: 'border-box', fontSize: '15px', flexWrap: 'wrap' }}
           onClick={() => onProceedToLogin?.({ studentId: data?.studentId })}
         >
           Go to My Modules <ArrowRight size={17} />

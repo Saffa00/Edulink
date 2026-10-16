@@ -288,31 +288,34 @@ export default function ModuleRegistrationV47() {
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9999,
-          padding: '16px'
+          padding: '12px',
+          boxSizing: 'border-box'
         }}>
           <div style={{
             background: '#ffffff',
             borderRadius: '16px',
             maxWidth: '620px',
             width: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
             maxHeight: '90vh',
             overflowY: 'auto',
-            padding: '24px 26px',
+            padding: 'clamp(16px, 4vw, 24px) clamp(14px, 4vw, 26px)',
             boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '18px', color: '#0f172a', fontWeight: 800 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: '18px', color: '#0f172a', fontWeight: 800, overflowWrap: 'anywhere' }}>
                   Add & Register Modules
                 </h2>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b', overflowWrap: 'anywhere' }}>
                   Select the number of modules and pick which courses to register & activate.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px', flexShrink: 0 }}
               >
                 <X size={20} />
               </button>
@@ -320,11 +323,11 @@ export default function ModuleRegistrationV47() {
 
             {/* Step 1: Quota Selection */}
             <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <span style={{ background: '#0284c7', color: '#fff', fontSize: '10.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '99px' }}>Step 1</span>
-                <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>How many modules do you want to pay for?</strong>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                <span style={{ background: '#0284c7', color: '#fff', fontSize: '10.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', flexShrink: 0 }}>Step 1</span>
+                <strong style={{ fontSize: '13.5px', color: '#0f172a', minWidth: 0, overflowWrap: 'anywhere' }}>How many modules do you want to pay for?</strong>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(125px, 1fr))', gap: '8px' }}>
                 {[1, 2, 3, 4].map(num => (
                   <label
                     key={num}
@@ -338,6 +341,9 @@ export default function ModuleRegistrationV47() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
+                      gap: '6px',
+                      minWidth: 0,
+                      boxSizing: 'border-box',
                       padding: '10px 12px',
                       borderRadius: '10px',
                       border: addQuota === num ? '2px solid #0284c7' : '1px solid #cbd5e1',
@@ -345,18 +351,18 @@ export default function ModuleRegistrationV47() {
                       cursor: 'pointer'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                       <input
                         type="radio"
                         checked={addQuota === num}
                         onChange={() => setAddQuota(num)}
-                        style={{ accentColor: '#0284c7', margin: 0 }}
+                        style={{ accentColor: '#0284c7', margin: 0, flexShrink: 0 }}
                       />
                       <strong style={{ fontSize: '12.5px', color: addQuota === num ? '#0284c7' : '#1e293b' }}>
                         {num} {num === 1 ? 'Module' : 'Modules'}
                       </strong>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0284c7' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#0284c7', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       SLE {num * 100}
                     </span>
                   </label>
@@ -366,9 +372,9 @@ export default function ModuleRegistrationV47() {
 
             {/* Step 2: Select Modules */}
             <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ background: '#0284c7', color: '#fff', fontSize: '10.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '99px' }}>Step 2</span>
+                  <span style={{ background: '#0284c7', color: '#fff', fontSize: '10.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '99px', flexShrink: 0 }}>Step 2</span>
                   <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>Select {addQuota} {addQuota === 1 ? 'Module' : 'Modules'}</strong>
                 </div>
                 <span style={{
@@ -377,7 +383,8 @@ export default function ModuleRegistrationV47() {
                   color: selectedAddCodes.length === addQuota ? '#15803d' : '#b45309',
                   background: selectedAddCodes.length === addQuota ? '#dcfce7' : '#fef3c7',
                   padding: '2px 8px',
-                  borderRadius: '99px'
+                  borderRadius: '99px',
+                  flexShrink: 0
                 }}>
                   {selectedAddCodes.length} of {addQuota} selected
                 </span>
@@ -394,6 +401,9 @@ export default function ModuleRegistrationV47() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        gap: '8px',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
                         padding: '10px 12px',
                         borderRadius: '10px',
                         border: isChecked ? '2px solid #0284c7' : '1px solid #e2e8f0',
@@ -402,24 +412,24 @@ export default function ModuleRegistrationV47() {
                         transition: 'all 0.15s ease'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {}}
-                          style={{ accentColor: '#0284c7', width: '16px', height: '16px', margin: 0, cursor: 'pointer' }}
+                          style={{ accentColor: '#0284c7', width: '16px', height: '16px', margin: 0, cursor: 'pointer', flexShrink: 0 }}
                         />
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                             <strong style={{ color: '#0284c7', fontSize: '12.5px' }}>{m.code}</strong>
-                            <span style={{ color: '#0f172a', fontSize: '12.5px', fontWeight: 600 }}>{m.title}</span>
+                            <span style={{ color: '#0f172a', fontSize: '12.5px', fontWeight: 600, overflowWrap: 'anywhere' }}>{m.title}</span>
                           </div>
-                          <small style={{ color: '#64748b', fontSize: '11px' }}>
+                          <small style={{ color: '#64748b', fontSize: '11px', overflowWrap: 'anywhere' }}>
                             Lecturer: {m.lecturers?.full_name || 'Department Lecturer'}
                           </small>
                         </div>
                       </div>
-                      <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#0284c7' }}>
+                      <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#0284c7', flexShrink: 0, whiteSpace: 'nowrap' }}>
                         SLE 100
                       </span>
                     </div>
@@ -434,9 +444,11 @@ export default function ModuleRegistrationV47() {
               border: '1.5px solid #0284c7',
               borderRadius: '12px',
               padding: '14px 16px',
-              marginBottom: '18px'
+              marginBottom: '18px',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
                 <strong style={{ fontSize: '13px', color: '#0f172a' }}>
                   {selectedAddCodes.length} {selectedAddCodes.length === 1 ? 'Module' : 'Modules'} Selected
                 </strong>
@@ -444,7 +456,7 @@ export default function ModuleRegistrationV47() {
                   {selectedAddCodes.length === addQuota ? 'Ready to Activate ✓' : `Select ${addQuota - selectedAddCodes.length} more`}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
                 <span style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>Total Due:</span>
                 <span style={{ fontWeight: 900, fontSize: '16px', color: '#0284c7' }}>
                   SLE {(selectedAddCodes.length * 100).toFixed(2)}
@@ -452,11 +464,11 @@ export default function ModuleRegistrationV47() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               <button
                 type="button"
                 className="outline-btn"
-                style={{ flex: 1 }}
+                style={{ flex: '1 1 100px', justifyContent: 'center', minHeight: '44px' }}
                 onClick={() => setShowAddModal(false)}
                 disabled={addBusy}
               >
@@ -465,7 +477,7 @@ export default function ModuleRegistrationV47() {
               <button
                 type="button"
                 className="primary-btn"
-                style={{ flex: 2, height: '44px' }}
+                style={{ flex: '2 1 180px', minHeight: '44px', height: 'auto', whiteSpace: 'normal' }}
                 disabled={addBusy || selectedAddCodes.length !== addQuota}
                 onClick={handleConfirmAddPayment}
               >
@@ -490,10 +502,11 @@ export default function ModuleRegistrationV47() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '16px',
-          overflowY: 'auto'
+          padding: '8px',
+          overflowY: 'auto',
+          boxSizing: 'border-box'
         }}>
-          <div style={{ maxWidth: '620px', width: '100%', position: 'relative' }}>
+          <div style={{ maxWidth: '620px', width: '100%', minWidth: 0, position: 'relative' }}>
             <PaymentCheckout
               applicant={checkoutApplicant}
               onPaymentCompleted={async (confirmed) => {

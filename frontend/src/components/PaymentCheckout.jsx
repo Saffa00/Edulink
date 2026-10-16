@@ -163,19 +163,28 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
 
   return (
     <main className="auth-screen">
-      <section className="auth-card wide" style={{ maxWidth: '580px', padding: '32px 28px' }}>
+      <section
+        className="auth-card wide"
+        style={{
+          maxWidth: '580px',
+          width: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box',
+          padding: 'clamp(16px, 4.5vw, 32px) clamp(14px, 4vw, 28px)'
+        }}
+      >
         
         {/* Navigation & Header */}
         {step !== 'success' && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
             <button
               type="button"
               className="back-link"
-              style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}
               onClick={(step === 'transaction_initiated' || step === 'waiting_approval') ? () => { setStep('select'); setError(''); } : onCancel}
               disabled={busy}
             >
-              <ArrowLeft size={16} /> {(step === 'transaction_initiated' || step === 'waiting_approval') ? 'Back to select provider' : 'Back to details'}
+              <ArrowLeft size={16} style={{ flexShrink: 0 }} /> {(step === 'transaction_initiated' || step === 'waiting_approval') ? 'Back to select provider' : 'Back to details'}
             </button>
             <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
               {step === 'select' ? 'Step 1 of 2: Select Provider' : 'Step 2 of 2: Transaction Initiated'}
@@ -192,6 +201,8 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
             <div style={{ textAlign: 'center', marginBottom: '22px' }}>
               <div style={{
                 display: 'inline-block',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 fontSize: '11px',
                 fontWeight: 800,
                 textTransform: 'uppercase',
@@ -204,7 +215,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               }}>
                 Mobile Money Checkout
               </div>
-              <h1 style={{ fontSize: '24px', color: '#061626', margin: 0, fontWeight: 800 }}>
+              <h1 style={{ fontSize: 'clamp(20px, 5.5vw, 24px)', color: '#061626', margin: 0, fontWeight: 800, overflowWrap: 'anywhere' }}>
                 Pay with Mobile Money
               </h1>
             </div>
@@ -214,21 +225,23 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               background: '#ffffff',
               border: '1.5px solid #e2e8f0',
               borderRadius: '14px',
-              padding: '16px 20px',
+              padding: 'clamp(12px, 3.5vw, 16px) clamp(12px, 4vw, 20px)',
               marginBottom: '22px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #edf2f7', paddingBottom: '10px' }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '12px', borderBottom: '1px solid #edf2f7', paddingBottom: '10px' }}>
+                <div style={{ minWidth: 0, flex: '1 1 160px' }}>
                   <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Applicant</small>
-                  <div style={{ fontWeight: 700, color: '#061626', fontSize: '14px' }}>{applicant?.fullName || 'Student'}</div>
-                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                  <div style={{ fontWeight: 700, color: '#061626', fontSize: '14px', overflowWrap: 'anywhere' }}>{applicant?.fullName || 'Student'}</div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', overflowWrap: 'anywhere' }}>
                     {applicant?.programme || 'BSc'} • Year {applicant?.level || '1'} • {applicant?.semester || 'First Semester'}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', minWidth: 0, flexShrink: 0 }}>
                   <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Student ID</small>
-                  <div style={{ fontWeight: 800, color: '#0a2540', fontSize: '14px' }}>{applicant?.studentId}</div>
+                  <div style={{ fontWeight: 800, color: '#0a2540', fontSize: '14px', overflowWrap: 'anywhere' }}>{applicant?.studentId}</div>
                 </div>
               </div>
 
@@ -245,71 +258,76 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                     ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', fee: 500 }]
                     : modulesList.map(code => ({ code, title: '', fee: 100 }))
                 ).map((m, idx) => (
-                  <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
-                    <div>
+                  <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
+                    <div style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>
                       <strong style={{ color: '#0284c7', marginRight: '6px' }}>{m.code}</strong>
                       <span style={{ color: '#334155' }}>{m.title || ''}</span>
                     </div>
-                    <span style={{ fontWeight: 700, color: '#0f172a' }}>SLE {m.fee || 100}</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE {m.fee || 100}</span>
                   </div>
                 ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '2px solid #0f172a' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '10px', borderTop: '2px solid #0f172a' }}>
                   <strong style={{ fontSize: '14px', color: '#0f172a' }}>Total</strong>
-                  <strong style={{ fontSize: '18px', color: '#0284c7' }}>{formattedFee}</strong>
+                  <strong style={{ fontSize: '18px', color: '#0284c7', overflowWrap: 'anywhere' }}>{formattedFee}</strong>
                 </div>
               </div>
             </div>
 
-            <form onSubmit={handleStartPayment}>
+            <form onSubmit={handleStartPayment} style={{ width: '100%', minWidth: 0 }}>
               {/* Payment Method Cards */}
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '10px' }}>
                 Choose Mobile Money Provider
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '10px', marginBottom: '18px' }}>
                 {/* Orange Money Option */}
                 <div
                   onClick={() => setProvider('orange')}
                   style={{
+                    minWidth: 0,
+                    boxSizing: 'border-box',
                     border: `2px solid ${provider === 'orange' ? '#ff6600' : '#e2e8f0'}`,
                     background: provider === 'orange' ? '#fffaf5' : '#ffffff',
                     borderRadius: '14px',
-                    padding: '16px',
+                    padding: 'clamp(10px, 3vw, 16px)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     position: 'relative'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
                     <div style={{
-                      height: '40px',
+                      height: '36px',
                       display: 'flex',
                       alignItems: 'center',
                       background: '#000000',
-                      padding: '4px 10px',
-                      borderRadius: '8px'
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box'
                     }}>
                       <img
                         src="/orange-money-logo.png"
                         alt="Orange Money"
-                        style={{ height: '30px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                        style={{ height: '26px', width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
                       />
                     </div>
                     <span style={{
-                      fontSize: '11px',
+                      fontSize: '10.5px',
                       fontWeight: 700,
-                      padding: '2px 8px',
+                      padding: '2px 7px',
                       borderRadius: '99px',
                       background: provider === 'orange' ? '#ff6600' : '#f1f5f9',
-                      color: provider === 'orange' ? '#ffffff' : '#64748b'
+                      color: provider === 'orange' ? '#ffffff' : '#64748b',
+                      whiteSpace: 'nowrap'
                     }}>
                       🇸🇱 Orange
                     </span>
                   </div>
-                  <strong style={{ display: 'block', fontSize: '15px', color: '#0f172a', marginBottom: '2px' }}>
+                  <strong style={{ display: 'block', fontSize: 'clamp(13.5px, 3.8vw, 15px)', color: '#0f172a', marginBottom: '2px', overflowWrap: 'anywhere' }}>
                     Orange Money
                   </strong>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  <span style={{ fontSize: '11px', color: '#64748b', display: 'block', overflowWrap: 'anywhere' }}>
                     07X / 074 / 075 / 076 / 078 / 079
                   </span>
                 </div>
@@ -318,57 +336,62 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 <div
                   onClick={() => setProvider('afrimoney')}
                   style={{
+                    minWidth: 0,
+                    boxSizing: 'border-box',
                     border: `2px solid ${provider === 'afrimoney' ? '#7c3aed' : '#e2e8f0'}`,
                     background: provider === 'afrimoney' ? '#fbf8ff' : '#ffffff',
                     borderRadius: '14px',
-                    padding: '16px',
+                    padding: 'clamp(10px, 3vw, 16px)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     position: 'relative'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
                     <div style={{
-                      height: '40px',
+                      height: '36px',
                       display: 'flex',
                       alignItems: 'center',
                       background: '#ffffff',
-                      padding: '4px 10px',
+                      padding: '4px 8px',
                       borderRadius: '8px',
-                      border: '1.5px solid #ede9fe'
+                      border: '1.5px solid #ede9fe',
+                      maxWidth: '100%',
+                      boxSizing: 'border-box'
                     }}>
                       <img
                         src="/afrimoney-logo.png"
                         alt="Afrimoney"
-                        style={{ height: '24px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                        style={{ height: '22px', width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
                       />
                     </div>
                     <span style={{
-                      fontSize: '11px',
+                      fontSize: '10.5px',
                       fontWeight: 700,
-                      padding: '2px 8px',
+                      padding: '2px 7px',
                       borderRadius: '99px',
                       background: provider === 'afrimoney' ? '#7c3aed' : '#f1f5f9',
-                      color: provider === 'afrimoney' ? '#ffffff' : '#64748b'
+                      color: provider === 'afrimoney' ? '#ffffff' : '#64748b',
+                      whiteSpace: 'nowrap'
                     }}>
                       🇸🇱 Africell
                     </span>
                   </div>
-                  <strong style={{ display: 'block', fontSize: '15px', color: '#0f172a', marginBottom: '2px' }}>
+                  <strong style={{ display: 'block', fontSize: 'clamp(13.5px, 3.8vw, 15px)', color: '#0f172a', marginBottom: '2px', overflowWrap: 'anywhere' }}>
                     Afrimoney
                   </strong>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                  <span style={{ fontSize: '11px', color: '#64748b', display: 'block', overflowWrap: 'anywhere' }}>
                     077 / 088 / 099 / 030 / 033
                   </span>
                 </div>
               </div>
 
               {/* Mobile Number Input */}
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '20px', width: '100%', minWidth: 0 }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
                   {provider === 'orange' ? 'Orange Money' : 'Afrimoney'} Approver Phone Number
                 </label>
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
                   <input
                     type="tel"
                     value={phone}
@@ -377,6 +400,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                     required
                     style={{
                       width: '100%',
+                      maxWidth: '100%',
                       boxSizing: 'border-box',
                       padding: '13px 14px 13px 40px',
                       borderRadius: '11px',
@@ -386,7 +410,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                       outline: 'none'
                     }}
                   />
-                  <Smartphone size={17} color="#64748b" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <Smartphone size={17} color="#64748b" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 </div>
               </div>
 
@@ -399,12 +423,16 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   borderRadius: '10px',
                   fontSize: '12px',
                   display: 'flex',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   gap: '8px',
-                  marginBottom: '16px'
+                  marginBottom: '16px',
+                  boxSizing: 'border-box',
+                  maxWidth: '100%',
+                  overflowWrap: 'anywhere',
+                  wordBreak: 'break-word'
                 }}>
-                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
-                  <span>{error}</span>
+                  <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '1px' }} />
+                  <span style={{ minWidth: 0 }}>{error}</span>
                 </div>
               )}
 
@@ -414,7 +442,11 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 disabled={busy}
                 className="primary-btn full-btn"
                 style={{
-                  height: '48px',
+                  minHeight: '48px',
+                  height: 'auto',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                   fontSize: '15px',
                   fontWeight: 700,
                   background: provider === 'orange' ? '#ff6600' : '#7c3aed',
@@ -422,6 +454,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexWrap: 'wrap',
                   gap: '8px'
                 }}
               >
@@ -440,8 +473,11 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
             background: '#ffffff',
             border: '1.5px solid #e2e8f0',
             borderRadius: '16px',
-            padding: '24px 20px',
-            textAlign: 'center'
+            padding: 'clamp(16px, 4vw, 24px) clamp(12px, 3.5vw, 20px)',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+            maxWidth: '100%',
+            minWidth: 0
           }}>
             {/* Brand Logo Header */}
             <div style={{
@@ -454,38 +490,46 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               background: provider === 'orange' ? '#000000' : '#ffffff',
               border: provider === 'orange' ? 'none' : '1.5px solid #ede9fe',
               boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
-              margin: '0 auto 12px auto'
+              margin: '0 auto 12px auto',
+              maxWidth: '100%',
+              boxSizing: 'border-box'
             }}>
               <img
                 src={provider === 'orange' ? '/orange-money-logo.png' : '/afrimoney-logo.png'}
                 alt={provider === 'orange' ? 'Orange Money' : 'Afrimoney'}
-                style={{ height: '34px', width: 'auto', objectFit: 'contain', display: 'block' }}
+                style={{ height: '34px', width: 'auto', maxWidth: '100%', objectFit: 'contain', display: 'block' }}
               />
             </div>
 
             {/* Status Pill */}
-            <div>
+            <div style={{ maxWidth: '100%' }}>
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
+                flexWrap: 'wrap',
                 gap: '6px',
                 background: '#ecfdf5',
                 color: '#047857',
                 border: '1px solid #a7f3d0',
                 fontSize: '11px',
                 fontWeight: 800,
-                padding: '4px 12px',
+                padding: '5px 12px',
                 borderRadius: '99px',
                 marginBottom: '10px',
                 textTransform: 'uppercase',
-                letterSpacing: '0.6px'
+                letterSpacing: '0.5px',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                overflowWrap: 'anywhere',
+                lineHeight: 1.35
               }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                Transaction Initiated • USSD Payment Request Ready
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', display: 'inline-block', flexShrink: 0 }} />
+                <span>Transaction Initiated • USSD Payment Request Ready</span>
               </span>
             </div>
 
-            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#061626', margin: '0 0 16px 0' }}>
+            <h2 style={{ fontSize: 'clamp(19px, 5vw, 22px)', fontWeight: 800, color: '#061626', margin: '0 0 16px 0', overflowWrap: 'anywhere' }}>
               Transaction Initiated
             </h2>
 
@@ -494,37 +538,40 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               background: '#f8fafc',
               border: '1.5px solid #e2e8f0',
               borderRadius: '14px',
-              padding: '16px 18px',
+              padding: 'clamp(12px, 3.5vw, 16px) clamp(12px, 4vw, 18px)',
               marginBottom: '18px',
-              textAlign: 'left'
+              textAlign: 'left',
+              boxSizing: 'border-box',
+              maxWidth: '100%',
+              minWidth: 0
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', marginBottom: '10px' }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px', marginBottom: '10px' }}>
+                <div style={{ minWidth: 0, flex: '1 1 140px' }}>
                   <span style={{ fontSize: '10.5px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Student Name</span>
-                  <strong style={{ fontSize: '14px', color: '#0f172a' }}>{applicant?.fullName || 'Student Applicant'}</strong>
+                  <strong style={{ fontSize: '14px', color: '#0f172a', overflowWrap: 'anywhere' }}>{applicant?.fullName || 'Student Applicant'}</strong>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', minWidth: 0, flexShrink: 0 }}>
                   <span style={{ fontSize: '10.5px', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, display: 'block' }}>Student ID</span>
-                  <strong style={{ fontSize: '14px', color: '#0369a1' }}>{applicant?.studentId}</strong>
+                  <strong style={{ fontSize: '14px', color: '#0369a1', overflowWrap: 'anywhere' }}>{applicant?.studentId}</strong>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', fontSize: '12px', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
-                <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '8px 12px', fontSize: '12px', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
+                <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                   <span style={{ color: '#64748b', display: 'block' }}>Programme:</span>
                   <strong style={{ color: '#334155' }}>{applicant?.programme || 'BSc'}</strong>
                 </div>
-                <div>
+                <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                   <span style={{ color: '#64748b', display: 'block' }}>Level / Year:</span>
                   <strong style={{ color: '#334155' }}>Year {applicant?.level || '1'} • {applicant?.semester || 'First Semester'}</strong>
                 </div>
-                <div>
+                <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                   <span style={{ color: '#64748b', display: 'block' }}>Payment Provider:</span>
                   <strong style={{ color: provider === 'orange' ? '#ea580c' : '#7c3aed' }}>
                     {provider === 'orange' ? '🇸🇱 Orange Money' : '🇸🇱 Afrimoney'}
                   </strong>
                 </div>
-                <div>
+                <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                   <span style={{ color: '#64748b', display: 'block' }}>Approver Phone:</span>
                   <strong style={{ color: '#0f172a' }}>{paymentInfo?.phone || phone}</strong>
                 </div>
@@ -542,23 +589,23 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                     ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', fee: 500 }]
                     : modulesList.map(code => ({ code, title: '', fee: 100 }))
                 ).map((m, idx) => (
-                  <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '12px' }}>
-                    <div>
+                  <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '5px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '12px' }}>
+                    <div style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>
                       <strong style={{ color: '#0284c7', marginRight: '6px' }}>{m.code}</strong>
                       <span style={{ color: '#475569' }}>{m.title || ''}</span>
                     </div>
-                    <span style={{ fontWeight: 600, color: '#0f172a' }}>SLE {(m.fee || 100).toFixed(2)}</span>
+                    <span style={{ fontWeight: 600, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE {(m.fee || 100).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '2px solid #0f172a' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '8px', borderTop: '2px solid #0f172a' }}>
                 <strong style={{ fontSize: '13.5px', color: '#0f172a' }}>Total Amount:</strong>
-                <strong style={{ fontSize: '18px', color: '#0284c7' }}>{formattedFee}</strong>
+                <strong style={{ fontSize: '18px', color: '#0284c7', overflowWrap: 'anywhere' }}>{formattedFee}</strong>
               </div>
 
               {paymentInfo?.reference && (
-                <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748b', textAlign: 'right' }}>
+                <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748b', textAlign: 'right', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                   Ref: <span style={{ fontFamily: 'monospace' }}>{paymentInfo.reference}</span>
                 </div>
               )}
@@ -570,9 +617,11 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 background: '#f0f9ff',
                 border: '1.5px solid #bae6fd',
                 borderRadius: '14px',
-                padding: '16px',
+                padding: 'clamp(12px, 3.5vw, 16px)',
                 marginBottom: '18px',
-                textAlign: 'center'
+                textAlign: 'center',
+                boxSizing: 'border-box',
+                maxWidth: '100%'
               }}>
                 <span style={{ fontSize: '11px', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', display: 'block', marginBottom: '6px' }}>
                   Monime Generated USSD Code:
@@ -581,19 +630,24 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexWrap: 'wrap',
                   gap: '10px',
                   background: '#ffffff',
                   border: '1.5px solid #7dd3fc',
                   borderRadius: '12px',
-                  padding: '8px 16px',
-                  marginBottom: '8px'
+                  padding: '8px 14px',
+                  marginBottom: '8px',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
                 }}>
                   <span style={{
-                    fontSize: '24px',
+                    fontSize: 'clamp(17px, 5vw, 24px)',
                     fontWeight: 900,
                     color: '#0284c7',
                     fontFamily: 'monospace',
-                    letterSpacing: '1px'
+                    letterSpacing: '1px',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-all'
                   }}>
                     {ussdCode}
                   </span>
@@ -611,7 +665,8 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                       gap: '4px',
                       fontSize: '11px',
                       fontWeight: 700,
-                      color: copiedCode ? '#16a34a' : '#0369a1'
+                      color: copiedCode ? '#16a34a' : '#0369a1',
+                      flexShrink: 0
                     }}
                   >
                     {copiedCode ? <Check size={13} /> : <Copy size={13} />}
@@ -631,22 +686,28 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexWrap: 'wrap',
                   gap: '10px',
                   background: provider === 'orange' ? '#ff6600' : '#7c3aed',
                   borderColor: provider === 'orange' ? '#ff6600' : '#7c3aed',
                   color: '#ffffff',
-                  fontSize: '15.5px',
+                  fontSize: 'clamp(14px, 4vw, 15.5px)',
                   fontWeight: 800,
-                  height: '50px',
+                  minHeight: '50px',
+                  height: 'auto',
+                  padding: '12px 16px',
                   borderRadius: '12px',
                   boxShadow: '0 4px 14px rgba(0, 112, 243, 0.25)',
                   marginBottom: '10px',
                   cursor: 'pointer',
-                  width: '100%'
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  overflowWrap: 'anywhere'
                 }}
               >
-                <PhoneCall size={20} />
-                <span>Pay Now ({ussdCode})</span>
+                <PhoneCall size={20} style={{ flexShrink: 0 }} />
+                <span style={{ overflowWrap: 'anywhere' }}>Pay Now ({ussdCode})</span>
               </button>
             ) : null}
 
@@ -659,7 +720,10 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 border: '1px solid #a7f3d0',
                 borderRadius: '8px',
                 padding: '8px 12px',
-                marginBottom: '12px'
+                marginBottom: '12px',
+                boxSizing: 'border-box',
+                maxWidth: '100%',
+                overflowWrap: 'anywhere'
               }}>
                 ✓ USSD request opened on phone! Enter your secret Mobile Money PIN on your handset to approve.
               </div>
@@ -670,17 +734,21 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               background: '#f8fafc',
               border: '1px solid #cbd5e1',
               borderRadius: '12px',
-              padding: '10px 16px',
+              padding: '10px 14px',
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '10px',
               color: '#0a2540',
               fontSize: '12px',
               fontWeight: 700,
-              marginBottom: '16px'
+              marginBottom: '16px',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
+              overflowWrap: 'anywhere'
             }}>
-              <RefreshCw size={15} className="v-spin" style={{ color: '#0284c7' }} />
-              <span>Listening for payment confirmation from your phone…</span>
+              <RefreshCw size={15} className="v-spin" style={{ color: '#0284c7', flexShrink: 0 }} />
+              <span style={{ minWidth: 0 }}>Listening for payment confirmation from your phone…</span>
             </div>
 
             {error && (
@@ -692,14 +760,18 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 borderRadius: '10px',
                 fontSize: '12px',
                 marginBottom: '16px',
-                textAlign: 'left'
+                textAlign: 'left',
+                boxSizing: 'border-box',
+                maxWidth: '100%',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word'
               }}>
                 {error}
               </div>
             )}
 
             {/* Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '340px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '340px', width: '100%', margin: '0 auto' }}>
               <button
                 type="button"
                 className="secondary-btn"
@@ -711,7 +783,10 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px'
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  width: '100%',
+                  boxSizing: 'border-box'
                 }}
                 onClick={handleCheckStatusNow}
                 disabled={busy}
@@ -722,7 +797,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               <button
                 type="button"
                 className="text-btn"
-                style={{ fontSize: '12px', color: '#64748b' }}
+                style={{ fontSize: '12px', color: '#64748b', overflowWrap: 'anywhere' }}
                 onClick={() => { setStep('select'); setBusy(false); setError(''); }}
                 disabled={busy}
               >
@@ -736,7 +811,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
             STEP 6: PAYMENT SUCCEEDS (PAID / ACTIVE)
            ======================================================== */}
         {step === 'success' && (
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'center', maxWidth: '100%', minWidth: 0 }}>
             <div style={{
               width: '64px',
               height: '64px',
@@ -751,10 +826,10 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               <CheckCircle2 size={36} />
             </div>
 
-            <h1 style={{ fontSize: '24px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>
+            <h1 style={{ fontSize: 'clamp(20px, 5.5vw, 24px)', color: '#061626', margin: '0 0 6px 0', fontWeight: 800, overflowWrap: 'anywhere' }}>
               Payment Successful ✓
             </h1>
-            <p style={{ color: '#15803d', fontSize: '15px', fontWeight: 700, margin: '0 0 16px 0' }}>
+            <p style={{ color: '#15803d', fontSize: '15px', fontWeight: 700, margin: '0 0 16px 0', overflowWrap: 'anywhere' }}>
               {formattedFee} paid • {modulesCount} {modulesCount === 1 ? 'module' : 'modules'} registered
             </p>
 
@@ -763,15 +838,19 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
               borderRadius: '12px',
-              padding: '14px 18px',
+              padding: '14px 16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: '20px'
+              flexWrap: 'wrap',
+              gap: '10px',
+              marginBottom: '20px',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
-              <div style={{ textAlign: 'left' }}>
+              <div style={{ textAlign: 'left', minWidth: 0, flex: '1 1 160px' }}>
                 <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Transaction ID</small>
-                <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', fontFamily: 'monospace', overflowWrap: 'anywhere', wordBreak: 'break-all' }}>
                   {confirmedData?.transactionId || confirmedData?.reference || paymentInfo?.reference || 'MOMO-CONFIRMED'}
                 </div>
               </div>
@@ -782,7 +861,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 fontWeight: 800,
                 padding: '4px 10px',
                 borderRadius: '99px',
-                textTransform: 'uppercase'
+                textTransform: 'uppercase',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}>
                 PAID / ACTIVE
               </span>
@@ -793,15 +874,18 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               background: '#061626',
               color: '#ffffff',
               borderRadius: '16px',
-              padding: '20px',
+              padding: 'clamp(16px, 4vw, 20px)',
               marginBottom: '20px',
               textAlign: 'left',
-              boxShadow: '0 10px 30px rgba(6, 22, 38, 0.2)'
+              boxShadow: '0 10px 30px rgba(6, 22, 38, 0.2)',
+              boxSizing: 'border-box',
+              maxWidth: '100%',
+              minWidth: 0
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.12)', paddingBottom: '10px' }}>
-                <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.12)', paddingBottom: '10px' }}>
+                <div style={{ minWidth: 0 }}>
                   <small style={{ color: '#93b3d4', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.6px', fontWeight: 700 }}>Your Student ID</small>
-                  <div style={{ fontSize: '17px', fontWeight: 800, color: '#ffffff' }}>{confirmedData?.studentId || applicant.studentId}</div>
+                  <div style={{ fontSize: '17px', fontWeight: 800, color: '#ffffff', overflowWrap: 'anywhere' }}>{confirmedData?.studentId || applicant.studentId}</div>
                 </div>
                 <span style={{
                   background: '#059669',
@@ -809,7 +893,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   fontSize: '11px',
                   fontWeight: 700,
                   padding: '3px 9px',
-                  borderRadius: '99px'
+                  borderRadius: '99px',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
                 }}>
                   Account Active
                 </span>
@@ -822,12 +908,16 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     borderRadius: '10px',
-                    padding: '10px 14px'
+                    padding: '10px 14px',
+                    boxSizing: 'border-box',
+                    maxWidth: '100%'
                   }}>
-                    <code style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '1px', color: '#38bdf8' }}>
+                    <code style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '1px', color: '#38bdf8', overflowWrap: 'anywhere', wordBreak: 'break-all', minWidth: 0 }}>
                       {confirmedData.temporaryPassword}
                     </code>
                     <button
@@ -844,7 +934,8 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '6px',
+                        flexShrink: 0
                       }}
                     >
                       {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -854,7 +945,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 </div>
               )}
 
-              <div style={{ fontSize: '11px', color: '#93b3d4' }}>
+              <div style={{ fontSize: '11px', color: '#93b3d4', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                 Credentials and official digital receipt dispatched to <strong>{confirmedData?.email || applicant.email}</strong>.
               </div>
             </div>
@@ -869,12 +960,14 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               textAlign: 'left',
               display: 'flex',
               alignItems: 'flex-start',
-              gap: '10px'
+              gap: '10px',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
               <BookOpen size={20} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <strong style={{ color: '#166534', fontSize: '13px' }}>Module Curriculum Activated</strong>
-                <p style={{ margin: '3px 0 0 0', color: '#15803d', fontSize: '12px', lineHeight: 1.45 }}>
+                <p style={{ margin: '3px 0 0 0', color: '#15803d', fontSize: '12px', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
                   Your {modulesCount} curriculum modules have been switched from PENDING PAYMENT to ACTIVE. You have full clearance to access class timetables, attendance, and coursework.
                 </p>
               </div>
@@ -885,7 +978,11 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               type="button"
               className="primary-btn full-btn"
               style={{
-                height: '48px',
+                minHeight: '48px',
+                height: 'auto',
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 fontSize: '15px',
                 fontWeight: 700,
                 background: '#0a2540',
@@ -893,6 +990,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexWrap: 'wrap',
                 gap: '8px'
               }}
               onClick={() => onPaymentCompleted?.(confirmedData)}

@@ -914,15 +914,15 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
 
     return (
       <main className="auth-screen">
-        <section className="auth-card wide" style={{ maxWidth: '680px', padding: '32px 28px' }}>
+        <section className="auth-card wide" style={{ maxWidth: '680px', width: '100%', minWidth: 0, boxSizing: 'border-box', padding: 'clamp(16px, 4.5vw, 32px) clamp(14px, 4vw, 28px)' }}>
           <Logo />
 
           {/* Header & Back Link */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
             <button
               type="button"
               className="back-link"
-              style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0 }}
               onClick={() => { resetState(); setScreen('register'); }}
               disabled={busy}
             >
@@ -932,8 +932,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           </div>
 
           <div className="auth-heading" style={{ marginBottom: '18px' }}>
-            <h1>Module Registration & Payment</h1>
-            <p>Select how many modules you want to pay for, then choose your modules below.</p>
+            <h1 style={{ overflowWrap: 'anywhere' }}>Module Registration & Payment</h1>
+            <p style={{ overflowWrap: 'anywhere' }}>Select how many modules you want to pay for, then choose your modules below.</p>
           </div>
 
           {/* Student Profile Summary Card */}
@@ -941,20 +941,22 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             background: '#f8fafc',
             border: '1px solid #e2e8f0',
             borderRadius: '14px',
-            padding: '14px 18px',
+            padding: 'clamp(12px, 3.5vw, 14px) clamp(12px, 4vw, 18px)',
             marginBottom: '22px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '10px'
+            gap: '10px',
+            boxSizing: 'border-box',
+            maxWidth: '100%'
           }}>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <small style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', fontWeight: 700 }}>Student Profile</small>
-              <div style={{ fontWeight: 800, color: '#061626', fontSize: '15px' }}>
+              <div style={{ fontWeight: 800, color: '#061626', fontSize: '15px', overflowWrap: 'anywhere' }}>
                 {form.fullName} <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 500 }}>({form.studentId})</span>
               </div>
-              <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600, marginTop: '2px' }}>
+              <div style={{ fontSize: '12px', color: '#0369a1', fontWeight: 600, marginTop: '2px', overflowWrap: 'anywhere' }}>
                 🏛️ {form.campus} • {currentDeptName}
               </div>
             </div>
@@ -992,24 +994,25 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             </div>
           </div>
 
-          <form onSubmit={completeStudentModuleSelection}>
+          <form onSubmit={completeStudentModuleSelection} style={{ width: '100%', minWidth: 0 }}>
             {/* ========================================================
                 STEP 1 — MODULE PAYMENT (HOW MANY MODULES?)
                ======================================================== */}
             <div style={{ marginBottom: '26px' }}>
               <div style={{ marginBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <span style={{
                     background: '#0284c7',
                     color: '#ffffff',
                     fontSize: '11px',
                     fontWeight: 800,
                     padding: '2px 8px',
-                    borderRadius: '99px'
+                    borderRadius: '99px',
+                    flexShrink: 0
                   }}>
                     Step 1
                   </span>
-                  <strong style={{ fontSize: '14.5px', color: '#0f172a' }}>
+                  <strong style={{ fontSize: '14.5px', color: '#0f172a', minWidth: 0, overflowWrap: 'anywhere' }}>
                     Select Number of Modules to Pay For
                   </strong>
                 </div>
@@ -1018,7 +1021,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
                 {quotaOptions.map((opt) => {
                   const isChecked = opt.type === 'dissertation'
                     ? isDissertation
@@ -1032,6 +1035,9 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
+                        gap: '8px',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
                         padding: '12px 14px',
                         borderRadius: '12px',
                         border: isChecked ? '2px solid #0284c7' : '1.5px solid #cbd5e1',
@@ -1041,7 +1047,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                         boxShadow: isChecked ? '0 3px 10px rgba(2, 132, 199, 0.12)' : 'none'
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                         <input
                           type="radio"
                           name="studentModuleQuotaRadio"
@@ -1056,11 +1062,11 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                             flexShrink: 0
                           }}
                         />
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '13px', color: isChecked ? '#0369a1' : '#1e293b' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '13px', color: isChecked ? '#0369a1' : '#1e293b', overflowWrap: 'anywhere' }}>
                             {opt.title}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px' }}>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '1px', overflowWrap: 'anywhere' }}>
                             {opt.desc}
                           </div>
                         </div>
@@ -1072,7 +1078,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                         background: isChecked ? '#e0f2fe' : '#f1f5f9',
                         padding: '4px 8px',
                         borderRadius: '8px',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
                       }}>
                         SLE {opt.fee}
                       </span>
@@ -1086,20 +1093,21 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                 STEP 2 — SHOW ACTUAL MODULES OFFERED (CHECKBOX PICKER)
                ======================================================== */}
             <div style={{ marginBottom: '22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <span style={{
                       background: '#0284c7',
                       color: '#ffffff',
                       fontSize: '11px',
                       fontWeight: 800,
                       padding: '2px 8px',
-                      borderRadius: '99px'
+                      borderRadius: '99px',
+                      flexShrink: 0
                     }}>
                       Step 2
                     </span>
-                    <strong style={{ fontSize: '14.5px', color: '#0f172a' }}>
+                    <strong style={{ fontSize: '14.5px', color: '#0f172a', overflowWrap: 'anywhere' }}>
                       {isDissertation ? 'Select Dissertation' : `Select ${targetQuota} ${targetQuota === 1 ? 'Module' : 'Modules'}`}
                     </strong>
                   </div>
@@ -1113,7 +1121,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                   color: (isDissertation || selectedCodes.length === targetQuota) ? '#15803d' : '#b45309',
                   background: (isDissertation || selectedCodes.length === targetQuota) ? '#dcfce7' : '#fef3c7',
                   padding: '3px 10px',
-                  borderRadius: '99px'
+                  borderRadius: '99px',
+                  flexShrink: 0
                 }}>
                   {isDissertation ? '1 Dissertation' : `${selectedCodes.length} of ${targetQuota} selected`}
                 </span>
@@ -1125,26 +1134,29 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                 </div>
               ) : isDissertation ? (
                 <div style={{
-                  padding: '16px 18px',
+                  padding: '14px 16px',
                   background: '#f0f9ff',
                   border: '1.5px solid #0284c7',
                   borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  boxSizing: 'border-box',
+                  maxWidth: '100%'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input type="checkbox" checked readOnly style={{ width: '18px', height: '18px', accentColor: '#0284c7' }} />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                    <input type="checkbox" checked readOnly style={{ width: '18px', height: '18px', accentColor: '#0284c7', flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a', overflowWrap: 'anywhere' }}>
                         Final Year Honours Dissertation & Defense
                       </div>
-                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                      <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px', overflowWrap: 'anywhere' }}>
                         Supervised Academic Research & Defense • Lecturer: Peter Saffa
                       </div>
                     </div>
                   </div>
-                  <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '13px' }}>
+                  <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '13px', flexShrink: 0, whiteSpace: 'nowrap' }}>
                     SLE 500
                   </span>
                 </div>
@@ -1163,6 +1175,9 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
+                          gap: '8px',
+                          minWidth: 0,
+                          boxSizing: 'border-box',
                           padding: '12px 14px',
                           borderRadius: '12px',
                           border: isChecked ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
@@ -1173,7 +1188,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                           boxShadow: isChecked ? '0 2px 8px rgba(2, 132, 199, 0.1)' : 'none'
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                           <input
                             type="checkbox"
                             checked={isChecked}
@@ -1187,16 +1202,16 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                               flexShrink: 0
                             }}
                           />
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                               <strong style={{ color: isChecked ? '#0284c7' : '#0f172a', fontSize: '13.5px' }}>
                                 {m.code}
                               </strong>
-                              <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: 600 }}>
+                              <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: 600, overflowWrap: 'anywhere' }}>
                                 {m.title}
                               </span>
                             </div>
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', overflowWrap: 'anywhere' }}>
                               Lecturer: {m.lecturerName || 'Department Lecturer'}
                             </div>
                           </div>
@@ -1208,7 +1223,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                           background: isChecked ? '#e0f2fe' : '#f1f5f9',
                           padding: '3px 8px',
                           borderRadius: '8px',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
                         }}>
                           SLE 100
                         </span>
@@ -1219,7 +1235,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               )}
             </div>
 
-            {error && <div className="error-box" style={{ marginBottom: '16px' }}>{error}</div>}
+            {error && <div className="error-box" style={{ marginBottom: '16px', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{error}</div>}
 
             {/* ========================================================
                 LIVE SELECTION & PAYMENT SUMMARY
@@ -1228,10 +1244,12 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               background: '#f8fafc',
               border: '1.5px solid #0284c7',
               borderRadius: '14px',
-              padding: '16px 18px',
-              marginBottom: '20px'
+              padding: 'clamp(12px, 3.5vw, 16px) clamp(12px, 4vw, 18px)',
+              marginBottom: '20px',
+              boxSizing: 'border-box',
+              maxWidth: '100%'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
                 <strong style={{ fontSize: '14px', color: '#0f172a' }}>
                   {isDissertation ? '1 Dissertation Selected' : `${selectedCodes.length} ${selectedCodes.length === 1 ? 'Module' : 'Modules'} Selected`}
                 </strong>
@@ -1241,7 +1259,8 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                   color: (isDissertation || selectedCodes.length === targetQuota) ? '#15803d' : '#b45309',
                   background: (isDissertation || selectedCodes.length === targetQuota) ? '#dcfce7' : '#fef3c7',
                   padding: '3px 9px',
-                  borderRadius: '99px'
+                  borderRadius: '99px',
+                  flexShrink: 0
                 }}>
                   {isDissertation || selectedCodes.length === targetQuota
                     ? 'Quota Ready ✓'
@@ -1251,9 +1270,9 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
                 {isDissertation ? (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#334155' }}>
-                    <span>✓ <strong>DISSERTATION</strong> — Honours Research Dissertation</span>
-                    <span style={{ fontWeight: 700, color: '#0f172a' }}>SLE 500</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155' }}>
+                    <span style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>✓ <strong>DISSERTATION</strong> — Honours Research Dissertation</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE 500</span>
                   </div>
                 ) : selectedModulesList.length === 0 ? (
                   <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
@@ -1261,9 +1280,9 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                   </div>
                 ) : (
                   selectedModulesList.map(sm => (
-                    <div key={sm.code} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#334155' }}>
-                      <span>✓ <strong style={{ color: '#0284c7' }}>{sm.code}</strong> — {sm.title}</span>
-                      <span style={{ fontWeight: 700, color: '#0f172a' }}>SLE 100</span>
+                    <div key={sm.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155' }}>
+                      <span style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>✓ <strong style={{ color: '#0284c7' }}>{sm.code}</strong> — {sm.title}</span>
+                      <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE 100</span>
                     </div>
                   ))
                 )}
@@ -1273,26 +1292,39 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
                 borderTop: '1px solid #e2e8f0',
                 paddingTop: '10px'
               }}>
                 <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>Total:</span>
-                <span style={{ fontWeight: 900, fontSize: '18px', color: '#0284c7' }}>
+                <span style={{ fontWeight: 900, fontSize: '18px', color: '#0284c7', overflowWrap: 'anywhere' }}>
                   SLE {isDissertation ? '500.00' : `${selectedCodes.length * 100}.00`}
                 </span>
               </div>
             </div>
 
-            <div className="security-note" style={{ marginBottom: '18px' }}>
-              <ShieldCheck size={18} />
-              <span>You will complete payment via Mobile Money (Orange Money / Afrimoney) on your phone in the next step.</span>
+            <div className="security-note" style={{ marginBottom: '18px', maxWidth: '100%', boxSizing: 'border-box' }}>
+              <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+              <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>You will complete payment via Mobile Money (Orange Money / Afrimoney) on your phone in the next step.</span>
             </div>
 
             <button
               type="submit"
               className="primary-btn full-btn"
               disabled={busy || (!isDissertation && selectedCodes.length !== targetQuota)}
-              style={{ height: '48px', fontSize: '15px', fontWeight: 700 }}
+              style={{
+                minHeight: '48px',
+                height: 'auto',
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                padding: '12px 16px',
+                fontSize: '15px',
+                fontWeight: 700,
+                flexWrap: 'wrap',
+                whiteSpace: 'normal'
+              }}
             >
               {busy
                 ? 'Preparing Payment…'
@@ -1315,11 +1347,11 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
 
     return (
       <main className="auth-screen">
-        <section className="auth-card wide" style={{ maxWidth: '640px', padding: '32px 28px' }}>
+        <section className="auth-card wide" style={{ maxWidth: '640px', width: '100%', minWidth: 0, boxSizing: 'border-box', padding: 'clamp(16px, 4.5vw, 32px) clamp(14px, 4vw, 28px)' }}>
           <Logo />
           
           {/* Header & Back Link */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
             <button
               type="button"
               className="back-link"

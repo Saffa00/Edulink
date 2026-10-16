@@ -31,6 +31,8 @@ const AdminOperationsV50 = lazy(() => import('./components/AdminOperationsV50'))
 const StudentDashboardV36 = lazy(() => import('./components/StudentDashboardV36'));
 const StudentGradeInbox = lazy(() => import('./components/StudentGradeInbox'));
 const PaymentGate = lazy(() => import('./components/PaymentGate'));
+const DissertationRegistrationModal = lazy(() => import('./components/DissertationRegistrationModal'));
+const DissertationWaitingApprovalScreen = lazy(() => import('./components/DissertationWaitingApprovalScreen'));
 import NotificationSubscribeButton from './components/NotificationSubscribeButton';
 import FirstLoginPushPrompt from './components/FirstLoginPushPrompt';
 import { getTimeBasedGreeting } from './utils/greeting';
@@ -41,7 +43,11 @@ import {
   getVerifiedRoleFromSupabase,
   getWeeklyTimetable,
   getCourseMaterials,
-  postMultiCampusMaterial
+  postMultiCampusMaterial,
+  getCurrentAcademicTerm,
+  getDerivedStudentTrack,
+  getStudentTermRegistration,
+  getStudentDissertation
 } from './services/academicMasterV41toV55.js';
 import './v39-attendance.css';
 import './v15-attendance.css';
@@ -1573,7 +1579,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
 
 
 
-  if (screen === 'student-type-select') {
+  if (false && screen === 'student-type-select') {
     return (
       <main className="auth-screen">
         <section className="auth-card wide" style={{ maxWidth: '680px' }}>
@@ -1845,11 +1851,10 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             className="back-link"
             onClick={() => {
               resetState();
-              if (role === 'student') setScreen('student-type-select');
-              else setScreen('login');
+              setScreen('login');
             }}
           >
-            {role === 'student' ? '← Back to Track Selection' : '← Back to login'}
+            ← Back to login
           </button>
 
           <div className="auth-heading">
@@ -2614,11 +2619,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               className="text-btn"
               onClick={() => {
                 resetState();
-                if (role === 'student') {
-                  setScreen('student-type-select');
-                } else {
-                  setScreen('register');
-                }
+                setScreen('register');
               }}
             >
               Create {role === 'lecturer' ? 'Lecturer' : 'Student'} Account
@@ -3005,7 +3006,7 @@ function Header({
   );
 }
 
-function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, onLogout, profile, unreadNotifsCount = 0, unreadMessagesCount = 0 }) {
+function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, onLogout, profile, unreadNotifsCount = 0, unreadMessagesCount = 0, derivedTrack = 'regular' }) {
   const displayName = profile?.full_name || (role === "lecturer" ? "Lecturer" : "Student");
   const displayId = profile?.student_id || profile?.lecturer_id || (role === "lecturer" ? "Lecturer Portal" : "Student Portal");
   const initials = displayName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || (role === "lecturer" ? "LT" : "ST");
@@ -3024,9 +3025,8 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
     ["settings","Profile & Settings",Settings]
   ];
 
-  const studentItems = [
+  const studentRegularItems = [
     ["home","Home",Home],
-    ["dissertation","Dissertation Workspace",FileText],
     ["modules","Module Registration",BookOpen],
     ["timetable","Timetable",Clock3],
     ["attendance","Attendance",CalendarCheck],
@@ -3038,6 +3038,16 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
     ["settings","Profile & Settings",Settings]
   ];
 
+  const studentDissertationItems = [
+    ["home","Home",Home],
+    ["dissertation","Dissertation Workspace",FileText],
+    ["messages","Messages",MessageSquare],
+    ["notifications","Notifications",Bell],
+    ["payments","Tuition & Fees",CreditCard],
+    ["settings","Profile & Settings",Settings]
+  ];
+
+  const studentItems = derivedTrack === 'dissertation' ? studentDissertationItems : studentRegularItems;
   const items = role === 'student' ? studentItems : lecturerItems;
 
   return (
@@ -3175,13 +3185,8 @@ function Sidebar({ role, page, setPage, open, setOpen, collapsed, setCollapsed, 
   );
 }
 
-function BottomNav({ page, setPage, role, profile, onNavigateSettings, unreadNotifsCount = 0, unreadMessagesCount = 0 }) {
-  const isDissertationStudent = role === 'student' && (
-    profile?.registration_type === 'dissertation' ||
-    profile?.student_type === 'dissertation' ||
-    profile?.is_dissertation === true ||
-    String(profile?.registration_type || '').toLowerCase().includes('dissert')
-  );
+function BottomNav({ page, setPage, role, profile, onNavigateSettings, unreadNotifsCount = 0, unreadMessagesCount = 0, derivedTrack = 'regular' }) {
+  const isDissertationStudent = role === 'student' && derivedTrack === 'dissertation';
 
   const msgBadge = unreadMessagesCount > 0 ? (unreadMessagesCount > 99 ? '99+' : unreadMessagesCount) : null;
 
@@ -3194,11 +3199,10 @@ function BottomNav({ page, setPage, role, profile, onNavigateSettings, unreadNot
     ["settings", "Profile", User]
   ];
 
-  // Dissertation student: Home | Dissertation | Grades | Messages | Profile
+  // Dissertation student: Home | Dissertation | Messages | Profile (4 clean spaced dock buttons per Institutional Rules)
   const dissertationStudentItems = [
     ["home", "Home", Home],
     ["dissertation", "Dissertation", FileText],
-    ["grades", "Grades", Award],
     ["messages", "Messages", MessageSquare, msgBadge],
     ["settings", "Profile", User]
   ];
@@ -3984,6 +3988,43 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       return 'all';
     }
   });
+
+  // Institutional Rules: Academic Term & Dissertation Governance State
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [termRegistration, setTermRegistration] = useState(null);
+  const [studentDissertation, setStudentDissertation] = useState(null);
+  const [showDissertationRegModal, setShowDissertationRegModal] = useState(false);
+  const [termLoading, setTermLoading] = useState(role === 'student');
+
+  const reloadTermRegistration = React.useCallback(async () => {
+    if (role !== 'student') return;
+    try {
+      const [term, dissData] = await Promise.all([
+        getCurrentAcademicTerm(),
+        getStudentDissertation().catch(() => null)
+      ]);
+      setCurrentTerm(term);
+      setStudentDissertation(dissData?.dissertation || null);
+      if (profile?.id && term?.id) {
+        const reg = await getStudentTermRegistration(profile.id, term.id);
+        setTermRegistration(reg);
+      }
+    } catch (e) {
+      console.warn('Term registration fetch note:', e);
+    } finally {
+      setTermLoading(false);
+    }
+  }, [role, profile?.id]);
+
+  React.useEffect(() => {
+    reloadTermRegistration();
+  }, [reloadTermRegistration]);
+
+  // Derived track: "dissertation" if level = 4 and current term's semester = 2, otherwise "regular"
+  const derivedTrack = role === 'student'
+    ? getDerivedStudentTrack({ level: profile?.level, semester: currentTerm?.semester, currentTerm })
+    : 'regular';
+
   const pageRef = React.useRef(page);
   const roleBasePath = role === 'lecturer' ? '/lecturer' : '/student';
 
@@ -3999,10 +4040,28 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
     pageRef.current = page;
   }, [page]);
 
-  // Role-guarded page navigation: redirects students to /student and lecturers to /lecturer
+  // Role-guarded page navigation: enforces cohort and track restrictions
   const setPage = React.useCallback((nextPage) => {
     const normalized = String(nextPage || 'home').trim().toLowerCase();
     if (role === 'student') {
+      // Rule: Years 1-3 and Year 4 Semester 1 have NO access to anything dissertation-related
+      if (derivedTrack === 'regular' && normalized === 'dissertation') {
+        rawSetPage('home');
+        try {
+          window.history.replaceState({ edulinkAuth: true, role: 'student', page: 'home' }, '', '/student');
+        } catch {}
+        return;
+      }
+      // Rule: Year 4 Semester 2 is dissertation-only (NO taught modules, timetable, or attendance)
+      if (derivedTrack === 'dissertation' && !termRegistration?.allow_modules_override) {
+        if (['modules', 'timetable', 'attendance', 'assignments'].includes(normalized)) {
+          rawSetPage('home');
+          try {
+            window.history.replaceState({ edulinkAuth: true, role: 'student', page: 'home' }, '', '/student');
+          } catch {}
+          return;
+        }
+      }
       if (LECTURER_ONLY_PAGES.has(normalized) || !STUDENT_ALLOWED_PAGES.has(normalized)) {
         rawSetPage('home');
         try {
@@ -4024,7 +4083,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       window.history.replaceState({ edulinkAuth: true, role, page: normalized }, '', roleBasePath);
       window.history.pushState({ edulinkAuth: true, role, page: normalized }, '', roleBasePath);
     } catch {}
-  }, [role, roleBasePath]);
+  }, [role, roleBasePath, derivedTrack, termRegistration]);
 
   // Lock browser history & intercept phone hardware/browser Back button + direct URL entry after entering any account
   React.useEffect(() => {
@@ -4148,15 +4207,44 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
     setPage("settings");
   };
 
-  // Redirect any unauthorized page state back to home immediately
-  const activePage = (role === 'student' && (LECTURER_ONLY_PAGES.has(page) || !STUDENT_ALLOWED_PAGES.has(page)))
+  // Redirect any unauthorized page state back to home immediately based on role and derived track
+  const activePage = (role === 'student' && derivedTrack === 'regular' && page === 'dissertation')
     ? 'home'
-    : (role === 'lecturer' && !LECTURER_ALLOWED_PAGES.has(page))
+    : (role === 'student' && derivedTrack === 'dissertation' && !termRegistration?.allow_modules_override && ['modules', 'timetable', 'attendance', 'assignments'].includes(page))
       ? 'home'
-      : page;
+      : (role === 'student' && (LECTURER_ONLY_PAGES.has(page) || !STUDENT_ALLOWED_PAGES.has(page)))
+        ? 'home'
+        : (role === 'lecturer' && !LECTURER_ALLOWED_PAGES.has(page))
+          ? 'home'
+          : page;
+
+  // Institutional Rule: Registered but not approved/paid dissertation candidate sees Waiting Screen
+  if (role === 'student' && derivedTrack === 'dissertation' && termRegistration?.status === 'pending') {
+    return (
+      <Suspense fallback={<main className="auth-screen"><section className="auth-card"><div className="loading-panel">Checking approval status…</div></section></main>}>
+        <DissertationWaitingApprovalScreen
+          student={profile}
+          termRegistration={termRegistration}
+          dissertation={studentDissertation}
+          onRefresh={reloadTermRegistration}
+          onLogout={onLogout}
+        />
+      </Suspense>
+    );
+  }
 
   let content;
-  if (activePage==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>;
+  if (activePage==="home") content = role === "student" ? (
+    <StudentDashboardV36
+      onNavigate={setPage}
+      profile={profile}
+      derivedTrack={derivedTrack}
+      termRegistration={termRegistration}
+      onOpenDissertationRegistration={() => setShowDissertationRegModal(true)}
+    />
+  ) : (
+    <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>
+  );
   else if (activePage==="modules") content = role==="student" ? <ModuleRegistrationV47/> : <ModuleManagement setPage={setPage} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} />;
   else if (activePage==="timetable") content = <TimetableManagementV43 role={role} scopedModule={scopedModule} campusFilter={selectedCampus}/>;
   else if (activePage==="attendance") content = <Attendance role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
@@ -4165,7 +4253,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   else if (activePage==="dissertation") content = <DissertationManagementV42 role={role} onNavigate={setPage}/>;
   else if (activePage==="messages") content = <MessagingCenterV44 role={role} profile={profile} onNavigate={setPage}/>;
   else if (activePage==="notifications") content = <NotificationsCenterV45 onNavigate={setPage}/>;
-  else if (activePage==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <StudentDashboardV36 onNavigate={setPage} profile={profile}/>;
+  else if (activePage==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <StudentDashboardV36 onNavigate={setPage} profile={profile} derivedTrack={derivedTrack} termRegistration={termRegistration} onOpenDissertationRegistration={() => setShowDissertationRegModal(true)}/>;
   else if (activePage==="payments") content = role==="student" ? <PaymentCenterV46/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>;
   else if (activePage==="settings" || activePage==="profile") content = (
     <ProfileSecurityCenterV49
@@ -4176,8 +4264,18 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       onLogout={onLogout}
     />
   );
-  else if (activePage==="admin") content = role==="lecturer" ? <AdminOperationsV50/> : <StudentDashboardV36 onNavigate={setPage} profile={profile}/>;
-  else content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>;
+  else if (activePage==="admin") content = role==="lecturer" ? <AdminOperationsV50/> : <StudentDashboardV36 onNavigate={setPage} profile={profile} derivedTrack={derivedTrack} termRegistration={termRegistration} onOpenDissertationRegistration={() => setShowDissertationRegModal(true)}/>;
+  else content = role === "student" ? (
+    <StudentDashboardV36
+      onNavigate={setPage}
+      profile={profile}
+      derivedTrack={derivedTrack}
+      termRegistration={termRegistration}
+      onOpenDissertationRegistration={() => setShowDissertationRegModal(true)}
+    />
+  ) : (
+    <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>
+  );
 
   return (
     <div className={`app-shell ${activePage === 'home' ? 'home-screen' : ''} ${role === 'student' ? 'student-portal-shell' : 'lecturer-portal-shell'}`}>
@@ -4203,6 +4301,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
         profile={profile}
         unreadNotifsCount={unreadNotifsCount}
         unreadMessagesCount={unreadMessagesCount}
+        derivedTrack={derivedTrack}
       />
       <div className={`main ${collapsed ? 'collapsed' : ''}`}>
         <Header
@@ -4223,6 +4322,20 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
         />
         <main className="app-main-content">
           <FirstLoginPushPrompt userId={profile?.auth_user_id || profile?.user_id || profile?.id} />
+          {showDissertationRegModal && (
+            <Suspense fallback={null}>
+              <DissertationRegistrationModal
+                student={profile}
+                currentTerm={currentTerm}
+                isOpen={showDissertationRegModal}
+                onClose={() => setShowDissertationRegModal(false)}
+                onRegistered={async () => {
+                  setShowDissertationRegModal(false);
+                  await reloadTermRegistration();
+                }}
+              />
+            </Suspense>
+          )}
           <ErrorBoundary key={activePage}>
             <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
               {content}
@@ -4237,6 +4350,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           onNavigateSettings={navigateToSettings}
           unreadNotifsCount={unreadNotifsCount}
           unreadMessagesCount={unreadMessagesCount}
+          derivedTrack={derivedTrack}
         />
       </div>
     </div>

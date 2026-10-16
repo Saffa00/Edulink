@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { getTimeBasedGreeting } from '../utils/greeting';
 
-export default function StudentDashboardV36({ onNavigate, profile }) {
+export default function StudentDashboardV36({ onNavigate, profile, derivedTrack = 'regular', termRegistration = null, onOpenDissertationRegistration }) {
   const [data, setData] = useState(() => {
     if (profile) {
       return {
@@ -106,99 +106,214 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
         </div>
       </div>
 
-      {/* Dissertation Research Banner (for Dissertation Students) */}
-      {(student.registration_type === 'dissertation' || profile?.registration_type === 'dissertation' || data?.dissertation) && (
+      {/* CASE A: Year 4 Semester 2 — Unregistered CTA Banner */}
+      {derivedTrack === 'dissertation' && !termRegistration && (
         <section
           className="panel"
           style={{
             margin: '0 0 20px 0',
-            background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)',
-            border: '1px solid #bfdbfe',
-            padding: '20px 24px',
-            borderRadius: '12px'
+            background: 'linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%)',
+            border: '2px solid #38bdf8',
+            padding: '24px',
+            borderRadius: '16px',
+            boxShadow: '0 8px 24px rgba(2, 132, 199, 0.08)'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div style={{ flex: 1, minWidth: '260px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ background: '#2563eb', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
-                  {data?.dissertation?.status ? data.dissertation.status.replace('_', ' ') : 'RESEARCH STUDENT'}
-                </span>
-                <span style={{ fontSize: '0.85rem', color: '#1e40af', fontWeight: 600 }}>
-                  Stage: Chapter {data?.dissertation?.current_chapter || 1} of 5
-                </span>
-              </div>
-
-              <h2 style={{ fontSize: '1.25rem', margin: '0 0 6px', color: '#0f172a' }}>
-                {data?.dissertation?.title || 'Academic Dissertation / Research Thesis'}
+              <span style={{
+                background: '#0284c7',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em'
+              }}>
+                Final Year • Semester 2
+              </span>
+              <h2 style={{ fontSize: '1.35rem', margin: '10px 0 6px', color: '#0f172a', fontWeight: 800 }}>
+                Register for Research Dissertation
               </h2>
-
-              <p style={{ margin: '0 0 12px', fontSize: '0.9rem', color: '#475569' }}>
-                Supervisor: <b>{data?.dissertation?.lecturers?.full_name || 'Department Assigned'}</b>
+              <p style={{ margin: '0 0 12px', fontSize: '0.9rem', color: '#475569', lineHeight: 1.55 }}>
+                Final Year Semester 2 is dissertation-only. There are no taught course modules, timetables, or attendance check-ins. Submit your research topic proposal and complete your <strong>SLE 500</strong> flat registration fee.
               </p>
-
-              {/* Progress bar */}
-              <div style={{ width: '100%', maxWidth: '360px', height: '8px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', marginBottom: '6px' }}>
-                <div
-                  style={{
-                    width: `${data?.dissertation?.progress_percentage || ((data?.dissertation?.current_chapter || 1) * 20)}%`,
-                    height: '100%',
-                    background: '#2563eb',
-                    borderRadius: '999px'
-                  }}
-                />
-              </div>
-              <small style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                Overall Thesis Progress: {data?.dissertation?.progress_percentage || ((data?.dissertation?.current_chapter || 1) * 20)}%
-              </small>
             </div>
-
-            <div style={{ alignSelf: 'center' }}>
-              <button
-                className="primary-btn"
-                onClick={() => onNavigate?.('dissertation')}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px' }}
-              >
-                <FileText size={16} /> Open Dissertation Workspace <ArrowRight size={15} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={() => onOpenDissertationRegistration?.()}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 22px',
+                fontSize: '14px',
+                fontWeight: 700,
+                borderRadius: '10px'
+              }}
+            >
+              <FileText size={17} /> Register for Dissertation →
+            </button>
           </div>
         </section>
       )}
 
-      {/* Primary Key Stats Grid */}
-      <div className="stats-grid">
-        <div className="stat-card" onClick={() => onNavigate?.('modules')} style={{ cursor: 'pointer' }}>
-          <div className="stat-icon"><BookOpen size={21} /></div>
-          <span>Enrolled Modules</span>
-          <strong>{modules.length}</strong>
-          <small>{modules.length ? 'Click to view modules' : 'Click to register modules'}</small>
-        </div>
+      {/* CASE B: Year 4 Semester 2 — Approved Dissertation Candidate Home */}
+      {derivedTrack === 'dissertation' && termRegistration?.status === 'approved' && (
+        <div style={{ marginBottom: '24px' }}>
+          {/* Main Dissertation Progress Card */}
+          <section
+            className="panel"
+            style={{
+              margin: '0 0 20px 0',
+              background: '#ffffff',
+              border: '1.5px solid #e2e8f0',
+              padding: '24px',
+              borderRadius: '16px',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{
+                    background: '#16a34a',
+                    color: '#fff',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {data?.dissertation?.status === 'approved' ? 'DEFENSE READY' : 'DISSERTATION APPROVED'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#0284c7', fontWeight: 700 }}>
+                    Stage: Chapter {data?.dissertation?.current_chapter || 1} of 5
+                  </span>
+                </div>
+                <h2 style={{ fontSize: '1.35rem', margin: '0 0 8px', color: '#0f172a', fontWeight: 800 }}>
+                  {data?.dissertation?.title || 'Academic Research Dissertation'}
+                </h2>
+                <p style={{ margin: 0, fontSize: '0.92rem', color: '#475569' }}>
+                  Supervisor:{' '}
+                  <strong style={{ color: data?.dissertation?.lecturers?.full_name ? '#0f172a' : '#b45309' }}>
+                    {data?.dissertation?.lecturers?.full_name || 'Supervisor not assigned yet'}
+                  </strong>
+                </p>
+              </div>
 
-        <div className="stat-card" onClick={() => onNavigate?.('attendance')} style={{ cursor: 'pointer' }}>
-          <div className="stat-icon"><CalendarCheck size={21} /></div>
-          <span>Attendance Rate</span>
-          <strong>{attendancePct}%</strong>
-          <small>{presentCount} of {attendance.length || 0} classes recorded</small>
-        </div>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => onNavigate?.('dissertation')}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 18px', fontWeight: 700 }}
+              >
+                <FileText size={16} /> Open Dissertation Workspace <ArrowRight size={15} />
+              </button>
+            </div>
 
-        <div className="stat-card" onClick={() => onNavigate?.('assignments')} style={{ cursor: 'pointer' }}>
-          <div className="stat-icon"><ClipboardList size={21} /></div>
-          <span>Assignments</span>
-          <strong>{assignments.length}</strong>
-          <small>{assignments.length ? 'Pending submissions' : 'All caught up'}</small>
-        </div>
+            {/* Chapter 1 to 5 Visual Tracker */}
+            <div style={{ marginBottom: '20px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '10px' }}>
+                Chapter Progression Tracker
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                {[1, 2, 3, 4, 5].map((ch) => {
+                  const currentCh = data?.dissertation?.current_chapter || 1;
+                  const isCompleted = ch < currentCh || (ch === 5 && data?.dissertation?.status === 'approved');
+                  const isCurrent = ch === currentCh && data?.dissertation?.status !== 'approved';
+                  return (
+                    <div
+                      key={ch}
+                      style={{
+                        padding: '10px 8px',
+                        borderRadius: '10px',
+                        textAlign: 'center',
+                        background: isCompleted ? '#ecfdf5' : isCurrent ? '#eff6ff' : '#f8fafc',
+                        border: `1.5px solid ${isCompleted ? '#a7f3d0' : isCurrent ? '#38bdf8' : '#e2e8f0'}`,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: isCompleted ? '#059669' : isCurrent ? '#0284c7' : '#94a3b8' }}>
+                        {isCompleted ? '✓ CH ' + ch : 'CH ' + ch}
+                      </div>
+                      <span style={{ fontSize: '10px', color: isCompleted ? '#065f46' : isCurrent ? '#0369a1' : '#64748b', display: 'block', marginTop: '2px' }}>
+                        {isCompleted ? 'Approved' : isCurrent ? 'Drafting' : 'Upcoming'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-        <div className="stat-card" onClick={() => onNavigate?.('grades')} style={{ cursor: 'pointer' }}>
-          <div className="stat-icon"><Award size={21} /></div>
-          <span>Published Results</span>
-          <strong>{grades.length}</strong>
-          <small>{grades.length ? 'Grades available' : 'Awaiting publication'}</small>
-        </div>
-      </div>
+            {/* Overall Progress Bar & Defense Date */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden', marginBottom: '6px' }}>
+                  <div
+                    style={{
+                      width: `${data?.dissertation?.progress_percentage || ((data?.dissertation?.current_chapter || 1) * 20)}%`,
+                      height: '100%',
+                      background: '#0284c7',
+                      borderRadius: '999px'
+                    }}
+                  />
+                </div>
+                <small style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                  Overall Thesis Completion: {data?.dissertation?.progress_percentage || ((data?.dissertation?.current_chapter || 1) * 20)}%
+                </small>
+              </div>
 
-      {/* Main Content Grid 1: Modules and Upcoming Deadlines */}
-      <div className="content-grid">
+              <div style={{ fontSize: '12px', color: '#334155', background: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <strong>Defense Date:</strong>{' '}
+                {data?.dissertation?.defense_date
+                  ? new Date(data.dissertation.defense_date).toLocaleDateString()
+                  : 'Scheduled upon Chapter 5 completion'}
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* CASE C: Regular Students (Years 1-3, and Year 4 Semester 1) — Normal Stats Grid */}
+      {derivedTrack !== 'dissertation' && (
+        <div className="stats-grid">
+          <div className="stat-card" onClick={() => onNavigate?.('modules')} style={{ cursor: 'pointer' }}>
+            <div className="stat-icon"><BookOpen size={21} /></div>
+            <span>Enrolled Modules</span>
+            <strong>{modules.length}</strong>
+            <small>{modules.length ? 'Click to view modules' : 'Click to register modules'}</small>
+          </div>
+
+          <div className="stat-card" onClick={() => onNavigate?.('attendance')} style={{ cursor: 'pointer' }}>
+            <div className="stat-icon"><CalendarCheck size={21} /></div>
+            <span>Attendance Rate</span>
+            <strong>{attendancePct}%</strong>
+            <small>{presentCount} of {attendance.length || 0} classes recorded</small>
+          </div>
+
+          <div className="stat-card" onClick={() => onNavigate?.('assignments')} style={{ cursor: 'pointer' }}>
+            <div className="stat-icon"><ClipboardList size={21} /></div>
+            <span>Assignments</span>
+            <strong>{assignments.length}</strong>
+            <small>{assignments.length ? 'Pending submissions' : 'All caught up'}</small>
+          </div>
+
+          <div className="stat-card" onClick={() => onNavigate?.('grades')} style={{ cursor: 'pointer' }}>
+            <div className="stat-icon"><Award size={21} /></div>
+            <span>Published Results</span>
+            <strong>{grades.length}</strong>
+            <small>{grades.length ? 'Grades available' : 'Awaiting publication'}</small>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Grids for Regular Students (Hidden for Year 4 Semester 2 dissertation students) */}
+      {derivedTrack !== 'dissertation' && (
+        <>
+        <div className="content-grid">
         {/* Enrolled Modules Panel */}
         <section className="panel">
           <div className="panel-head">
@@ -346,6 +461,8 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
           )}
         </section>
       </div>
+        </>
+      )}
 
     </div>
   );

@@ -49,6 +49,7 @@ export default function PaymentCenterV46() {
 
   const s = data?.student;
   const isActive = s?.account_status === 'active';
+  const isDissertation = String(s?.level) === '4' && (String(s?.semester).includes('2') || String(s?.semester).toLowerCase().includes('second'));
 
   return (
     <div className="v-master-wrap">
@@ -73,11 +74,11 @@ export default function PaymentCenterV46() {
         {!isActive && (
           <div className="v-payment-action-box">
             <div className="v-fee-detail">
-              <span>Semester Registration Fee:</span>
-              <strong>SLE 100.00</strong>
+              <span>{isDissertation ? 'Final Year Dissertation Fee (Flat):' : 'Semester Course Registration Fee:'}</span>
+              <strong>{isDissertation ? 'SLE 500.00' : 'SLE 100.00'}</strong>
             </div>
-            <button className="v-btn primary" onClick={() => handlePay('normal')} disabled={busy}>
-              <CreditCard size={16} /> {busy ? 'Connecting to Monime…' : 'Pay SLE 100 via Monime'}
+            <button className="v-btn primary" onClick={() => handlePay(isDissertation ? 'dissertation' : 'normal')} disabled={busy}>
+              <CreditCard size={16} /> {busy ? 'Connecting to Monime…' : `Pay ${isDissertation ? 'SLE 500' : 'SLE 100'} via Monime`}
             </button>
           </div>
         )}

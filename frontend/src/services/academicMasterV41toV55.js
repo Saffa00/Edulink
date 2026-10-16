@@ -670,6 +670,248 @@ export async function reviewDissertationVersion({ versionId, dissertationId, sta
   return ver;
 }
 
+// ============================================================================
+// Academic Terms & Dissertation Governance (Institutional Rules)
+// ============================================================================
+
+export function getDerivedStudentTrack({ level, semester, currentTerm }) {
+  const lvl = parseInt(String(level || 1).replace(/\D/g, ''), 10) || 1;
+  const sem = currentTerm?.semester ?? (String(semester || '').includes('2') || String(semester || '').toLowerCase().includes('second') ? 2 : 1);
+  return (lvl === 4 && sem === 2) ? 'dissertation' : 'regular';
+}
+
+export async function getCurrentAcademicTerm() {
+  try {
+    const { data, error } = await supabase
+      .from('academic_terms')
+      .select('*')
+      .eq('is_current', true)
+      .maybeSingle();
+
+    if (error || !data) {
+      return {
+        id: 'term-current-fallback',
+        academic_year: '2026/2027',
+        semester: 1,
+        starts_on: '2026-09-01',
+        ends_on: '2027-01-31',
+        is_current: true,
+        dissertation_reg_open: false
+      };
+    }
+    return data;
+  } catch {
+    return {
+      id: 'term-current-fallback',
+      academic_year: '2026/2027',
+      semester: 1,
+      starts_on: '2026-09-01',
+      ends_on: '2027-01-31',
+      is_current: true,
+      dissertation_reg_open: false
+    };
+  }
+}
+
+export async function getAcademicTerms() {
+  try {
+    const { data, error } = await supabase
+      .from('academic_terms')
+      .select('*')
+      .order('starts_on', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.warn('Academic terms fetch warning:', err);
+    return [
+      { id: '1', academic_year: '2026/2027', semester: 1, is_current: true, dissertation_reg_open: false },
+      { id: '2', academic_year: '2026/2027', semester: 2, is_current: false, dissertation_reg_open: true }
+    ];
+  }
+}
+
+export async function setCurrentAcademicTerm(termId) {
+  await assertNotStudentAccount();
+  const { data, error } = await supabase.rpc('set_current_academic_term', { p_term_id: termId });
+  if (error) {
+    await supabase.from('academic_terms').update({ is_current: false }).neq('id', termId);
+    await supabase.from('academic_terms').update({ is_current: true }).eq('id', termId);
+  }
+  return true;
+}
+
+export async function setDissertationRegOpen(termId, isOpen) {
+  await assertNotStudentAccount();
+  const { data, error } = await supabase
+    .from('academic_terms')
+    .update({ dissertation_reg_open: Boolean(isOpen) })
+    .eq('id', termId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getStudentTermRegistration(studentId, termId) {
+  if (!studentId || !termId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('student_term_registrations')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('term_id', termId)
+      .maybeSingle();
+    if (error) return null;
+    return data || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function submitDissertationRegistration({ topic, requestedSupervisorId = null, monimeReference = null }) {
+  const { data, error } = await supabase.rpc('register_dissertation_term', {
+    p_topic: topic.trim(),
+    p_requested_supervisor_id: requestedSupervisorId || null,
+    p_monime_reference: monimeReference || null
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getAdminDissertationRegistrations() {
+  await assertNotStudentAccount();
+  const { data, error } = await supabase
+    .from('student_term_registrations')
+    .select(`
+      student_id, term_id, status, payment_status, allow_modules_override, created_at, updated_at,
+      students(id, student_id, full_name, email, level, programme, phone),
+      academic_terms(id, academic_year, semester)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Admin term registrations notice:', error.message);
+    return [];
+  }
+  return data || [];
+}
+
+export async function adminApproveDissertationRegistration({ studentId, termId, supervisorId = null }) {
+  await assertNotStudentAccount();
+  const { error } = await supabase.rpc('admin_approve_dissertation_registration', {
+    p_student_id: studentId,
+    p_term_id: termId,
+    p_supervisor_id: supervisorId || null
+  });
+  if (error) {
+    await supabase
+      .from('student_term_registrations')
+      .update({ status: 'approved', updated_at: new Date().toISOString() })
+      .eq('student_id', studentId)
+      .eq('term_id', termId);
+
+    if (supervisorId) {
+      await supabase
+        .from('dissertations')
+        .update({ supervisor_id: supervisorId, status: 'chapter_review', updated_at: new Date().toISOString() })
+        .eq('student_id', studentId);
+    }
+  }
+  return true;
+}
+
+export async function adminRejectDissertationRegistration({ studentId, termId, reason = '' }) {
+  await assertNotStudentAccount();
+  const { error } = await supabase
+    .from('student_term_registrations')
+    .update({ status: 'rejected', updated_at: new Date().toISOString() })
+    .eq('student_id', studentId)
+    .eq('term_id', termId);
+  if (error) throw error;
+  return true;
+}
+
+export async function adminAssignDissertationSupervisor({ dissertationId, supervisorId }) {
+  await assertNotStudentAccount();
+  const { error } = await supabase.rpc('admin_assign_dissertation_supervisor', {
+    p_dissertation_id: dissertationId,
+    p_supervisor_id: supervisorId
+  });
+  if (error) {
+    await supabase
+      .from('dissertations')
+      .update({ supervisor_id: supervisorId, updated_at: new Date().toISOString() })
+      .eq('id', dissertationId);
+  }
+  return true;
+}
+
+export async function adminBulkPromoteStudentLevels() {
+  await assertNotStudentAccount();
+  const { data, error } = await supabase.rpc('admin_bulk_promote_student_levels');
+  if (error) throw error;
+  return data;
+}
+
+export async function adminToggleModulesOverride({ studentId, termId, allowOverride }) {
+  await assertNotStudentAccount();
+  const { error } = await supabase
+    .from('student_term_registrations')
+    .update({
+      allow_modules_override: Boolean(allowOverride),
+      updated_at: new Date().toISOString()
+    })
+    .eq('student_id', studentId)
+    .eq('term_id', termId);
+  if (error) throw error;
+  return true;
+}
+
+export async function adminUpdateStudentLevel(studentId, level) {
+  await assertNotStudentAccount();
+  const lvl = parseInt(level, 10);
+  const { error } = await supabase
+    .from('students')
+    .update({ level: String(lvl), level_num: lvl })
+    .eq('id', studentId);
+  if (error) throw error;
+
+  await supabase
+    .from('profiles')
+    .update({ level: lvl })
+    .eq('student_id', studentId);
+  return true;
+}
+
+export async function scheduleDissertationDefense({ dissertationId, defenseDate, defenseStatus = 'scheduled' }) {
+  await assertNotStudentAccount();
+  const { data, error } = await supabase
+    .from('dissertations')
+    .update({
+      defense_date: defenseDate,
+      defense_status: defenseStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', dissertationId)
+    .select('*, students(auth_user_id, full_name)')
+    .single();
+  if (error) throw error;
+
+  if (data?.students?.auth_user_id) {
+    try {
+      await supabase.from('notifications').insert({
+        recipient_user_id: data.students.auth_user_id,
+        title: 'Dissertation Defense Scheduled',
+        body: `Your final thesis defense date has been scheduled for ${new Date(defenseDate).toLocaleDateString()}.`,
+        category: 'dissertation'
+      });
+    } catch {}
+  }
+  return data;
+}
+
+
 
 // ============================================================================
 // V43: Timetable & Schedule Management

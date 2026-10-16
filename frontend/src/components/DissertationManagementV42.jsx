@@ -68,12 +68,9 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
           setSelectedChapter(`Chapter ${data.dissertation.current_chapter}`);
         }
       } else {
-        const [assigned, unassigned] = await Promise.all([
-          getSupervisedDissertations(),
-          getUnassignedDissertations()
-        ]);
+        const assigned = await getSupervisedDissertations();
         setSupervisedList(assigned || []);
-        setUnassignedList(unassigned || []);
+        setUnassignedList([]);
       }
     } catch (err) {
       setError(err.message || 'Failed to load dissertation information.');
@@ -519,49 +516,14 @@ export default function DissertationManagementV42({ role = 'student', onNavigate
           <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Approved for Defense</span>
         </div>
         <div className="v-card" style={{ padding: '16px', textAlign: 'center' }}>
-          <strong style={{ fontSize: '1.6rem', color: '#2563eb', display: 'block' }}>{unassignedList.length}</strong>
-          <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Unassigned Topics</span>
+          <strong style={{ fontSize: '1.6rem', color: '#0284c7', display: 'block' }}>
+            {supervisedList.filter(s => s.defense_date).length}
+          </strong>
+          <span style={{ color: '#64748b', fontSize: '0.85rem' }}>Defenses Scheduled</span>
         </div>
       </div>
 
-      {/* Tab Switcher */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '2px solid #e2e8f0', marginBottom: '20px' }}>
-        <button
-          className={`v-tab-btn ${lecturerTab === 'assigned' ? 'active' : ''}`}
-          onClick={() => setLecturerTab('assigned')}
-          style={{
-            padding: '10px 18px',
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            color: lecturerTab === 'assigned' ? '#2563eb' : '#64748b',
-            borderBottom: lecturerTab === 'assigned' ? '2px solid #2563eb' : 'none',
-            marginBottom: '-2px'
-          }}
-        >
-          My Supervisees ({supervisedList.length})
-        </button>
-
-        <button
-          className={`v-tab-btn ${lecturerTab === 'unassigned' ? 'active' : ''}`}
-          onClick={() => setLecturerTab('unassigned')}
-          style={{
-            padding: '10px 18px',
-            border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            color: lecturerTab === 'unassigned' ? '#2563eb' : '#64748b',
-            borderBottom: lecturerTab === 'unassigned' ? '2px solid #2563eb' : 'none',
-            marginBottom: '-2px'
-          }}
-        >
-          Unassigned Research Topics ({unassignedList.length})
-        </button>
-      </div>
+      {/* Supervisees Area */}
 
       {/* ASSIGNED SUPERVISEES TAB */}
       {lecturerTab === 'assigned' && (

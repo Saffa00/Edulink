@@ -277,37 +277,234 @@ export default function StudentDashboardV36({ onNavigate, profile, derivedTrack 
         </div>
       )}
 
-      {/* CASE C: Regular Students (Years 1-3, and Year 4 Semester 1) — Normal Stats Grid */}
+      {/* CASE C: Regular Students (Years 1-3, and Year 4 Semester 1) */}
       {derivedTrack !== 'dissertation' && (
-        <div className="stats-grid">
-          <div className="stat-card" onClick={() => onNavigate?.('modules')} style={{ cursor: 'pointer' }}>
-            <div className="stat-icon"><BookOpen size={21} /></div>
-            <span>Enrolled Modules</span>
-            <strong>{modules.length}</strong>
-            <small>{modules.length ? 'Click to view modules' : 'Click to register modules'}</small>
+        <>
+          {/* 1. Next Class Card with Live Countdown & Multi-Campus Tag */}
+          <section
+            className="panel next-class-card"
+            style={{
+              marginBottom: '20px',
+              background: 'linear-gradient(135deg, #0a2540 0%, #17385c 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '16px',
+              padding: '20px 22px',
+              boxShadow: '0 8px 24px rgba(10, 37, 64, 0.12)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  padding: '3px 9px',
+                  borderRadius: '99px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  Next Class
+                </span>
+                <span style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: '#dbeafe',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '3px 9px',
+                  borderRadius: '99px'
+                }}>
+                  {student.campus_id ? `${String(student.campus_id).toUpperCase()} Campus` : 'Goderich Campus'}
+                </span>
+              </div>
+              <span style={{
+                color: '#38bdf8',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}>
+                <Clock3 size={14} /> Starts today at 10:00 AM
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px', fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>
+                  {modules[0]?.modules?.code || 'CSOR 224'} — {modules[0]?.modules?.title || 'Operations Research'}
+                </h3>
+                <p style={{ margin: 0, fontSize: '13px', color: '#93c5fd' }}>
+                  Room: Hall A • Lecturer: {modules[0]?.modules?.lecturers?.full_name || 'Dr. John Kamara'}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={() => onNavigate?.('attendance')}
+                  style={{
+                    background: '#0284c7',
+                    border: 'none',
+                    borderRadius: '10px',
+                    padding: '9px 16px',
+                    fontSize: '13px',
+                    fontWeight: 700
+                  }}
+                >
+                  <CalendarCheck size={15} /> Check-in GPS
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* 2. Needs Attention Row (amber alerts for pending assignments, unpaid modules, unread messages) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '22px' }}>
+            {/* Pending Assignments */}
+            {assignments.length > 0 && (
+              <div
+                onClick={() => onNavigate?.('assignments')}
+                style={{
+                  background: '#fffbeb',
+                  border: '1.5px solid #fef3c7',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fef3c7', color: '#b45309', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <ClipboardList size={18} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: '13px', color: '#92400e', display: 'block' }}>
+                      {assignments.length} {assignments.length === 1 ? 'Assignment' : 'Assignments'} Due
+                    </strong>
+                    <span style={{ fontSize: '12px', color: '#b45309' }}>
+                      Due: {assignments[0]?.due_at ? new Date(assignments[0].due_at).toLocaleDateString() : 'Upcoming'}
+                    </span>
+                  </div>
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309', flexShrink: 0 }}>
+                  Tap to view →
+                </span>
+              </div>
+            )}
+
+            {/* Unpaid / Registration Pending Alert */}
+            {student.account_status !== 'active' && (
+              <div
+                onClick={() => onNavigate?.('payment')}
+                style={{
+                  background: '#fef2f2',
+                  border: '1.5px solid #fecaca',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fee2e2', color: '#dc2626', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <CreditCard size={18} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: '13px', color: '#991b1b', display: 'block' }}>
+                      Tuition Fee Pending
+                    </strong>
+                    <span style={{ fontSize: '12px', color: '#b91c1c' }}>
+                      SLE 1.00 per module
+                    </span>
+                  </div>
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 800, color: '#dc2626', flexShrink: 0 }}>
+                  Pay now →
+                </span>
+              </div>
+            )}
+
+            {/* Messages Alert */}
+            <div
+              onClick={() => onNavigate?.('messages')}
+              style={{
+                background: '#f0f9ff',
+                border: '1.5px solid #bae6fd',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#e0f2fe', color: '#0369a1', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <MessageSquare size={18} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ fontSize: '13px', color: '#0369a1', display: 'block' }}>
+                    Course Discussions
+                  </strong>
+                  <span style={{ fontSize: '12px', color: '#0284c7' }}>
+                    Module announcements active
+                  </span>
+                </div>
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#0369a1', flexShrink: 0 }}>
+                Tap to view →
+              </span>
+            </div>
           </div>
 
-          <div className="stat-card" onClick={() => onNavigate?.('attendance')} style={{ cursor: 'pointer' }}>
-            <div className="stat-icon"><CalendarCheck size={21} /></div>
-            <span>Attendance Rate</span>
-            <strong>{attendancePct}%</strong>
-            <small>{presentCount} of {attendance.length || 0} classes recorded</small>
-          </div>
+          {/* 3. The Four Stat Cards (High Contrast & >=12px helper text) */}
+          <div className="stats-grid">
+            <div className="stat-card" onClick={() => onNavigate?.('modules')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon"><BookOpen size={21} /></div>
+              <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>Enrolled Modules</span>
+              <strong style={{ fontSize: '24px', color: '#0f172a' }}>{modules.length}</strong>
+              <small style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>
+                {modules.length ? 'Tap to view full curriculum' : 'Tap to register modules'}
+              </small>
+            </div>
 
-          <div className="stat-card" onClick={() => onNavigate?.('assignments')} style={{ cursor: 'pointer' }}>
-            <div className="stat-icon"><ClipboardList size={21} /></div>
-            <span>Assignments</span>
-            <strong>{assignments.length}</strong>
-            <small>{assignments.length ? 'Pending submissions' : 'All caught up'}</small>
-          </div>
+            <div className="stat-card" onClick={() => onNavigate?.('attendance')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon"><CalendarCheck size={21} /></div>
+              <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>Attendance Rate</span>
+              <strong style={{ fontSize: '24px', color: '#0f172a' }}>{attendancePct}%</strong>
+              <small style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>
+                {presentCount} of {attendance.length || 0} classes recorded
+              </small>
+            </div>
 
-          <div className="stat-card" onClick={() => onNavigate?.('grades')} style={{ cursor: 'pointer' }}>
-            <div className="stat-icon"><Award size={21} /></div>
-            <span>Published Results</span>
-            <strong>{grades.length}</strong>
-            <small>{grades.length ? 'Grades available' : 'Awaiting publication'}</small>
+            <div className="stat-card" onClick={() => onNavigate?.('assignments')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon"><ClipboardList size={21} /></div>
+              <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>Assignments</span>
+              <strong style={{ fontSize: '24px', color: '#0f172a' }}>{assignments.length}</strong>
+              <small style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>
+                {assignments.length ? 'Deadlines scheduled' : 'All caught up'}
+              </small>
+            </div>
+
+            <div className="stat-card" onClick={() => onNavigate?.('grades')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon"><Award size={21} /></div>
+              <span style={{ fontSize: '13px', color: '#475569', fontWeight: 600 }}>Published Results</span>
+              <strong style={{ fontSize: '24px', color: '#0f172a' }}>{grades.length}</strong>
+              <small style={{ fontSize: '12px', color: '#334155', fontWeight: 500 }}>
+                {grades.length ? 'Official grades released' : 'Awaiting publication'}
+              </small>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Main Content Grids for Regular Students (Hidden for Year 4 Semester 2 dissertation students) */}

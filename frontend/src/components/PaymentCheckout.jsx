@@ -394,6 +394,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
                   <input
                     type="tel"
+                    inputMode="numeric"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder={provider === 'orange' ? 'e.g. 076 123 456' : 'e.g. 077 123 456'}
@@ -405,7 +406,7 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                       padding: '13px 14px 13px 40px',
                       borderRadius: '11px',
                       border: '1px solid #cbd5e1',
-                      fontSize: '14px',
+                      fontSize: '16px',
                       fontWeight: 600,
                       outline: 'none'
                     }}

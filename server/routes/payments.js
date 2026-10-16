@@ -881,4 +881,94 @@ router.post('/webhook', async (req, res) => {
   }
 });
 
+// Periodic & On-Demand Payment Reconciliation Job against Monime
+router.post('/reconcile', async (_req, res) => {
+  try {
+    const db = getAdminSupabase();
+    // Fetch pending payments created in the last 48 hours
+    const since = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    const { data: pendingPayments, error: pErr } = await db
+      .from('payments')
+      .select('id, student_id, amount, reference, checkout_session_id, provider_reference, status, created_at')
+      .eq('status', 'pending')
+      .gte('created_at', since)
+      .limit(50);
+
+    if (pErr) throw pErr;
+
+    const results = {
+      totalPending: pendingPayments?.length || 0,
+      reconciledPaid: 0,
+      stillPending: 0,
+      markedFailed: 0,
+      errors: []
+    };
+
+    if (!pendingPayments || !pendingPayments.length) {
+      return res.json({ success: true, message: 'No pending payments requiring reconciliation.', results });
+    }
+
+    for (const payment of pendingPayments) {
+      try {
+        let isPaid = false;
+        let isFailed = false;
+
+        // Check Monime Payment Code if numeric / provider_reference exists
+        if (payment.provider_reference) {
+          try {
+            const codeRes = await getPaymentCode(payment.provider_reference);
+            if (codeRes?.status === 'completed' || codeRes?.status === 'paid' || codeRes?.state === 'completed') {
+              isPaid = true;
+            } else if (codeRes?.status === 'expired' || codeRes?.status === 'cancelled') {
+              isFailed = true;
+            }
+          } catch (codeErr) {
+            // Code lookup error, fallback to checkout session
+          }
+        }
+
+        // Check Monime Checkout Session if checkout_session_id exists
+        if (!isPaid && !isFailed && payment.checkout_session_id) {
+          try {
+            const sessionRes = await getCheckoutSession(payment.checkout_session_id);
+            if (String(sessionRes?.status).toLowerCase() === 'completed') {
+              isPaid = true;
+            } else if (String(sessionRes?.status).toLowerCase() === 'expired') {
+              isFailed = true;
+            }
+          } catch (sessionErr) {}
+        }
+
+        if (isPaid) {
+          await db
+            .from('payments')
+            .update({
+              status: 'paid',
+              verified_at: new Date().toISOString()
+            })
+            .eq('id', payment.id);
+
+          await provisionStudentAccount(db, payment.student_id);
+          results.reconciledPaid += 1;
+        } else if (isFailed) {
+          await db
+            .from('payments')
+            .update({ status: 'failed' })
+            .eq('id', payment.id);
+          results.markedFailed += 1;
+        } else {
+          results.stillPending += 1;
+        }
+      } catch (itemErr) {
+        results.errors.push({ paymentId: payment.id, error: itemErr.message });
+      }
+    }
+
+    return res.json({ success: true, results });
+  } catch (error) {
+    console.error('Reconciliation error:', error);
+    return res.status(500).json({ error: error.message || 'Payment reconciliation failed.' });
+  }
+});
+
 export default router;

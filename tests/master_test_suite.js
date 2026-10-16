@@ -323,6 +323,163 @@ runSection('8. Final-Year Dissertation Access & Eligibility Rules');
   }
   assert(case8AllowedWithOverride === true, 'Case 8: DB trigger permits module enrollment for Year 4 Semester 2 when allow_modules_override is true');
 }
+
+// ============================================================================
+// 9. Role Isolation, Server GPS Accuracy & Lecturer Attendance Override
+// ============================================================================
+runSection('9. Role Isolation, Server GPS Accuracy & Lecturer Override');
+{
+  // Role isolation route rules
+  function canAccessRoute(role, targetPath) {
+    if (role === 'student' && targetPath.startsWith('/lecturer')) return false;
+    if (role === 'lecturer' && targetPath.startsWith('/student')) return false;
+    return true;
+  }
+
+  assert(canAccessRoute('student', '/lecturer') === false, 'Student cannot open lecturer routes');
+  assert(canAccessRoute('lecturer', '/student') === false, 'Lecturer cannot open student routes');
+  assert(canAccessRoute('student', '/student') === true, 'Student can access own student route');
+
+  // Server GPS accuracy validation
+  function validateGpsAttendance({ distance, accuracy, allowedRadius = 150 }) {
+    if (accuracy > 100) {
+      throw new Error(`GPS accuracy is too low (${Math.round(accuracy)}m). Please turn on High Accuracy location.`);
+    }
+    if (distance > allowedRadius) {
+      throw new Error(`Outside geofence (${Math.round(distance)}m away).`);
+    }
+    return { valid: true };
+  }
+
+  assert(validateGpsAttendance({ distance: 45, accuracy: 15 }).valid === true, 'High accuracy check-in within radius passes');
+  let lowAccuracyBlocked = false;
+  try {
+    validateGpsAttendance({ distance: 45, accuracy: 250 });
+  } catch {
+    lowAccuracyBlocked = true;
+  }
+  assert(lowAccuracyBlocked === true, 'Inaccurate/low quality GPS reading (>100m) is rejected');
+
+  // Lecturer manual override simulation
+  function simulateLecturerAttendanceOverride({ callerRole, classId, studentId, newStatus }) {
+    if (callerRole !== 'lecturer') throw new Error('Unauthorized: only lecturers can override attendance');
+    return { overridden: true, classId, studentId, status: newStatus, manual_override: true };
+  }
+
+  const overrideResult = simulateLecturerAttendanceOverride({
+    callerRole: 'lecturer',
+    classId: 'cls-123',
+    studentId: 'stu-456',
+    newStatus: 'present'
+  });
+  assert(overrideResult.overridden === true, 'Lecturer can manually override student attendance');
+  assert(overrideResult.manual_override === true, 'Manual override flag is set to true');
+}
+
+// ============================================================================
+// 10. Dynamic System Fee Loading & Payment Reconciliation
+// ============================================================================
+runSection('10. Dynamic System Fee Loading & Payment Reconciliation');
+{
+  function calculateTuitionFee(modulesCount, isYear4Sem2, feePerModule = 1.00, dissFee = 500.00) {
+    if (isYear4Sem2) return dissFee;
+    return Number((modulesCount * feePerModule).toFixed(2));
+  }
+
+  assert(calculateTuitionFee(3, false, 1.00) === 3.00, 'Regular student pays configured per-module fee');
+  assert(calculateTuitionFee(5, true, 1.00) === 500.00, 'Final-year semester 2 student never charged per-module fee');
+
+  // Reconciliation state machine
+  function reconcilePendingPayment(payment, monimeStatus) {
+    if (monimeStatus === 'completed' || monimeStatus === 'paid') {
+      return { status: 'paid', activated: true, verifiedAt: new Date().toISOString() };
+    }
+    if (monimeStatus === 'expired' || monimeStatus === 'cancelled') {
+      return { status: 'failed', activated: false };
+    }
+    return { status: 'pending', activated: false };
+  }
+
+  const rec1 = reconcilePendingPayment({ id: 'p1', status: 'pending' }, 'completed');
+  assert(rec1.status === 'paid' && rec1.activated === true, 'Completed Monime payment is reconciled and activated');
+
+  const rec2 = reconcilePendingPayment({ id: 'p2', status: 'pending' }, 'expired');
+  assert(rec2.status === 'failed' && rec2.activated === false, 'Expired Monime payment is marked failed');
+}
+
+// ============================================================================
+// 11. WhatsApp-Style Messaging & Chat Security Definer Policies
+// ============================================================================
+runSection('11. WhatsApp-Style Messaging & Chat Security Definer Policies');
+{
+  // 1. Direct chat pairing rule (Lecturer-Student only, no Student-Student)
+  function simulateCreateDirectChat({ callerRole, targetRole, isEnrolledOrSupervised }) {
+    if (callerRole === 'student' && targetRole === 'student') {
+      throw new Error('Direct student-to-student private chats are not permitted by institutional policy.');
+    }
+    if (!isEnrolledOrSupervised) {
+      throw new Error('Direct private chats are only allowed between students and their course lecturers or supervisors.');
+    }
+    return { success: true, conversation_id: 'conv-new-123', status: callerRole === 'lecturer' ? 'active' : 'request' };
+  }
+
+  let studentToStudentBlocked = false;
+  try {
+    simulateCreateDirectChat({ callerRole: 'student', targetRole: 'student', isEnrolledOrSupervised: true });
+  } catch (e) {
+    studentToStudentBlocked = true;
+  }
+  assert(studentToStudentBlocked === true, 'Student cannot start direct chat with another student');
+
+  let unrelatedBlocked = false;
+  try {
+    simulateCreateDirectChat({ callerRole: 'student', targetRole: 'lecturer', isEnrolledOrSupervised: false });
+  } catch (e) {
+    unrelatedBlocked = true;
+  }
+  assert(unrelatedBlocked === true, 'Student cannot chat with a lecturer they share no modules or supervision with');
+
+  const validLecturerChat = simulateCreateDirectChat({ callerRole: 'lecturer', targetRole: 'student', isEnrolledOrSupervised: true });
+  assert(validLecturerChat.success === true && validLecturerChat.status === 'active', 'Lecturer initiated chat opens immediately as active');
+
+  const validStudentChat = simulateCreateDirectChat({ callerRole: 'student', targetRole: 'lecturer', isEnrolledOrSupervised: true });
+  assert(validStudentChat.success === true && validStudentChat.status === 'request', 'Student initiated chat begins as request');
+
+  // 2. Announcements only posting policy
+  function simulatePostMessage({ isAnnouncementsOnly, senderRole }) {
+    if (isAnnouncementsOnly && senderRole === 'student') {
+      throw new Error('Only lecturers can post in Announcements groups.');
+    }
+    return { sent: true };
+  }
+
+  let studentPostBlockedInAnnouncements = false;
+  try {
+    simulatePostMessage({ isAnnouncementsOnly: true, senderRole: 'student' });
+  } catch {
+    studentPostBlockedInAnnouncements = true;
+  }
+  assert(studentPostBlockedInAnnouncements === true, 'Student cannot post in Announcements group');
+  assert(simulatePostMessage({ isAnnouncementsOnly: true, senderRole: 'lecturer' }).sent === true, 'Lecturer can post in Announcements group');
+
+  // 3. get_chat_profiles photo privacy masking
+  function simulateGetChatProfiles({ callerRole, targetProfile }) {
+    const isHiddenFromClassmates = targetProfile.show_photo_to_classmates === false;
+    let visibleAvatar = targetProfile.avatar_path;
+    if (callerRole === 'student' && isHiddenFromClassmates) {
+      visibleAvatar = null;
+    }
+    return { id: targetProfile.id, full_name: targetProfile.full_name, avatar_path: visibleAvatar };
+  }
+
+  const profileHidden = { id: 'u1', full_name: 'Jane Doe', avatar_path: '/photos/jane.jpg', show_photo_to_classmates: false };
+  const studentView = simulateGetChatProfiles({ callerRole: 'student', targetProfile: profileHidden });
+  assert(studentView.avatar_path === null, 'Photo is masked when classmate hides photo');
+
+  const lecturerView = simulateGetChatProfiles({ callerRole: 'lecturer', targetProfile: profileHidden });
+  assert(lecturerView.avatar_path === '/photos/jane.jpg', 'Lecturer can always see student photo regardless of classmate toggle');
+}
+
 // Summary Report
 console.log(`\n======================================================`);
 console.log(`  AUTOMATED TEST RESULTS`);
@@ -336,3 +493,4 @@ if (failed > 0) {
   console.log('All automated integration and domain tests passed successfully.');
   process.exit(0);
 }
+

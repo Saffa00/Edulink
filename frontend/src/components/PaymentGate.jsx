@@ -339,6 +339,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 </label>
                 <input
                   type="tel"
+                  inputMode="numeric"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder={provider === 'orange' ? 'e.g. 076 123 456' : 'e.g. 077 123 456'}
@@ -349,7 +350,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                     padding: '11px 14px',
                     borderRadius: '10px',
                     border: '1px solid #cbd5e1',
-                    fontSize: '14px',
+                    fontSize: '16px',
                     fontWeight: 600,
                     outline: 'none'
                   }}

@@ -122,6 +122,7 @@ export function registerAttendanceRoutes(app, { supabaseAdmin }) {
         latitude: Number(latitude),
         longitude: Number(longitude),
         distance_meters: Math.round(dist * 10) / 10,
+        accuracy_meters: Number.isFinite(Number(req.body.accuracy)) ? Number(req.body.accuracy) : null,
         status: calculatedStatus,
         verified: true,
         verification_method: 'gps_device'
@@ -137,6 +138,75 @@ export function registerAttendanceRoutes(app, { supabaseAdmin }) {
       });
     } catch (e) {
       return res.status(500).json({ error: e.message || 'Attendance recording failed.' });
+    }
+  });
+
+  // Lecturer Manual Override Route (with audit logging)
+  app.post('/api/attendance/override', async (req, res) => {
+    try {
+      const { classId, studentId, status = 'present', reason = 'Manual lecturer verification' } = req.body || {};
+      if (!classId || !studentId) {
+        return res.status(400).json({ error: 'Class ID and Student ID are required.' });
+      }
+
+      const auth = req.headers.authorization || '';
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+      if (!token) return res.status(401).json({ error: 'Authentication required.' });
+
+      const { data: { user }, error: ue } = await supabaseAdmin.auth.getUser(token);
+      if (ue || !user) return res.status(401).json({ error: 'Invalid or expired session.' });
+
+      // Verify caller is a lecturer
+      const { data: lecturer } = await supabaseAdmin.from('lecturers')
+        .select('id, full_name')
+        .eq('auth_user_id', user.id)
+        .single();
+      if (!lecturer) return res.status(403).json({ error: 'Only lecturers can override attendance.' });
+
+      // Verify class ownership
+      const { data: cls } = await supabaseAdmin.from('classes')
+        .select('id, module_id')
+        .eq('id', classId)
+        .eq('lecturer_id', lecturer.id)
+        .single();
+      if (!cls) return res.status(403).json({ error: 'You are not the designated lecturer for this class.' });
+
+      // Upsert attendance
+      const { data: row, error: ae } = await supabaseAdmin.from('attendance')
+        .upsert({
+          class_id: classId,
+          student_id: studentId,
+          status,
+          marked_at: new Date().toISOString(),
+          verified: true,
+          verification_method: 'lecturer_manual_override',
+          manual_override: true,
+          verified_by_lecturer_id: lecturer.id,
+          override_reason: reason
+        }, { onConflict: 'class_id,student_id' })
+        .select()
+        .single();
+
+      if (ae) throw ae;
+
+      // Log into admin_audit_logs
+      await supabaseAdmin.from('admin_audit_logs').insert({
+        admin_user_id: user.id,
+        action_type: 'attendance_manual_override',
+        target_entity: 'attendance',
+        target_id: row.id,
+        details: {
+          class_id: classId,
+          student_id: studentId,
+          lecturer_name: lecturer.full_name,
+          new_status: status,
+          reason
+        }
+      }).catch(() => {});
+
+      return res.json({ success: true, attendance: row });
+    } catch (e) {
+      return res.status(500).json({ error: e.message || 'Attendance override failed.' });
     }
   });
 }

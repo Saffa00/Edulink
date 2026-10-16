@@ -32,8 +32,17 @@ const StudentDashboardV36 = lazy(() => import('./components/StudentDashboardV36'
 const StudentGradeInbox = lazy(() => import('./components/StudentGradeInbox'));
 const PaymentGate = lazy(() => import('./components/PaymentGate'));
 import NotificationSubscribeButton from './components/NotificationSubscribeButton';
+import FirstLoginPushPrompt from './components/FirstLoginPushPrompt';
 import { getTimeBasedGreeting } from './utils/greeting';
-import { getAvailableSupervisors } from './services/academicMasterV41toV55.js';
+import {
+  getAvailableSupervisors,
+  OFFICIAL_CAMPUSES,
+  formatCampusName,
+  getVerifiedRoleFromSupabase,
+  getWeeklyTimetable,
+  getCourseMaterials,
+  postMultiCampusMaterial
+} from './services/academicMasterV41toV55.js';
 import './v39-attendance.css';
 import './v15-attendance.css';
 import './v40-assignments.css';
@@ -2617,7 +2626,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
           </p>
         </section>
       </main>
-      <NotificationSubscribeButton floating={true} position="bottom-right" />
     </>
   );
 }
@@ -2733,7 +2741,22 @@ function QuickSearchModal({ isOpen, onClose, role, setPage, onNavigateSettings }
   );
 }
 
-function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, setPage, onNavigateSettings, unreadNotifsCount = 0, scopedModule = null, lecturerModulesList = [], onSelectScopedModule }) {
+function Header({
+  onToggleSidebar,
+  role,
+  onLogout,
+  profile,
+  collapsed,
+  page,
+  setPage,
+  onNavigateSettings,
+  unreadNotifsCount = 0,
+  scopedModule = null,
+  lecturerModulesList = [],
+  onSelectScopedModule,
+  selectedCampus = 'all',
+  onSelectCampus = null
+}) {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [scopeDropdownOpen, setScopeDropdownOpen] = useState(false);
@@ -2770,6 +2793,32 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
       />
       <header className="topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexWrap: 'wrap' }}>
+          {/* Task 2.1: Inner pages keep a back arrow that only goes back within the same role area (to home). Never shown on home screen. */}
+          {page && page !== 'home' && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => setPage?.('home')}
+              title="Back to Home"
+              aria-label="Back to Home"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#0f172a',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              <ChevronLeft size={19} />
+            </button>
+          )}
+
           <button
             className="icon-btn sidebar-toggle-btn desktop-only"
             onClick={onToggleSidebar}
@@ -2781,6 +2830,35 @@ function Header({ onToggleSidebar, role, onLogout, profile, collapsed, page, set
 
           {/* Top Left: Graduation cap + live current date and time */}
           <TopLeftCapDateTime />
+
+          {/* Task 3.3: Lecturer Campus Switcher at the top with "All campuses" option that remembers last choice */}
+          {role === 'lecturer' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <MapPin size={14} color="#0284c7" style={{ flexShrink: 0 }} />
+              <select
+                aria-label="Campus Switcher"
+                value={selectedCampus || 'all'}
+                onChange={(e) => onSelectCampus?.(e.target.value)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '20px',
+                  border: '1.5px solid #bae6fd',
+                  background: '#f0f9ff',
+                  color: '#0369a1',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+                title="Switch active campus view (remembers your choice)"
+              >
+                <option value="all">All Campuses</option>
+                {OFFICIAL_CAMPUSES.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Lecturer Scoped Module Switcher Pill in Topbar */}
           {role === 'lecturer' && scopedModule && (
@@ -3223,7 +3301,15 @@ function Stat({ icon:Icon, title, value, sub }) {
   return <div className="stat-card"><div className="stat-icon"><Icon size={21}/></div><span>{title}</span><strong>{value}</strong><small>{sub}</small></div>
 }
 
-function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modulesList = [] }) {
+function Dashboard({
+  setPage,
+  profile,
+  scopedModule,
+  onSelectScopedModule,
+  modulesList = [],
+  selectedCampus = 'all',
+  onSelectCampus = null
+}) {
   const activeTeachingModules = modulesList && modulesList.length > 0 ? modulesList : [
     {
       id: 'ea906b5e-be88-41e8-9cb3-aca4128247f8',
@@ -3248,16 +3334,193 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
   const lecturerId = profile?.lecturer_id || 'LECT-2026-790380';
   const departmentName = profile?.department || profile?.teaching_area || 'Department of Computer Science';
 
+  const [todayClasses, setTodayClasses] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [matForm, setMatForm] = useState({
+    moduleId: currentScoped?.id || '',
+    campusIds: ['goderich', 'congo-cross', 'brookfields'],
+    title: '',
+    description: '',
+    fileUrl: '',
+    materialType: 'announcement'
+  });
+  const [matBusy, setMatBusy] = useState(false);
+  const [matNotice, setMatNotice] = useState('');
+
+  React.useEffect(() => {
+    if (currentScoped?.id) {
+      setMatForm(f => ({ ...f, moduleId: currentScoped.id }));
+    }
+  }, [currentScoped?.id]);
+
+  React.useEffect(() => {
+    let active = true;
+    const loadDashboardCampusData = async () => {
+      try {
+        const [tt, mats] = await Promise.all([
+          getWeeklyTimetable('lecturer', selectedCampus),
+          getCourseMaterials({ role: 'lecturer', campusFilter: selectedCampus })
+        ]);
+        if (!active) return;
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const todayName = dayNames[new Date().getDay()] || 'Monday';
+        const todays = (tt || []).filter(s => s.day_of_week === todayName);
+        setTodayClasses(todays.length > 0 ? todays : (tt || []).slice(0, 6));
+        setMaterials((mats || []).slice(0, 6));
+      } catch {
+        // Non-blocking
+      }
+    };
+    loadDashboardCampusData();
+    return () => { active = false; };
+  }, [selectedCampus]);
+
+  const handleToggleTargetCampus = (campusId) => {
+    setMatForm(prev => {
+      const exists = prev.campusIds.includes(campusId);
+      const next = exists
+        ? prev.campusIds.filter(id => id !== campusId)
+        : [...prev.campusIds, campusId];
+      return { ...prev, campusIds: next.length ? next : [campusId] };
+    });
+  };
+
+  const handlePostMultiCampusMaterial = async (e) => {
+    e.preventDefault();
+    if (!matForm.title.trim()) return;
+    setMatBusy(true);
+    setMatNotice('');
+    try {
+      const created = await postMultiCampusMaterial({
+        moduleId: matForm.moduleId || currentScoped?.id,
+        campusIds: matForm.campusIds,
+        title: matForm.title,
+        description: matForm.description,
+        fileUrl: matForm.fileUrl,
+        materialType: matForm.materialType
+      });
+      setMaterials(prev => [...(created || []), ...prev].slice(0, 8));
+      setMatForm(prev => ({ ...prev, title: '', description: '', fileUrl: '' }));
+      setMatNotice(
+        `Posted to ${matForm.campusIds.map(c => formatCampusName(c)).join(', ')}!`
+      );
+    } catch (err) {
+      setMatNotice(err.message || 'Could not post material.');
+    } finally {
+      setMatBusy(false);
+    }
+  };
+
   return (
     <div className="page">
       <div className="welcome">
         <div>
           <p className="eyebrow">{lecturerId} • {departmentName}</p>
           <h1>{getTimeBasedGreeting(lecturerName)}</h1>
-          <p>Teaching workspace for Level 3 Computer Science degree programmes.</p>
+          <p>
+            Teaching workspace across campuses ({formatCampusName(selectedCampus)}).
+          </p>
         </div>
-        <div className="date-chip">Academic Year 2026/2027<br /><strong>First Semester</strong></div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          <div className="date-chip">Academic Year 2026/2027<br /><strong>First Semester</strong></div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {[{ id: 'all', name: 'All Campuses' }, ...OFFICIAL_CAMPUSES].map(c => {
+              const active = (selectedCampus || 'all') === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onSelectCampus?.(c.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    border: active ? '1.5px solid #0284c7' : '1px solid #cbd5e1',
+                    background: active ? '#e0f2fe' : '#ffffff',
+                    color: active ? '#0369a1' : '#475569',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      {/* Task 3.3: Today's Classes Across Campuses (tagged with Campus) */}
+      <section className="panel" style={{ marginBottom: '22px' }}>
+        <div className="panel-head">
+          <h2><Clock3 /> Today&apos;s Classes Across Campuses ({formatCampusName(selectedCampus)})</h2>
+          <button className="text-btn" onClick={() => setPage('timetable')}>Open Full Timetable</button>
+        </div>
+        {todayClasses.length === 0 ? (
+          <div style={{ padding: '14px 4px', color: '#64748b', fontSize: '13px' }}>
+            No timetable slots scheduled for {formatCampusName(selectedCampus)} today. Click <b>Open Full Timetable</b> to add class slots for Goderich, Congo Cross, or Brookfields Campus.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+            {todayClasses.map(slot => {
+              const campusLabel = formatCampusName(slot.campus_id || slot.location_name || 'goderich');
+              return (
+                <div
+                  key={slot.id}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    background: '#f8fafc',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <strong style={{ color: '#0f172a', fontSize: '14px' }}>
+                      {slot.modules?.code || currentScoped?.code || 'Module'} — {slot.modules?.title || 'Lecture'}
+                    </strong>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '999px',
+                        background: '#dbeafe',
+                        color: '#1d4ed8'
+                      }}
+                    >
+                      📍 {campusLabel}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '12.5px', color: '#475569' }}>
+                    🕒 {slot.day_of_week} • {String(slot.start_time || '').slice(0, 5)} – {String(slot.end_time || '').slice(0, 5)} • {slot.location_name} {slot.room_code ? `(${slot.room_code})` : ''}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      className="outline-btn"
+                      style={{ fontSize: '11.5px', padding: '4px 10px', height: 'auto' }}
+                      onClick={() => setPage('attendance')}
+                    >
+                      Take Attendance
+                    </button>
+                    <button
+                      type="button"
+                      className="outline-btn"
+                      style={{ fontSize: '11.5px', padding: '4px 10px', height: 'auto' }}
+                      onClick={() => setPage('grades')}
+                    >
+                      Enter Grades
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* My Teaching Modules Section */}
       <section className="my-teaching-modules-section" style={{ marginBottom: '24px' }}>
@@ -3322,7 +3585,6 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
                 )}
 
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', marginBottom: '14px' }}>
-                  {/* Module Logo */}
                   <div
                     style={{
                       width: '54px',
@@ -3354,7 +3616,7 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
                       {m.title}
                     </h3>
                     <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-                      Year 3. {m.studentsCount || 45} student base on module registered
+                      Year 3 • {formatCampusName(selectedCampus)}
                     </p>
                   </div>
                 </div>
@@ -3417,7 +3679,7 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
                         setPage('students');
                       }}
                     >
-                      <Users size={13} /> 45 Students
+                      <Users size={13} /> Students
                     </button>
                   </div>
 
@@ -3431,11 +3693,136 @@ function Dashboard({ setPage, profile, scopedModule, onSelectScopedModule, modul
         </div>
       </section>
 
+      {/* Task 3.3: Post Course Materials & Multi-Campus Announcements */}
+      <section className="panel" style={{ marginBottom: '22px' }}>
+        <div className="panel-head">
+          <h2><BookOpen /> Post Course Material / Multi-Campus Announcement</h2>
+        </div>
+        <form onSubmit={handlePostMultiCampusMaterial} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 700 }}>Class / Module</label>
+            <select
+              value={matForm.moduleId}
+              onChange={e => setMatForm({ ...matForm, moduleId: e.target.value })}
+            >
+              {activeTeachingModules.map(m => (
+                <option key={m.id || m.code} value={m.id}>{m.code} — {m.title}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: 700 }}>Post Type</label>
+            <select
+              value={matForm.materialType}
+              onChange={e => setMatForm({ ...matForm, materialType: e.target.value })}
+            >
+              <option value="announcement">Multi-Campus Class Announcement</option>
+              <option value="lecture_notes">Lecture Notes / Slides</option>
+              <option value="reading">Reading / Syllabus Resource</option>
+            </select>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>
+                Target Campuses (Select one or post to multiple campuses at once)
+              </label>
+              <button
+                type="button"
+                className="text-btn"
+                style={{ fontSize: '11.5px' }}
+                onClick={() => setMatForm(f => ({ ...f, campusIds: OFFICIAL_CAMPUSES.map(c => c.id) }))}
+              >
+                Select All 3 Campuses
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {OFFICIAL_CAMPUSES.map(c => {
+                const checked = matForm.campusIds.includes(c.id);
+                return (
+                  <label
+                    key={c.id}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '10px',
+                      border: checked ? '1.5px solid #0284c7' : '1px solid #cbd5e1',
+                      background: checked ? '#f0f9ff' : '#ffffff',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => handleToggleTargetCampus(c.id)}
+                      style={{ accentColor: '#0284c7', margin: 0 }}
+                    />
+                    <span>{c.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '12px', fontWeight: 700 }}>Title</label>
+            <input
+              required
+              placeholder="e.g. Week 5 Lecture Slides & Lab Briefing"
+              value={matForm.title}
+              onChange={e => setMatForm({ ...matForm, title: e.target.value })}
+            />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={{ fontSize: '12px', fontWeight: 700 }}>Announcement / Material Notes</label>
+            <input
+              placeholder="Details or instructions for students at the selected campus(es)..."
+              value={matForm.description}
+              onChange={e => setMatForm({ ...matForm, description: e.target.value })}
+            />
+          </div>
+
+          {matNotice && (
+            <div style={{ gridColumn: '1 / -1', fontSize: '12.5px', fontWeight: 700, color: '#0369a1' }}>
+              {matNotice}
+            </div>
+          )}
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button type="submit" className="primary-btn" disabled={matBusy} style={{ height: '40px', padding: '0 18px', fontSize: '13px' }}>
+              {matBusy ? 'Posting…' : `Post to ${matForm.campusIds.length} Campus${matForm.campusIds.length === 1 ? '' : 'es'}`}
+            </button>
+          </div>
+        </form>
+
+        {materials.length > 0 && (
+          <div style={{ marginTop: '14px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+            <strong style={{ fontSize: '12.5px', color: '#475569', display: 'block', marginBottom: '8px' }}>
+              Recent Materials & Announcements ({formatCampusName(selectedCampus)})
+            </strong>
+            {materials.slice(0, 4).map(mat => (
+              <div key={mat.id} className="simple-row">
+                <span>
+                  <strong>{mat.title}</strong> {mat.description ? `— ${mat.description}` : ''}
+                </span>
+                <b className="badge">{formatCampusName(mat.campus_id)}</b>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <div className="stats-grid">
         <Stat icon={Users} title="Total Students" value="90" sub="45 per module (2 modules)" />
         <Stat icon={BookOpen} title="Teaching Assignments" value="2" sub="Bscs 411 & Bscs 412" />
         <Stat icon={ClipboardList} title="Active Scope" value={currentScoped?.code || 'Bscs 411'} sub={currentScoped?.title || 'Oracle'} />
-        <Stat icon={Award} title="Programme Level" value="Year 3" sub="Computer Science BSC" />
+        <Stat icon={Award} title="Active Campus Filter" value={selectedCampus === 'all' ? 'All 3' : formatCampusName(selectedCampus).replace(' Campus', '')} sub={formatCampusName(selectedCampus)} />
       </div>
 
       <div className="content-grid">
@@ -3590,20 +3977,36 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   const [collapsed,setCollapsed]=useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [selectedCampus, setSelectedCampus] = useState(() => {
+    try {
+      return localStorage.getItem('edulink_lecturer_campus_filter') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
   const pageRef = React.useRef(page);
+  const roleBasePath = role === 'lecturer' ? '/lecturer' : '/student';
+
+  const handleSelectCampus = React.useCallback((campusId) => {
+    const val = campusId || 'all';
+    setSelectedCampus(val);
+    try {
+      localStorage.setItem('edulink_lecturer_campus_filter', val);
+    } catch {}
+  }, []);
 
   React.useEffect(() => {
     pageRef.current = page;
   }, [page]);
 
-  // Role-guarded page navigation: redirects students away from any lecturer routes
+  // Role-guarded page navigation: redirects students to /student and lecturers to /lecturer
   const setPage = React.useCallback((nextPage) => {
     const normalized = String(nextPage || 'home').trim().toLowerCase();
     if (role === 'student') {
       if (LECTURER_ONLY_PAGES.has(normalized) || !STUDENT_ALLOWED_PAGES.has(normalized)) {
         rawSetPage('home');
         try {
-          window.history.replaceState({ edulinkAuth: true, role: 'student', page: 'home' }, '', '/');
+          window.history.replaceState({ edulinkAuth: true, role: 'student', page: 'home' }, '', '/student');
         } catch {}
         return;
       }
@@ -3611,26 +4014,26 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       if (!LECTURER_ALLOWED_PAGES.has(normalized)) {
         rawSetPage('home');
         try {
-          window.history.replaceState({ edulinkAuth: true, role: 'lecturer', page: 'home' }, '', '/');
+          window.history.replaceState({ edulinkAuth: true, role: 'lecturer', page: 'home' }, '', '/lecturer');
         } catch {}
         return;
       }
     }
     rawSetPage(normalized);
     try {
-      window.history.replaceState({ edulinkAuth: true, role, page: normalized }, '', '/');
-      window.history.pushState({ edulinkAuth: true, role, page: normalized }, '', '/');
+      window.history.replaceState({ edulinkAuth: true, role, page: normalized }, '', roleBasePath);
+      window.history.pushState({ edulinkAuth: true, role, page: normalized }, '', roleBasePath);
     } catch {}
-  }, [role]);
+  }, [role, roleBasePath]);
 
   // Lock browser history & intercept phone hardware/browser Back button + direct URL entry after entering any account
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const enforceRouteAndHistoryLock = () => {
-      if (isForbiddenUrlForRole(role) || window.location.pathname !== '/') {
+      if (isForbiddenUrlForRole(role) || (window.location.pathname !== roleBasePath && window.location.pathname !== '/')) {
         try {
-          window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+          window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', roleBasePath);
         } catch {}
         rawSetPage('home');
       }
@@ -3639,8 +4042,8 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
     enforceRouteAndHistoryLock();
 
     try {
-      window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', '/');
-      window.history.pushState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+      window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', roleBasePath);
+      window.history.pushState({ edulinkAuth: true, role, page: 'home' }, '', roleBasePath);
     } catch {}
 
     const handlePopState = () => {
@@ -3651,8 +4054,8 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
         rawSetPage('home');
       }
       try {
-        window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', '/');
-        window.history.pushState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+        window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', roleBasePath);
+        window.history.pushState({ edulinkAuth: true, role, page: 'home' }, '', roleBasePath);
       } catch {}
     };
 
@@ -3662,7 +4065,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('hashchange', enforceRouteAndHistoryLock);
     };
-  }, [role]);
+  }, [role, roleBasePath]);
 
   const [scopedModule, setScopedModule] = useState(() => {
     try {
@@ -3753,9 +4156,9 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       : page;
 
   let content;
-  if (activePage==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
+  if (activePage==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>;
   else if (activePage==="modules") content = role==="student" ? <ModuleRegistrationV47/> : <ModuleManagement setPage={setPage} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} />;
-  else if (activePage==="timetable") content = <TimetableManagementV43 role={role} scopedModule={scopedModule}/>;
+  else if (activePage==="timetable") content = <TimetableManagementV43 role={role} scopedModule={scopedModule} campusFilter={selectedCampus}/>;
   else if (activePage==="attendance") content = <Attendance role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
   else if (activePage==="assignments") content = <Assignments role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
   else if (activePage==="grades") content = role === "student" ? <StudentGradeInbox /> : <GradeManagementV41 scopedModule={scopedModule}/>;
@@ -3763,17 +4166,18 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
   else if (activePage==="messages") content = <MessagingCenterV44 role={role} profile={profile} onNavigate={setPage}/>;
   else if (activePage==="notifications") content = <NotificationsCenterV45 onNavigate={setPage}/>;
   else if (activePage==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <StudentDashboardV36 onNavigate={setPage} profile={profile}/>;
-  else if (activePage==="payments") content = role==="student" ? <PaymentCenterV46/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
+  else if (activePage==="payments") content = role==="student" ? <PaymentCenterV46/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>;
   else if (activePage==="settings" || activePage==="profile") content = (
     <ProfileSecurityCenterV49
       role={role}
       profile={profile}
       defaultTab={settingsTab || "profile"}
       onProfileUpdate={onProfileUpdate}
+      onLogout={onLogout}
     />
   );
   else if (activePage==="admin") content = role==="lecturer" ? <AdminOperationsV50/> : <StudentDashboardV36 onNavigate={setPage} profile={profile}/>;
-  else content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
+  else content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList} selectedCampus={selectedCampus} onSelectCampus={handleSelectCampus}/>;
 
   return (
     <div className={`app-shell ${activePage === 'home' ? 'home-screen' : ''} ${role === 'student' ? 'student-portal-shell' : 'lecturer-portal-shell'}`}>
@@ -3814,8 +4218,11 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           scopedModule={scopedModule}
           lecturerModulesList={lecturerModulesList}
           onSelectScopedModule={handleSelectScopedModule}
+          selectedCampus={selectedCampus}
+          onSelectCampus={handleSelectCampus}
         />
         <main className="app-main-content">
+          <FirstLoginPushPrompt userId={profile?.auth_user_id || profile?.user_id || profile?.id} />
           <ErrorBoundary key={activePage}>
             <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
               {content}
@@ -3878,10 +4285,11 @@ export default function App(){
         if (!mounted) return;
         if (data?.session) {
           const user = data.session.user;
-          let resolvedRole = null;
+          // Task 2.3: Read the role from the profiles table in Supabase, NEVER from localStorage or user input
+          let resolvedRole = await getVerifiedRoleFromSupabase(user);
           let userProfile = null;
 
-          // Always check students table first so a student can NEVER spoof localStorage/URL to become lecturer
+          // Load full student or lecturer profile record
           const { data: studentRecord } = await supabase
             .from('students')
             .select('*')
@@ -3898,6 +4306,7 @@ export default function App(){
               null;
             userProfile = {
               ...studentRecord,
+              auth_user_id: user.id,
               avatar_url: savedAvatar || studentRecord.avatar_url || null,
               role: 'student'
             };
@@ -3905,7 +4314,6 @@ export default function App(){
               supabase.from('students').update({ auth_user_id: user.id }).eq('id', studentRecord.id).then(null, () => {});
             }
           } else {
-            // Only if the user is NOT a student, check lecturers table
             const { data: lecturerRecord } = await supabase
               .from('lecturers')
               .select('*')
@@ -3922,6 +4330,7 @@ export default function App(){
                 null;
               userProfile = {
                 ...lecturerRecord,
+                auth_user_id: user.id,
                 avatar_url: savedAvatar || lecturerRecord.avatar_url || null,
                 role: 'lecturer'
               };
@@ -3931,13 +4340,9 @@ export default function App(){
             }
           }
 
-          // Strict fallback: never allow localStorage to elevate a student to lecturer
           if (!resolvedRole) {
             resolvedRole = user.user_metadata?.role === 'lecturer' ? 'lecturer' : 'student';
           }
-          try {
-            localStorage.setItem('academic_active_role', resolvedRole);
-          } catch {}
 
           if (!userProfile) {
             const savedAvatar = user.user_metadata?.avatar_url ||
@@ -3957,12 +4362,14 @@ export default function App(){
 
           const device = await verifyCurrentDevice({ role: resolvedRole }).catch(() => ({ registered: false }));
           if (device.registered && mounted) {
+            const targetPath = resolvedRole === 'lecturer' ? '/lecturer' : '/student';
             try {
-              window.history.replaceState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', '/');
-              window.history.pushState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', '/');
+              window.history.replaceState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', targetPath);
+              window.history.pushState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', targetPath);
             } catch {}
             setSessionState({ role: resolvedRole, profile: userProfile });
-            setOneSignalUser(userProfile, resolvedRole).catch(() => {});
+            // Task 4.2: Call OneSignal.login(user.id) with Supabase auth user.id as external_id
+            setOneSignalUser(userProfile, resolvedRole, user.id).catch(() => {});
             if (user.user_metadata?.requires_password_change || userProfile?.requires_password_change || userProfile?.temporary_password) {
               setShowPasswordChangeModal(true);
             }
@@ -4000,6 +4407,9 @@ export default function App(){
     } finally {
       clearOneSignalUser().catch(() => {});
       localStorage.removeItem('academic_active_role');
+      try {
+        window.history.replaceState({}, '', '/');
+      } catch {}
       setForceAuthScreen({ screen: 'role-select', role: 'student' });
       setSessionState(null);
       setShowPasswordChangeModal(false);
@@ -4007,16 +4417,15 @@ export default function App(){
   }
 
   const handleAuthenticated = (data) => {
-    if (data?.role) {
-      localStorage.setItem('academic_active_role', data.role);
-    }
+    const resolvedRole = data?.role === 'lecturer' ? 'lecturer' : 'student';
     const profile = data?.profile || {};
+    const authUserId = data?.session?.user?.id || profile.auth_user_id || profile.user_id || null;
     const avatar = profile.avatar_url ||
       data?.session?.user?.user_metadata?.avatar_url ||
       (profile.id && localStorage.getItem(`edulink_avatar_${profile.id}`)) ||
       (profile.student_id && localStorage.getItem(`edulink_avatar_${profile.student_id}`)) ||
       (profile.lecturer_id && localStorage.getItem(`edulink_avatar_${profile.lecturer_id}`)) ||
-      (data?.session?.user?.id && localStorage.getItem(`edulink_avatar_${data.session.user.id}`)) ||
+      (authUserId && localStorage.getItem(`edulink_avatar_${authUserId}`)) ||
       localStorage.getItem('edulink_active_avatar') ||
       null;
 
@@ -4029,17 +4438,22 @@ export default function App(){
       } catch (e) {}
     }
 
-    setOneSignalUser(profile, data?.role).catch(() => {});
+    // Task 4.2: Call OneSignal.login(user.id) using Supabase auth user id as external_id
+    setOneSignalUser({ ...profile, auth_user_id: authUserId }, resolvedRole, authUserId).catch(() => {});
 
+    // Task 2.2: Redirect to the role's home using replace (/student or /lecturer) so phone back button cannot return to login
+    const targetPath = resolvedRole === 'lecturer' ? '/lecturer' : '/student';
     try {
-      window.history.replaceState({ edulinkAuth: true, role: data?.role || 'student', page: 'home' }, '', '/');
-      window.history.pushState({ edulinkAuth: true, role: data?.role || 'student', page: 'home' }, '', '/');
+      window.history.replaceState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', targetPath);
+      window.history.pushState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', targetPath);
     } catch (e) {}
 
     setSessionState({
       ...data,
+      role: resolvedRole,
       profile: {
         ...profile,
+        auth_user_id: authUserId,
         avatar_url: avatar
       }
     });

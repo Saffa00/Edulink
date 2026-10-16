@@ -6,7 +6,8 @@ import {
   Trash2
 } from 'lucide-react';
 import {
-  getNotifications, markNotificationRead, markAllNotificationsRead
+  getNotifications, markNotificationRead, markAllNotificationsRead,
+  getNotificationPreferences, updateNotificationPreferences
 } from '../services/academicMasterV41toV55.js';
 import {
   getBrowserNotificationPermission,
@@ -27,17 +28,45 @@ export default function NotificationsCenterV45({ onNavigate }) {
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem('edulink_sound_notifications') !== 'false';
   });
+  const [prefs, setPrefs] = useState({
+    grades_notify: true,
+    assignments_notify: true,
+    class_reminders_notify: true
+  });
   const [actionFeedback, setActionFeedback] = useState('');
 
-  // Check initial browser notification permission
+  // Check initial browser notification permission & load user preferences
   useEffect(() => {
     getBrowserNotificationPermission().then(perm => setPermission(perm));
+    getNotificationPreferences()
+      .then(p => {
+        if (p) {
+          setPrefs({
+            grades_notify: p.grades_notify !== false,
+            assignments_notify: p.assignments_notify !== false,
+            class_reminders_notify: p.class_reminders_notify !== false
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleTogglePreference = async (key) => {
+    const nextVal = !prefs[key];
+    setPrefs(prev => ({ ...prev, [key]: nextVal }));
+    try {
+      await updateNotificationPreferences({ [key]: nextVal });
+      setActionFeedback('Notification preference saved.');
+      setTimeout(() => setActionFeedback(''), 2500);
+    } catch {
+      // Non-blocking
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const list = await getNotifications(selectedCategory);
+      const list = await getNotifications(selectedCategory === 'all' ? null : selectedCategory);
       setNotifications(list);
     } catch (err) {
       console.error(err);
@@ -54,7 +83,6 @@ export default function NotificationsCenterV45({ onNavigate }) {
   useEffect(() => {
     const unsubscribe = subscribeToLiveToasts((newNotif) => {
       setNotifications((prev) => {
-        // Prevent duplicate IDs
         if (prev.some(n => n.id === newNotif.id)) return prev;
         return [newNotif, ...prev];
       });
@@ -101,7 +129,6 @@ export default function NotificationsCenterV45({ onNavigate }) {
       setPermission(perm);
       if (perm === 'granted') {
         setActionFeedback('Live device notifications granted successfully! 🔔');
-        // Register OneSignal Push & Service Worker Web Push
         try {
           await promptOneSignalPush();
           await enableMessagePushNotifications();
@@ -117,12 +144,12 @@ export default function NotificationsCenterV45({ onNavigate }) {
 
   const handleTestNotification = () => {
     triggerTestLiveNotification({
-      title: '🎓 Grade Published: CSOR 224',
-      body: 'Dr. John Doe finalized semester marks for Operations Research. Score: 85 (Grade A).',
-      category: 'grade',
+      title: 'Your grade for CSOR 224 is available',
+      body: 'Your grade for CSOR 224 (Operations Research) is available. Open EduLink to view your result.',
+      category: 'grades',
       targetTab: 'grades'
     });
-    setActionFeedback('Real live notification sent with sound chime! 🔔');
+    setActionFeedback('Lock-screen-safe live notification sent with sound chime! 🔔');
     setTimeout(() => setActionFeedback(''), 4000);
   };
 
@@ -140,19 +167,23 @@ export default function NotificationsCenterV45({ onNavigate }) {
       handleMarkOne(n.id);
     }
     if (onNavigate) {
-      if (n.category === 'message') onNavigate('messages');
-      else if (n.category === 'grade') onNavigate('grades');
-      else if (n.category === 'assignment') onNavigate('assignments');
-      else if (n.category === 'attendance') onNavigate('attendance');
-      else if (n.category === 'dissertation') onNavigate('dissertation');
-      else if (n.category === 'payment') onNavigate('payments');
+      const cat = String(n.category || n.type || '').toLowerCase();
+      const link = String(n.link_url || n.url || '').toLowerCase();
+      if (link.includes('timetable') || cat === 'class_reminders') onNavigate('timetable');
+      else if (link.includes('grades') || cat === 'grade' || cat === 'grades') onNavigate('grades');
+      else if (link.includes('assignments') || cat === 'assignment' || cat === 'assignments') onNavigate('assignments');
+      else if (link.includes('attendance') || cat === 'attendance') onNavigate('attendance');
+      else if (cat === 'message') onNavigate('messages');
+      else if (cat === 'dissertation') onNavigate('dissertation');
+      else if (cat === 'payment') onNavigate('payments');
     }
   };
 
   const categories = [
     { id: 'all', label: 'All' },
-    { id: 'grade', label: 'Grades' },
-    { id: 'assignment', label: 'Assignments' },
+    { id: 'grades', label: 'Grades' },
+    { id: 'assignments', label: 'Assignments' },
+    { id: 'class_reminders', label: 'Class Reminders' },
     { id: 'attendance', label: 'Attendance' },
     { id: 'message', label: 'Messages' },
     { id: 'payment', label: 'Payments' },
@@ -234,6 +265,52 @@ export default function NotificationsCenterV45({ onNavigate }) {
             {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
             <span>{soundEnabled ? 'Chime On' : 'Muted'}</span>
           </button>
+        </div>
+      </section>
+
+      {/* Task 4.6: Notification Preference Toggles per Type (Grades, Assignments, Class Reminders) */}
+      <section
+        className="v-card"
+        style={{
+          padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}
+      >
+        <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--v-text)' }}>
+          Push Alert Preferences:
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={prefs.grades_notify}
+              onChange={() => handleTogglePreference('grades_notify')}
+              style={{ accentColor: '#0a2540' }}
+            />
+            <span>Grades</span>
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={prefs.assignments_notify}
+              onChange={() => handleTogglePreference('assignments_notify')}
+              style={{ accentColor: '#0a2540' }}
+            />
+            <span>Assignments</span>
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={prefs.class_reminders_notify}
+              onChange={() => handleTogglePreference('class_reminders_notify')}
+              style={{ accentColor: '#0a2540' }}
+            />
+            <span>30-Min Class Reminders</span>
+          </label>
         </div>
       </section>
 

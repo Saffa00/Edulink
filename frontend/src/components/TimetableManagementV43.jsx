@@ -1,18 +1,25 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Calendar, Clock, MapPin, Plus, RefreshCw, CheckCircle2, AlertCircle,
-  BookOpen, Trash2, X, Layers, LayoutGrid, ListFilter, DoorOpen
+  BookOpen, Trash2, X, LayoutGrid, ListFilter, DoorOpen, Ban, AlertTriangle
 } from 'lucide-react';
 import {
   getWeeklyTimetable,
   createScheduleSlot,
-  deleteScheduleSlot
+  deleteScheduleSlot,
+  OFFICIAL_CAMPUSES,
+  formatCampusName,
+  detectTimetableConflictsLocal,
+  cancelClassSlotDate
 } from '../services/academicMasterV41toV55.js';
 import { getLecturerModules } from '../services/attendanceV39.js';
-import { supabase } from '../services/supabase.js';
 
-export default function TimetableManagementV43({ role = 'lecturer', scopedModule = null }) {
-  const [schedules, setSchedules] = useState([]);
+export default function TimetableManagementV43({
+  role = 'lecturer',
+  scopedModule = null,
+  campusFilter = 'all'
+}) {
+  const [allSchedules, setAllSchedules] = useState([]);
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -23,6 +30,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
 
   const [form, setForm] = useState({
     module_id: scopedModule?.id || '',
+    campus_id: campusFilter && campusFilter !== 'all' ? campusFilter : 'goderich',
     day_of_week: 'Monday',
     start_time: '09:00',
     end_time: '11:00',
@@ -36,9 +44,14 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
     }
   }, [scopedModule]);
 
+  useEffect(() => {
+    if (campusFilter && campusFilter !== 'all') {
+      setForm(f => ({ ...f, campus_id: campusFilter }));
+    }
+  }, [campusFilter]);
+
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  // Current day of the week
   const todayName = useMemo(() => {
     const dayIndex = new Date().getDay();
     const map = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -47,7 +60,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
 
   useEffect(() => {
     if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 5000);
+      const t = setTimeout(() => { setMessage(''); setError(''); }, 5500);
       return () => clearTimeout(t);
     }
   }, [message, error]);
@@ -55,8 +68,8 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const list = await getWeeklyTimetable(role);
-      setSchedules(list || []);
+      const list = await getWeeklyTimetable(role, 'all');
+      setAllSchedules(list || []);
 
       if (role === 'lecturer') {
         const m = await getLecturerModules();
@@ -76,16 +89,47 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
     loadData();
   }, [loadData]);
 
+  // Filtered schedules based on Lecturer Campus Switcher (while keeping allSchedules for cross-campus conflict detection)
+  const schedules = useMemo(() => {
+    if (role !== 'lecturer' || !campusFilter || campusFilter === 'all') {
+      return allSchedules;
+    }
+    return allSchedules.filter(s => {
+      const slotCampus = s.campus_id || (s.location_name || '').toLowerCase();
+      if (slotCampus === campusFilter) return true;
+      if (campusFilter === 'congo-cross' && String(slotCampus).includes('congo')) return true;
+      if (campusFilter === 'brookfields' && String(slotCampus).includes('brook')) return true;
+      if (campusFilter === 'goderich' && (!s.campus_id || String(slotCampus).includes('goderich'))) return true;
+      return false;
+    });
+  }, [allSchedules, campusFilter, role]);
+
+  // Task 3.4: Live detection of direct overlaps and back-to-back classes at different campuses (< 45 min)
+  const conflictWarnings = useMemo(() => {
+    if (!showAddForm || role !== 'lecturer') return [];
+    return detectTimetableConflictsLocal(allSchedules, form);
+  }, [allSchedules, form, showAddForm, role]);
+
   const handleCreateSlot = async (e) => {
     e.preventDefault();
     if (!form.module_id && role === 'lecturer' && modules.length > 0) {
       form.module_id = modules[0].id;
     }
 
+    if (conflictWarnings.length > 0) {
+      const hasHardOverlap = conflictWarnings.some(w => w.type === 'overlap');
+      const promptMsg = hasHardOverlap
+        ? `${conflictWarnings.map(w => w.message).join('\n')}\n\nProceed anyway?`
+        : `${conflictWarnings.map(w => w.message).join('\n')}\n\nDo you still want to schedule this back-to-back cross-campus slot?`;
+      if (!window.confirm(promptMsg)) return;
+    }
+
     try {
       setActionBusy(true);
       await createScheduleSlot(form);
-      setMessage(`Lecture slot for ${form.day_of_week} (${form.start_time} - ${form.end_time}) created successfully.`);
+      setMessage(
+        `Lecture slot for ${form.day_of_week} (${form.start_time} - ${form.end_time}) at ${formatCampusName(form.campus_id)} created.`
+      );
       setShowAddForm(false);
       await loadData();
     } catch (err) {
@@ -113,13 +157,38 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
     }
   };
 
-  // Summary Metrics calculations
+  // Task 5.6: Cancel a class date and push immediate notice "<module> at <time> is cancelled"
+  const handleCancelClassDate = async (slot, e) => {
+    e.stopPropagation();
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const modCode = slot.modules?.code || 'Module';
+    const timeStr = (slot.start_time || '').slice(0, 5);
+    const reason = window.prompt(
+      `Cancel ${modCode} at ${timeStr} for date (${todayIso})?\nEnrolled students will immediately receive: "${modCode} at ${timeStr} is cancelled".\n\nOptional reason:`,
+      'Lecturer unavailable'
+    );
+    if (reason === null) return;
+
+    try {
+      setActionBusy(true);
+      await cancelClassSlotDate({
+        timetableId: slot.id,
+        classDate: todayIso,
+        reason: reason.trim() || 'Cancelled by lecturer'
+      });
+      setMessage(`"${modCode} at ${timeStr} is cancelled" notice sent to enrolled students for ${todayIso}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to cancel class date.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   const stats = useMemo(() => {
     const totalSlots = schedules.length;
     const uniqueModules = new Set(schedules.map(s => s.modules?.code || s.module_id)).size;
     const uniqueVenues = new Set(schedules.map(s => s.location_name)).size;
 
-    // Calculate approximate weekly hours
     let totalMinutes = 0;
     schedules.forEach(s => {
       if (s.start_time && s.end_time) {
@@ -153,8 +222,8 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
           <h1>Timetable & Class Schedule</h1>
           <p>
             {role === 'lecturer'
-              ? 'Organize your weekly recurring lecture periods, assign venues, and view teaching allocations.'
-              : 'Personalized weekly schedule based on your enrolled coursework modules.'}
+              ? `Organize your weekly recurring lecture periods across campuses (${formatCampusName(campusFilter)}).`
+              : 'Personalized weekly schedule for your campus and enrolled coursework modules.'}
           </p>
         </div>
         <div className="v-header-actions">
@@ -240,7 +309,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
           <div className="v-form-head">
             <div>
               <h3>Add Lecture Schedule Slot</h3>
-              <p>Set a recurring weekly teaching period and lecture hall location.</p>
+              <p>Set a recurring weekly teaching period, campus, and lecture hall location.</p>
             </div>
             <button
               type="button"
@@ -252,8 +321,52 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
             </button>
           </div>
 
+          {/* Task 3.4: Live Overlap & Back-to-Back Cross-Campus Warning */}
+          {conflictWarnings.length > 0 && (
+            <div
+              role="alert"
+              style={{
+                margin: '0 0 14px 0',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: '#fffbeb',
+                border: '1px solid #f59e0b',
+                color: '#92400e',
+                fontSize: '0.84rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, marginBottom: '4px' }}>
+                <AlertTriangle size={16} color="#d97706" />
+                Timetable Conflict / Cross-Campus Travel Warning
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                {conflictWarnings.map((w, idx) => (
+                  <li key={idx}>{w.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <form onSubmit={handleCreateSlot} className="v-form-grid">
-            {/* Field 1: Module Select */}
+            {/* Field 1: Campus Select */}
+            <div className="v-form-group">
+              <label>
+                <MapPin size={15} color="#2563eb" /> Teaching Campus
+              </label>
+              <select
+                value={form.campus_id}
+                onChange={e => setForm({ ...form, campus_id: e.target.value })}
+                required
+              >
+                {OFFICIAL_CAMPUSES.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Field 2: Module Select */}
             <div className="v-form-group">
               <label>
                 <BookOpen size={15} color="#2563eb" /> Coursework Module
@@ -275,7 +388,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
               </select>
             </div>
 
-            {/* Field 2: Day of the Week */}
+            {/* Field 3: Day of the Week */}
             <div className="v-form-group">
               <label>
                 <Calendar size={15} color="#2563eb" /> Day of Week
@@ -293,7 +406,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
               </select>
             </div>
 
-            {/* Field 3: Start Time */}
+            {/* Field 4: Start Time */}
             <div className="v-form-group">
               <label>
                 <Clock size={15} color="#2563eb" /> Start Time
@@ -306,7 +419,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
               />
             </div>
 
-            {/* Field 4: End Time */}
+            {/* Field 5: End Time */}
             <div className="v-form-group">
               <label>
                 <Clock size={15} color="#2563eb" /> End Time
@@ -319,7 +432,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
               />
             </div>
 
-            {/* Field 5: Venue / Location Name */}
+            {/* Field 6: Venue / Location Name */}
             <div className="v-form-group">
               <label>
                 <MapPin size={15} color="#2563eb" /> Venue / Building Name
@@ -333,7 +446,7 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
               />
             </div>
 
-            {/* Field 6: Room Code */}
+            {/* Field 7: Room Code */}
             <div className="v-form-group">
               <label>
                 <DoorOpen size={15} color="#2563eb" /> Room Code (Optional)
@@ -443,20 +556,46 @@ export default function TimetableManagementV43({ role = 'lecturer', scopedModule
                         </div>
 
                         {role === 'lecturer' && (
-                          <button
-                            type="button"
-                            className="v-slot-del-btn"
-                            title="Remove class slot"
-                            onClick={(e) => handleDeleteSlot(slot.id, e)}
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <button
+                              type="button"
+                              className="v-slot-del-btn"
+                              title="Cancel class date & notify enrolled students"
+                              onClick={(e) => handleCancelClassDate(slot, e)}
+                              style={{ color: '#d97706' }}
+                            >
+                              <Ban size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="v-slot-del-btn"
+                              title="Remove class slot"
+                              onClick={(e) => handleDeleteSlot(slot.id, e)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         )}
                       </div>
 
-                      <strong className="v-slot-module-code">
-                        {slot.modules?.code || 'Module'}
-                      </strong>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
+                        <strong className="v-slot-module-code">
+                          {slot.modules?.code || 'Module'}
+                        </strong>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '999px',
+                            background: 'rgba(37, 99, 235, 0.1)',
+                            color: '#1d4ed8'
+                          }}
+                        >
+                          {formatCampusName(slot.campus_id || slot.location_name || 'goderich')}
+                        </span>
+                      </div>
+
                       <span className="v-slot-module-title">
                         {slot.modules?.title || 'Lecture Class'}
                       </span>

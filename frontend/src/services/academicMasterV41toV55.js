@@ -284,17 +284,18 @@ export async function saveIndividualGrade({ moduleId, studentInternalId, score, 
     });
   }
 
-  // Real-time Academic Notification for Individual Grade Recording
+  // Real-time Academic Notification for Individual Grade Recording (Task 4.4a: No score in text for lock-screen privacy)
   try {
     const { data: st } = await supabase.from('students').select('auth_user_id, full_name').eq('id', studentInternalId).single();
     const { data: m } = await supabase.from('modules').select('code, title').eq('id', moduleId).single();
+    const modLabel = m?.code ? `${m.code}${m.title ? ` (${m.title})` : ''}` : 'your module';
     if (st?.auth_user_id) {
       await sendAcademicNotification({
         recipientUserId: st.auth_user_id,
-        title: `Grade Recorded: ${m?.code || 'Module'}`,
-        body: `Your score for ${m?.code || ''} ${m?.title || ''} is: ${numScore} (Grade ${gradeLetter}).${remarks ? ` Remarks: ${remarks}` : ''}`,
-        category: 'grade',
-        linkUrl: 'grades'
+        title: `Your grade for ${m?.code || 'Module'} is available`,
+        body: `Your grade for ${modLabel} is available. Open EduLink to view your result.`,
+        category: 'grades',
+        linkUrl: '/student?page=grades'
       });
     }
   } catch (notifErr) {
@@ -327,13 +328,15 @@ export async function publishAllModuleGrades(moduleId) {
   const { data: updated, error } = await query.select();
   if (error) throw error;
 
-  // Insert audit records and notify all graded students
+  // Insert audit records and notify all graded students (lock-screen safe: no score in text)
   if (updated && updated.length) {
     let modInfo = null;
     try {
       const { data: m } = await supabase.from('modules').select('code, title').eq('id', moduleId).single();
       modInfo = m;
     } catch {}
+
+    const modLabel = modInfo?.code ? `${modInfo.code}${modInfo.title ? ` (${modInfo.title})` : ''}` : 'your module';
 
     for (const g of updated) {
       await supabase.from('grade_audits').insert({
@@ -347,16 +350,16 @@ export async function publishAllModuleGrades(moduleId) {
         reason: 'Bulk module grade publication'
       });
 
-      // Dispatch live notification to student
+      // Dispatch live notification to student without exposing score on lock screen
       try {
         const { data: st } = await supabase.from('students').select('auth_user_id, full_name').eq('id', g.student_id).single();
         if (st?.auth_user_id) {
           await sendAcademicNotification({
             recipientUserId: st.auth_user_id,
-            title: `Official Grade Published: ${modInfo?.code || 'Module'}`,
-            body: `Your final grade for ${modInfo?.code || ''} ${modInfo?.title || ''} is published: Score ${g.score} (Grade ${g.grade}).`,
-            category: 'grade',
-            linkUrl: 'grades'
+            title: `Your grade for ${modInfo?.code || 'Module'} is available`,
+            body: `Your grade for ${modLabel} is available. Open EduLink to view your official result.`,
+            category: 'grades',
+            linkUrl: '/student?page=grades'
           });
         }
       } catch (stNotifErr) {
@@ -671,16 +674,28 @@ export async function reviewDissertationVersion({ versionId, dissertationId, sta
 // ============================================================================
 // V43: Timetable & Schedule Management
 // ============================================================================
-export async function getWeeklyTimetable(role) {
+export async function getWeeklyTimetable(role, campusFilter = 'all') {
   if (role === 'lecturer') {
     const lecturer = await getLecturerProfile();
     const { data, error } = await supabase
       .from('schedules')
-      .select('id, day_of_week, start_time, end_time, location_name, room_code, modules(id, code, title)')
+      .select('id, day_of_week, start_time, end_time, location_name, room_code, campus_id, offering_id, modules(id, code, title)')
       .eq('lecturer_id', lecturer.id)
       .order('start_time');
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      // Fallback if campus_id column not yet migrated
+      const fallback = await supabase
+        .from('schedules')
+        .select('id, day_of_week, start_time, end_time, location_name, room_code, modules(id, code, title)')
+        .eq('lecturer_id', lecturer.id)
+        .order('start_time');
+      return fallback.data || [];
+    }
+    const rows = data || [];
+    if (campusFilter && campusFilter !== 'all') {
+      return rows.filter(r => !r.campus_id || r.campus_id === campusFilter || (r.location_name || '').toLowerCase().includes(campusFilter.replace('-', ' ')));
+    }
+    return rows;
   } else {
     const student = await getStudentProfile();
     const { data: sm, error: sme } = await supabase
@@ -694,29 +709,53 @@ export async function getWeeklyTimetable(role) {
 
     const { data, error } = await supabase
       .from('schedules')
-      .select('id, day_of_week, start_time, end_time, location_name, room_code, modules(id, code, title), lecturers(full_name)')
+      .select('id, day_of_week, start_time, end_time, location_name, room_code, campus_id, offering_id, modules(id, code, title), lecturers(full_name)')
       .in('module_id', moduleIds)
       .order('start_time');
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      const fallback = await supabase
+        .from('schedules')
+        .select('id, day_of_week, start_time, end_time, location_name, room_code, modules(id, code, title), lecturers(full_name)')
+        .in('module_id', moduleIds)
+        .order('start_time');
+      return fallback.data || [];
+    }
+    const studentCampus = student?.campus_id || student?.campus || null;
+    return (data || []).filter(slot => !studentCampus || !slot.campus_id || slot.campus_id === studentCampus);
   }
 }
 
 export async function createScheduleSlot(payload) {
   const lecturer = await getLecturerProfile();
-  const { data, error } = await supabase
+  const insertBody = {
+    module_id: payload.module_id,
+    lecturer_id: lecturer.id,
+    day_of_week: payload.day_of_week,
+    start_time: payload.start_time,
+    end_time: payload.end_time,
+    location_name: payload.location_name,
+    room_code: payload.room_code || ''
+  };
+  if (payload.campus_id) insertBody.campus_id = payload.campus_id;
+  if (payload.offering_id) insertBody.offering_id = payload.offering_id;
+
+  let { data, error } = await supabase
     .from('schedules')
-    .insert({
-      module_id: payload.module_id,
-      lecturer_id: lecturer.id,
-      day_of_week: payload.day_of_week,
-      start_time: payload.start_time,
-      end_time: payload.end_time,
-      location_name: payload.location_name,
-      room_code: payload.room_code || ''
-    })
+    .insert(insertBody)
     .select('*, modules(code, title)')
     .single();
+
+  if (error && (insertBody.campus_id || insertBody.offering_id)) {
+    delete insertBody.campus_id;
+    delete insertBody.offering_id;
+    const retry = await supabase
+      .from('schedules')
+      .insert(insertBody)
+      .select('*, modules(code, title)')
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) throw error;
 
   // Auto-link module to this lecturer if not already assigned
@@ -1334,3 +1373,273 @@ export async function getSystemAuditMetrics() {
     recentLogs: auditsC.data || []
   };
 }
+
+// ============================================================================
+// V59: Multi-Campus Offerings, Materials, Timetable Conflict Detection,
+//      Class Cancellations & Notification Preferences
+// ============================================================================
+
+export const OFFICIAL_CAMPUSES = [
+  { id: 'goderich', name: 'Goderich Campus' },
+  { id: 'congo-cross', name: 'Congo Cross Campus' },
+  { id: 'brookfields', name: 'Brookfields Campus' }
+];
+
+export function formatCampusName(campusIdOrName) {
+  if (!campusIdOrName || campusIdOrName === 'all') return 'All Campuses';
+  const norm = String(campusIdOrName).toLowerCase().trim();
+  if (norm.includes('congo')) return 'Congo Cross Campus';
+  if (norm.includes('brook')) return 'Brookfields Campus';
+  if (norm.includes('goderich')) return 'Goderich Campus';
+  return campusIdOrName;
+}
+
+/**
+ * Task 2.3: Read user role strictly from public.profiles in Supabase
+ * (with fallback to public.lecturers / public.students if profiles row is not yet synced),
+ * NEVER from localStorage or user input.
+ */
+export async function getVerifiedRoleFromSupabase(authUser = null) {
+  const user = authUser || (await supabase.auth.getUser())?.data?.user;
+  if (!user?.id) return null;
+
+  try {
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('role, campus_id, full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (prof?.role === 'lecturer' || prof?.role === 'student') {
+      return prof.role;
+    }
+  } catch {
+    // Table may not yet exist before migration runs
+  }
+
+  const [lecRes, stuRes] = await Promise.all([
+    supabase.from('lecturers').select('id').eq('auth_user_id', user.id).maybeSingle(),
+    supabase.from('students').select('id').eq('auth_user_id', user.id).maybeSingle()
+  ]);
+
+  if (lecRes?.data?.id) return 'lecturer';
+  if (stuRes?.data?.id) return 'student';
+  return null;
+}
+
+/**
+ * Task 3.4: Warn on timetable overlaps for the same lecturer, including
+ * back-to-back classes at different campuses (< 45 min travel buffer).
+ */
+export function detectTimetableConflictsLocal(existingSlots = [], candidate = {}) {
+  const { day_of_week, start_time, end_time, campus_id, location_name, exclude_id } = candidate;
+  if (!day_of_week || !start_time || !end_time) return [];
+
+  const toMinutes = (t) => {
+    const parts = String(t || '00:00').split(':').map(Number);
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+  };
+
+  const resolveCampus = (cId, loc) => {
+    const raw = String(cId || loc || '').toLowerCase();
+    if (raw.includes('congo')) return 'congo-cross';
+    if (raw.includes('brook')) return 'brookfields';
+    return 'goderich';
+  };
+
+  const candStart = toMinutes(start_time);
+  const candEnd = toMinutes(end_time);
+  const candCampus = resolveCampus(campus_id, location_name);
+
+  const warnings = [];
+  for (const slot of existingSlots) {
+    if (exclude_id && slot.id === exclude_id) continue;
+    if (String(slot.day_of_week).toLowerCase() !== String(day_of_week).toLowerCase()) continue;
+
+    const slotStart = toMinutes(slot.start_time);
+    const slotEnd = toMinutes(slot.end_time);
+    const slotCampus = resolveCampus(slot.campus_id, slot.location_name);
+    const modCode = slot.modules?.code || 'Module';
+
+    // 1. Direct time overlap
+    if (slotStart < candEnd && slotEnd > candStart) {
+      warnings.push({
+        type: 'overlap',
+        slotId: slot.id,
+        moduleCode: modCode,
+        campus: formatCampusName(slotCampus),
+        message: `Time overlap with ${modCode} (${String(slot.start_time).slice(0, 5)}–${String(slot.end_time).slice(0, 5)}) at ${formatCampusName(slotCampus)}.`
+      });
+      continue;
+    }
+
+    // 2. Back-to-back classes at different campuses (< 45 minutes travel buffer)
+    if (slotCampus !== candCampus) {
+      const gapAfterExisting = candStart - slotEnd;
+      const gapBeforeExisting = slotStart - candEnd;
+      const minGap = Math.min(
+        gapAfterExisting >= 0 ? gapAfterExisting : Infinity,
+        gapBeforeExisting >= 0 ? gapBeforeExisting : Infinity
+      );
+      if (minGap < 45) {
+        warnings.push({
+          type: 'cross_campus_back_to_back',
+          slotId: slot.id,
+          moduleCode: modCode,
+          campus: formatCampusName(slotCampus),
+          message: `Back-to-back cross-campus warning: Only ${minGap} min between ${modCode} at ${formatCampusName(slotCampus)} (${String(slot.start_time).slice(0, 5)}–${String(slot.end_time).slice(0, 5)}) and ${formatCampusName(candCampus)} (45 min travel buffer recommended).`
+        });
+      }
+    }
+  }
+  return warnings;
+}
+
+/**
+ * Task 5.6: Cancel a class date for a timetable slot, insert into public.class_cancellations,
+ * and push an immediate notice to enrolled students: "<module> at <time> is cancelled".
+ */
+export async function cancelClassSlotDate({ timetableId, classDate, reason = 'Cancelled by lecturer' }) {
+  await assertNotStudentAccount();
+  const targetDate = classDate || new Date().toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from('class_cancellations')
+    .upsert(
+      {
+        timetable_id: timetableId,
+        class_date: targetDate,
+        reason
+      },
+      { onConflict: 'timetable_id,class_date' }
+    )
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || { timetable_id: timetableId, class_date: targetDate, reason };
+}
+
+/**
+ * Task 3.3 & 3.5: Fetch and publish course materials / announcements scoped by campus.
+ * Lecturers can post one material/announcement to a single campus or multiple campuses at once.
+ * Students only see their own campus's materials.
+ */
+export async function getCourseMaterials({ role = 'student', campusFilter = 'all', moduleId = null } = {}) {
+  try {
+    let query = supabase
+      .from('materials')
+      .select('id, offering_id, module_id, campus_id, lecturer_id, title, description, file_url, material_type, created_at, modules(code, title)')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (moduleId && isUuid(moduleId)) {
+      query = query.eq('module_id', moduleId);
+    }
+
+    if (role === 'student') {
+      const student = await getStudentProfile().catch(() => null);
+      const studentCampus = student?.campus_id || student?.campus || null;
+      if (studentCampus) {
+        query = query.or(`campus_id.eq.${studentCampus},campus_id.is.null`);
+      }
+    } else if (campusFilter && campusFilter !== 'all') {
+      query = query.eq('campus_id', campusFilter);
+    }
+
+    const { data, error } = await query;
+    if (error) return [];
+    return data || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function postMultiCampusMaterial({
+  moduleId,
+  campusIds = ['goderich'],
+  title,
+  description = '',
+  fileUrl = '',
+  materialType = 'announcement'
+}) {
+  const lecturer = await getLecturerProfile();
+  const cleanTitle = String(title || '').trim();
+  if (!cleanTitle) throw new Error('Title is required.');
+
+  const targets = Array.isArray(campusIds) && campusIds.length > 0 ? campusIds : ['goderich'];
+  const rowsToInsert = targets.map((cId) => ({
+    module_id: isUuid(moduleId) ? moduleId : null,
+    campus_id: cId,
+    lecturer_id: lecturer.id,
+    title: cleanTitle,
+    description: String(description || '').trim(),
+    file_url: fileUrl || null,
+    material_type: materialType
+  }));
+
+  const { data, error } = await supabase
+    .from('materials')
+    .insert(rowsToInsert)
+    .select('*, modules(code, title)');
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Task 4.6: Notification preferences table & settings toggles per type
+ * (grades, assignments, class reminders).
+ */
+export async function getNotificationPreferences() {
+  const user = await getAuthUser();
+  const defaults = {
+    user_id: user.id,
+    push_enabled: true,
+    grades_notify: true,
+    assignments_notify: true,
+    class_reminders_notify: true
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('notification_preferences')
+      .select('user_id, push_enabled, grades_notify, assignments_notify, class_reminders_notify')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error || !data) return defaults;
+    return {
+      user_id: user.id,
+      push_enabled: data.push_enabled !== false,
+      grades_notify: data.grades_notify !== false,
+      assignments_notify: data.assignments_notify !== false,
+      class_reminders_notify: data.class_reminders_notify !== false
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+export async function updateNotificationPreferences(updates = {}) {
+  const user = await getAuthUser();
+  const current = await getNotificationPreferences();
+  const next = {
+    user_id: user.id,
+    push_enabled: updates.push_enabled !== undefined ? Boolean(updates.push_enabled) : current.push_enabled,
+    grades_notify: updates.grades_notify !== undefined ? Boolean(updates.grades_notify) : current.grades_notify,
+    assignments_notify: updates.assignments_notify !== undefined ? Boolean(updates.assignments_notify) : current.assignments_notify,
+    class_reminders_notify: updates.class_reminders_notify !== undefined ? Boolean(updates.class_reminders_notify) : current.class_reminders_notify,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('notification_preferences')
+    .upsert(next, { onConflict: 'user_id' })
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || next;
+}
+

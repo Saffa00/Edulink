@@ -3,11 +3,12 @@ import {
   User, ShieldCheck, Smartphone, KeyRound, Clock, CheckCircle2,
   AlertCircle, Trash2, RefreshCw, Eye, EyeOff, Bell, Sliders,
   Save, GraduationCap, Building2, MapPin, Phone, Mail, Sparkles,
-  Lock, Check, SmartphoneCharging, Laptop, Camera, Upload
+  Lock, Check, SmartphoneCharging, Laptop, Camera, Upload, LogOut
 } from 'lucide-react';
 import {
   getProfileSecurityInfo, updateUserPassword, updateUserProfile,
-  uploadProfileAvatar, removeProfileAvatar
+  uploadProfileAvatar, removeProfileAvatar,
+  getNotificationPreferences, updateNotificationPreferences
 } from '../services/academicMasterV41toV55.js';
 import { revokeDeviceBinding } from '../services/device.js';
 
@@ -15,7 +16,8 @@ export default function ProfileSecurityCenterV49({
   role = 'student',
   profile: initialProfile = null,
   defaultTab = 'profile',
-  onProfileUpdate = null
+  onProfileUpdate = null,
+  onLogout = null
 }) {
   const [activeTab, setActiveTab] = useState(defaultTab || 'profile');
   const [data, setData] = useState(null);
@@ -37,9 +39,12 @@ export default function ProfileSecurityCenterV49({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Form states for preferences
+  // Form states for preferences (Task 4.6: grades, assignments, class reminders)
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('edulink_theme') || 'light');
   const [pushEnabled, setPushEnabled] = useState(() => Notification?.permission === 'granted');
+  const [gradesNotify, setGradesNotify] = useState(true);
+  const [assignmentsNotify, setAssignmentsNotify] = useState(true);
+  const [classRemindersNotify, setClassRemindersNotify] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -65,8 +70,17 @@ export default function ProfileSecurityCenterV49({
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await getProfileSecurityInfo(role);
+      const [res, notifPrefs] = await Promise.all([
+        getProfileSecurityInfo(role),
+        getNotificationPreferences().catch(() => null)
+      ]);
       setData(res);
+
+      if (notifPrefs) {
+        setGradesNotify(notifPrefs.grades_notify !== false);
+        setAssignmentsNotify(notifPrefs.assignments_notify !== false);
+        setClassRemindersNotify(notifPrefs.class_reminders_notify !== false);
+      }
 
       const resolved = res.profile || initialProfile;
       if (resolved) {
@@ -324,7 +338,7 @@ export default function ProfileSecurityCenterV49({
           <h1>Profile & Account Settings</h1>
           <p>Manage your academic profile, contact information, device security, and preferences.</p>
         </div>
-        <div className="v-header-actions">
+        <div className="v-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span style={{
             background: '#eaf1f8',
             color: '#051525',
@@ -339,6 +353,28 @@ export default function ProfileSecurityCenterV49({
             <ShieldCheck size={15} />
             {role === 'student' ? 'Student Account' : 'Faculty Lecturer'} • Active
           </span>
+
+          {onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              style={{
+                background: '#fee2e2',
+                color: '#b91c1c',
+                border: '1px solid #fecaca',
+                padding: '7px 14px',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              <LogOut size={15} /> Logout
+            </button>
+          )}
         </div>
       </header>
 
@@ -743,9 +779,9 @@ export default function ProfileSecurityCenterV49({
                     background: '#ffffff'
                   }}
                 >
-                  <option value="Goderich Campus">Goderich Main Campus</option>
-                  <option value="Jui Campus">Jui Health & Sciences Campus</option>
-                  <option value="Tower Hill Campus">Tower Hill Campus</option>
+                  <option value="Goderich Campus">Goderich Campus</option>
+                  <option value="Congo Cross Campus">Congo Cross Campus</option>
+                  <option value="Brookfields Campus">Brookfields Campus</option>
                 </select>
               </div>
 
@@ -1090,8 +1126,74 @@ export default function ProfileSecurityCenterV49({
                 )}
               </div>
 
-              {/* Notification Toggles */}
+              {/* Notification Toggles (Task 4.6: grades, assignments, class reminders) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', display: 'block' }}>Grades Posted Alerts</strong>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>Receive a lock-screen-safe alert ("Your grade for &lt;module&gt; is available") when grades are posted.</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={gradesNotify}
+                    onChange={async (e) => {
+                      const nextVal = e.target.checked;
+                      setGradesNotify(nextVal);
+                      try {
+                        await updateNotificationPreferences({ grades_notify: nextVal });
+                        setMessage(`Grade alerts ${nextVal ? 'enabled' : 'disabled'}.`);
+                      } catch (err) {
+                        setError(err.message || 'Could not save preference.');
+                      }
+                    }}
+                    style={{ width: '18px', height: '18px', accentColor: '#0a2540' }}
+                  />
+                </label>
+
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', display: 'block' }}>New Assignments & Due Dates</strong>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>Get notified when new assignments are posted for your enrolled offerings (grouped hourly).</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={assignmentsNotify}
+                    onChange={async (e) => {
+                      const nextVal = e.target.checked;
+                      setAssignmentsNotify(nextVal);
+                      try {
+                        await updateNotificationPreferences({ assignments_notify: nextVal });
+                        setMessage(`Assignment alerts ${nextVal ? 'enabled' : 'disabled'}.`);
+                      } catch (err) {
+                        setError(err.message || 'Could not save preference.');
+                      }
+                    }}
+                    style={{ width: '18px', height: '18px', accentColor: '#0a2540' }}
+                  />
+                </label>
+
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div>
+                    <strong style={{ fontSize: '13px', display: 'block' }}>30-Minute Weekly Class Reminders</strong>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>Receive &ldquo;&lt;module&gt; starts in 30 min&rdquo; and class cancellation notices in Africa/Freetown time.</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={classRemindersNotify}
+                    onChange={async (e) => {
+                      const nextVal = e.target.checked;
+                      setClassRemindersNotify(nextVal);
+                      try {
+                        await updateNotificationPreferences({ class_reminders_notify: nextVal });
+                        setMessage(`Class reminder alerts ${nextVal ? 'enabled' : 'disabled'}.`);
+                      } catch (err) {
+                        setError(err.message || 'Could not save preference.');
+                      }
+                    }}
+                    style={{ width: '18px', height: '18px', accentColor: '#0a2540' }}
+                  />
+                </label>
+
                 <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
                   <div>
                     <strong style={{ fontSize: '13px', display: 'block' }}>Email Academic Summaries</strong>
@@ -1101,19 +1203,6 @@ export default function ProfileSecurityCenterV49({
                     type="checkbox"
                     checked={emailAlerts}
                     onChange={e => setEmailAlerts(e.target.checked)}
-                    style={{ width: '18px', height: '18px', accentColor: '#0a2540' }}
-                  />
-                </label>
-
-                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div>
-                    <strong style={{ fontSize: '13px', display: 'block' }}>Class & Attendance Deadlines</strong>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>Instant alert when an attendance window opens or closes.</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={true}
-                    disabled
                     style={{ width: '18px', height: '18px', accentColor: '#0a2540' }}
                   />
                 </label>

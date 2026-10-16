@@ -398,7 +398,40 @@ alter table public.payments enable row level security;
 alter table public.payment_events enable row level security;
 alter table public.system_audit_logs enable row level security;
 
--- 17. Authenticated RLS Policies
+-- 17. Authenticated RLS Policies & Strict Role Enforcement
+
+create or replace function public.is_lecturer()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.lecturers l
+    where l.auth_user_id = auth.uid() and coalesce(l.active, true) = true
+  )
+  and not exists (
+    select 1 from public.students s
+    where s.auth_user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_student()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.students s
+    where s.auth_user_id = auth.uid()
+  );
+$$;
+
+grant execute on function public.is_lecturer() to authenticated;
+grant execute on function public.is_student() to authenticated;
 
 -- Public / Authenticated Read for Catalogues
 drop policy if exists "allow read faculties" on public.faculties;
@@ -416,68 +449,98 @@ create policy "allow read modules" on public.modules for select to authenticated
 -- Lecturers manage own modules
 drop policy if exists "lecturers manage own modules" on public.modules;
 create policy "lecturers manage own modules" on public.modules for all to authenticated
-using (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
-with check (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
+using (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
+with check (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
 
 -- Profiles
 drop policy if exists "lecturers read own profile" on public.lecturers;
-create policy "lecturers read own profile" on public.lecturers for all to authenticated
-using (auth_user_id = auth.uid());
+create policy "lecturers read own profile" on public.lecturers for select to authenticated
+using ((public.is_lecturer() and auth_user_id = auth.uid()) or coalesce(active, true) = true);
+
+drop policy if exists "lecturers update own profile" on public.lecturers;
+create policy "lecturers update own profile" on public.lecturers for update to authenticated
+using (public.is_lecturer() and auth_user_id = auth.uid())
+with check (public.is_lecturer() and auth_user_id = auth.uid());
 
 drop policy if exists "students read own profile" on public.students;
-create policy "students read own profile" on public.students for all to authenticated
-using (auth_user_id = auth.uid());
+create policy "students read own profile" on public.students for select to authenticated
+using (public.is_student() and auth_user_id = auth.uid());
+
+drop policy if exists "students update own profile" on public.students;
+create policy "students update own profile" on public.students for update to authenticated
+using (public.is_student() and auth_user_id = auth.uid())
+with check (public.is_student() and auth_user_id = auth.uid());
+
+drop policy if exists "lecturers read enrolled students" on public.students;
+create policy "lecturers read enrolled students" on public.students for select to authenticated
+using (
+  public.is_lecturer()
+  and (
+    id in (
+      select sm.student_id from public.student_modules sm
+      join public.modules m on m.id = sm.module_id
+      join public.lecturers l on l.id = m.lecturer_id
+      where l.auth_user_id = auth.uid()
+    )
+    or id in (
+      select d.student_id from public.dissertations d
+      left join public.lecturers l on l.id = d.supervisor_id
+      where l.auth_user_id = auth.uid() or d.supervisor_id is null
+    )
+  )
+);
 
 -- Classes & Attendance
 drop policy if exists "lecturers manage classes" on public.classes;
 create policy "lecturers manage classes" on public.classes for all to authenticated
-using (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
-with check (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
+using (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
+with check (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
 
 drop policy if exists "students read classes" on public.classes;
 create policy "students read classes" on public.classes for select to authenticated
 using (
-  module_id in (select module_id from public.student_modules sm join public.students s on s.id=sm.student_id where s.auth_user_id=auth.uid())
+  public.is_student()
+  and module_id in (select module_id from public.student_modules sm join public.students s on s.id=sm.student_id where s.auth_user_id=auth.uid())
 );
 
 drop policy if exists "lecturers manage attendance" on public.attendance;
 create policy "lecturers manage attendance" on public.attendance for all to authenticated
-using (class_id in (select id from public.classes where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())))
-with check (class_id in (select id from public.classes where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())));
+using (public.is_lecturer() and class_id in (select id from public.classes where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())))
+with check (public.is_lecturer() and class_id in (select id from public.classes where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())));
 
 drop policy if exists "students read attendance" on public.attendance;
 create policy "students read attendance" on public.attendance for select to authenticated
-using (student_id in (select id from public.students where auth_user_id = auth.uid()));
+using (public.is_student() and student_id in (select id from public.students where auth_user_id = auth.uid()));
 
 -- Assignments & Submissions
 drop policy if exists "lecturers manage assignments" on public.assignments;
 create policy "lecturers manage assignments" on public.assignments for all to authenticated
-using (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
-with check (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
+using (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
+with check (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
 
 drop policy if exists "students read assignments" on public.assignments;
 create policy "students read assignments" on public.assignments for select to authenticated
-using (module_id in (select module_id from public.student_modules sm join public.students s on s.id=sm.student_id where s.auth_user_id=auth.uid()));
+using (public.is_student() and module_id in (select module_id from public.student_modules sm join public.students s on s.id=sm.student_id where s.auth_user_id=auth.uid()));
 
 drop policy if exists "students manage submissions" on public.submissions;
 create policy "students manage submissions" on public.submissions for all to authenticated
-using (student_id in (select id from public.students where auth_user_id = auth.uid()))
-with check (student_id in (select id from public.students where auth_user_id = auth.uid()));
+using (public.is_student() and student_id in (select id from public.students where auth_user_id = auth.uid()))
+with check (public.is_student() and student_id in (select id from public.students where auth_user_id = auth.uid()));
 
 drop policy if exists "lecturers manage submissions" on public.submissions;
 create policy "lecturers manage submissions" on public.submissions for all to authenticated
-using (assignment_id in (select id from public.assignments where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())))
-with check (assignment_id in (select id from public.assignments where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())));
+using (public.is_lecturer() and assignment_id in (select id from public.assignments where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())))
+with check (public.is_lecturer() and assignment_id in (select id from public.assignments where lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid())));
 
 -- Grades & Audits
 drop policy if exists "lecturers manage grades" on public.grades;
 create policy "lecturers manage grades" on public.grades for all to authenticated
-using (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
-with check (lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
+using (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()))
+with check (public.is_lecturer() and lecturer_id in (select id from public.lecturers where auth_user_id = auth.uid()));
 
 drop policy if exists "students read published grades" on public.grades;
 create policy "students read published grades" on public.grades for select to authenticated
-using (student_id in (select id from public.students where auth_user_id = auth.uid()) and published = true);
+using (public.is_student() and student_id in (select id from public.students where auth_user_id = auth.uid()) and published = true);
 
 -- Realtime Publications
 do $$

@@ -12,8 +12,24 @@ export async function getAuthUser() {
   return user;
 }
 
+export async function assertNotStudentAccount(existingUser = null) {
+  const user = existingUser || await getAuthUser();
+  if (user?.user_metadata?.role === 'student') {
+    throw new Error('Access denied: Student accounts cannot access lecturer data.');
+  }
+  const { data: studentRow } = await supabase
+    .from('students')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+  if (studentRow) {
+    throw new Error('Access denied: Student accounts cannot access lecturer data.');
+  }
+  return user;
+}
+
 export async function getLecturerProfile() {
-  const user = await getAuthUser();
+  const user = await assertNotStudentAccount();
   let { data } = await supabase
     .from('lecturers')
     .select('id, lecturer_id, full_name, email, department_id, faculty_id, teaching_area, auth_user_id')
@@ -98,6 +114,7 @@ export async function getModuleGradeSheet(moduleId) {
   try {
     lecturer = await getLecturerProfile();
   } catch (err) {
+    if (err?.message?.includes('Access denied')) throw err;
     console.warn('Could not load lecturer profile for grade sheet:', err);
   }
 
@@ -179,6 +196,7 @@ export async function saveIndividualGrade({ moduleId, studentInternalId, score, 
   try {
     lecturer = await getLecturerProfile();
   } catch (err) {
+    if (err?.message?.includes('Access denied')) throw err;
     console.warn('Lecturer profile query note:', err);
   }
 
@@ -287,14 +305,14 @@ export async function saveIndividualGrade({ moduleId, studentInternalId, score, 
 }
 
 export async function publishAllModuleGrades(moduleId) {
-  if (!isUuid(moduleId)) return [];
-
   let lecturer = null;
   try {
     lecturer = await getLecturerProfile();
   } catch (err) {
+    if (err?.message?.includes('Access denied')) throw err;
     console.warn('Lecturer profile query note:', err);
   }
+  if (!isUuid(moduleId)) return [];
   const now = new Date().toISOString();
 
   let query = supabase
@@ -351,6 +369,7 @@ export async function publishAllModuleGrades(moduleId) {
 }
 
 export async function getGradeAuditLog(moduleId) {
+  await assertNotStudentAccount();
   if (!isUuid(moduleId)) return [];
 
   const { data, error } = await supabase
@@ -518,6 +537,7 @@ export async function getSupervisedDissertations() {
 }
 
 export async function getUnassignedDissertations() {
+  await assertNotStudentAccount();
   const { data, error } = await supabase
     .from('dissertations')
     .select(`
@@ -567,6 +587,7 @@ export async function claimSupervisee(dissertationId) {
 }
 
 export async function reviewDissertationVersion({ versionId, dissertationId, status, comments = '' }) {
+  await assertNotStudentAccount();
   const { data: ver, error: verErr } = await supabase
     .from('dissertation_versions')
     .update({
@@ -713,6 +734,7 @@ export async function createScheduleSlot(payload) {
 }
 
 export async function deleteScheduleSlot(slotId) {
+  await assertNotStudentAccount();
   const { error } = await supabase
     .from('schedules')
     .delete()
@@ -1097,6 +1119,7 @@ export async function getLecturerStudentRoster() {
 }
 
 export async function getStudent360Dossier(studentId) {
+  await assertNotStudentAccount();
   const [modulesR, attendanceR, submissionsR, gradesR, dissertationR] = await Promise.all([
     supabase.from('student_modules').select('module_id, modules(code, title)').eq('student_id', studentId),
     supabase.from('attendance').select('status, marked_at, distance_meters, classes(class_date, modules(code))').eq('student_id', studentId),
@@ -1290,6 +1313,7 @@ export async function removeProfileAvatar({ profileId, role = 'student' }) {
 // V50: System Management & Audit
 // ============================================================================
 export async function getSystemAuditMetrics() {
+  await assertNotStudentAccount();
   const [studentsC, lecturersC, modulesC, attendanceC, paymentsC, auditsC] = await Promise.all([
     supabase.from('students').select('id', { count: 'exact', head: true }),
     supabase.from('lecturers').select('id', { count: 'exact', head: true }),

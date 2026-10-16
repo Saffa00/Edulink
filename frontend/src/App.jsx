@@ -3508,13 +3508,161 @@ function Generic({title}) { return <div className="page"><PageTitle title={title
 
 function PageTitle({title,subtitle,action}) { return <div className="page-title"><div><h1>{title}</h1><p>{subtitle}</p></div>{action&&<button className="primary-btn"><Plus size={18}/>{action}</button>}</div> }
 
+const STUDENT_ALLOWED_PAGES = new Set([
+  'home',
+  'dissertation',
+  'modules',
+  'timetable',
+  'attendance',
+  'assignments',
+  'grades',
+  'messages',
+  'notifications',
+  'payments',
+  'settings',
+  'profile'
+]);
+
+const LECTURER_ALLOWED_PAGES = new Set([
+  'home',
+  'modules',
+  'timetable',
+  'attendance',
+  'assignments',
+  'grades',
+  'dissertation',
+  'students',
+  'messages',
+  'notifications',
+  'settings',
+  'profile',
+  'admin'
+]);
+
+const LECTURER_ONLY_PAGES = new Set([
+  'students',
+  'admin',
+  'lecturer',
+  'lecturer-dashboard',
+  'module-management',
+  'grade-management',
+  'attendance-management'
+]);
+
+const LECTURER_URL_REGEX = /^\/(lecturer|students|admin|staff|faculty|grade-management|module-management|attendance-management)(\/|$)/i;
+const STUDENT_URL_REGEX = /^\/(student|payments)(\/|$)/i;
+
+function isForbiddenUrlForRole(role) {
+  if (typeof window === 'undefined') return false;
+  const pathname = window.location.pathname || '/';
+  const hash = (window.location.hash || '').toLowerCase();
+  const search = new URLSearchParams(window.location.search || '');
+  const queryRole = (search.get('role') || '').toLowerCase();
+  const queryPage = (search.get('page') || '').toLowerCase();
+
+  if (role === 'student') {
+    if (
+      LECTURER_URL_REGEX.test(pathname) ||
+      hash.includes('lecturer') ||
+      hash.includes('students') ||
+      hash.includes('admin') ||
+      queryRole === 'lecturer' ||
+      LECTURER_ONLY_PAGES.has(queryPage)
+    ) {
+      return true;
+    }
+  } else if (role === 'lecturer') {
+    if (
+      STUDENT_URL_REGEX.test(pathname) ||
+      queryRole === 'student' ||
+      queryPage === 'payments'
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function AppShell({role,onLogout,profile,onProfileUpdate}) {
-  const [page,setPage]=useState("home");
+  const [page, rawSetPage] = useState("home");
   const [settingsTab, setSettingsTab] = useState("profile");
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [collapsed,setCollapsed]=useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const pageRef = React.useRef(page);
+
+  React.useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  // Role-guarded page navigation: redirects students away from any lecturer routes
+  const setPage = React.useCallback((nextPage) => {
+    const normalized = String(nextPage || 'home').trim().toLowerCase();
+    if (role === 'student') {
+      if (LECTURER_ONLY_PAGES.has(normalized) || !STUDENT_ALLOWED_PAGES.has(normalized)) {
+        rawSetPage('home');
+        try {
+          window.history.replaceState({ edulinkAuth: true, role: 'student', page: 'home' }, '', '/');
+        } catch {}
+        return;
+      }
+    } else if (role === 'lecturer') {
+      if (!LECTURER_ALLOWED_PAGES.has(normalized)) {
+        rawSetPage('home');
+        try {
+          window.history.replaceState({ edulinkAuth: true, role: 'lecturer', page: 'home' }, '', '/');
+        } catch {}
+        return;
+      }
+    }
+    rawSetPage(normalized);
+    try {
+      window.history.replaceState({ edulinkAuth: true, role, page: normalized }, '', '/');
+      window.history.pushState({ edulinkAuth: true, role, page: normalized }, '', '/');
+    } catch {}
+  }, [role]);
+
+  // Lock browser history & intercept phone hardware/browser Back button + direct URL entry after entering any account
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const enforceRouteAndHistoryLock = () => {
+      if (isForbiddenUrlForRole(role) || window.location.pathname !== '/') {
+        try {
+          window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+        } catch {}
+        rawSetPage('home');
+      }
+    };
+
+    enforceRouteAndHistoryLock();
+
+    try {
+      window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+      window.history.pushState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+    } catch {}
+
+    const handlePopState = () => {
+      // Prevent phone's back button from escaping the authenticated account or entering another role's URL
+      if (isForbiddenUrlForRole(role)) {
+        rawSetPage('home');
+      } else if (pageRef.current !== 'home') {
+        rawSetPage('home');
+      }
+      try {
+        window.history.replaceState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+        window.history.pushState({ edulinkAuth: true, role, page: 'home' }, '', '/');
+      } catch {}
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', enforceRouteAndHistoryLock);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', enforceRouteAndHistoryLock);
+    };
+  }, [role]);
 
   const [scopedModule, setScopedModule] = useState(() => {
     try {
@@ -3597,19 +3745,26 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
     setPage("settings");
   };
 
+  // Redirect any unauthorized page state back to home immediately
+  const activePage = (role === 'student' && (LECTURER_ONLY_PAGES.has(page) || !STUDENT_ALLOWED_PAGES.has(page)))
+    ? 'home'
+    : (role === 'lecturer' && !LECTURER_ALLOWED_PAGES.has(page))
+      ? 'home'
+      : page;
+
   let content;
-  if (page==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
-  else if (page==="modules") content = role==="student" ? <ModuleRegistrationV47/> : <ModuleManagement setPage={setPage} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} />;
-  else if (page==="timetable") content = <TimetableManagementV43 role={role} scopedModule={scopedModule}/>;
-  else if (page==="attendance") content = <Attendance role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
-  else if (page==="assignments") content = <Assignments role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
-  else if (page==="grades") content = role === "student" ? <StudentGradeInbox /> : <GradeManagementV41 scopedModule={scopedModule}/>;
-  else if (page==="dissertation") content = <DissertationManagementV42 role={role} onNavigate={setPage}/>;
-  else if (page==="messages") content = <MessagingCenterV44 role={role} profile={profile} onNavigate={setPage}/>;
-  else if (page==="notifications") content = <NotificationsCenterV45 onNavigate={setPage}/>;
-  else if (page==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <Students/>;
-  else if (page==="payments") content = <PaymentCenterV46/>;
-  else if (page==="settings" || page==="profile") content = (
+  if (activePage==="home") content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
+  else if (activePage==="modules") content = role==="student" ? <ModuleRegistrationV47/> : <ModuleManagement setPage={setPage} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} />;
+  else if (activePage==="timetable") content = <TimetableManagementV43 role={role} scopedModule={scopedModule}/>;
+  else if (activePage==="attendance") content = <Attendance role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
+  else if (activePage==="assignments") content = <Assignments role={role} onNavigate={setPage} scopedModule={scopedModule}/>;
+  else if (activePage==="grades") content = role === "student" ? <StudentGradeInbox /> : <GradeManagementV41 scopedModule={scopedModule}/>;
+  else if (activePage==="dissertation") content = <DissertationManagementV42 role={role} onNavigate={setPage}/>;
+  else if (activePage==="messages") content = <MessagingCenterV44 role={role} profile={profile} onNavigate={setPage}/>;
+  else if (activePage==="notifications") content = <NotificationsCenterV45 onNavigate={setPage}/>;
+  else if (activePage==="students") content = role==="lecturer" ? <StudentManagementV48 scopedModule={scopedModule}/> : <StudentDashboardV36 onNavigate={setPage} profile={profile}/>;
+  else if (activePage==="payments") content = role==="student" ? <PaymentCenterV46/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
+  else if (activePage==="settings" || activePage==="profile") content = (
     <ProfileSecurityCenterV49
       role={role}
       profile={profile}
@@ -3617,11 +3772,11 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       onProfileUpdate={onProfileUpdate}
     />
   );
-  else if (page==="admin") content = <AdminOperationsV50/>;
-  else content = <Generic title={page[0].toUpperCase()+page.slice(1)}/>;
+  else if (activePage==="admin") content = role==="lecturer" ? <AdminOperationsV50/> : <StudentDashboardV36 onNavigate={setPage} profile={profile}/>;
+  else content = role === "student" ? <StudentDashboardV36 onNavigate={setPage} profile={profile}/> : <Dashboard setPage={setPage} profile={profile} scopedModule={scopedModule} onSelectScopedModule={handleSelectScopedModule} modulesList={lecturerModulesList}/>;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${activePage === 'home' ? 'home-screen' : ''} ${role === 'student' ? 'student-portal-shell' : 'lecturer-portal-shell'}`}>
       <LiveNotificationToast onNavigate={setPage} />
       {sidebarOpen && (
         <div
@@ -3631,7 +3786,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
       )}
       <Sidebar
         role={role}
-        page={page}
+        page={activePage}
         setPage={(newPage) => {
           if (newPage === "settings" || newPage === "profile") setSettingsTab("profile");
           setPage(newPage);
@@ -3652,7 +3807,7 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           onLogout={onLogout}
           profile={profile}
           collapsed={collapsed}
-          page={page}
+          page={activePage}
           setPage={setPage}
           onNavigateSettings={navigateToSettings}
           unreadNotifsCount={unreadNotifsCount}
@@ -3661,14 +3816,14 @@ function AppShell({role,onLogout,profile,onProfileUpdate}) {
           onSelectScopedModule={handleSelectScopedModule}
         />
         <main className="app-main-content">
-          <ErrorBoundary key={page}>
+          <ErrorBoundary key={activePage}>
             <Suspense fallback={<div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', color: '#64748b' }}>Loading content...</div>}>
               {content}
             </Suspense>
           </ErrorBoundary>
         </main>
         <BottomNav
-          page={page}
+          page={activePage}
           setPage={setPage}
           role={role}
           profile={profile}
@@ -3723,12 +3878,34 @@ export default function App(){
         if (!mounted) return;
         if (data?.session) {
           const user = data.session.user;
-          const savedRole = localStorage.getItem('academic_active_role') || user.user_metadata?.role;
-          let resolvedRole = savedRole;
+          let resolvedRole = null;
           let userProfile = null;
 
-          // If active role is lecturer, check lecturers table first
-          if (savedRole === 'lecturer') {
+          // Always check students table first so a student can NEVER spoof localStorage/URL to become lecturer
+          const { data: studentRecord } = await supabase
+            .from('students')
+            .select('*')
+            .or(`auth_user_id.eq.${user.id},email.eq.${user.email}`)
+            .maybeSingle();
+
+          if (studentRecord) {
+            resolvedRole = 'student';
+            const savedAvatar = user.user_metadata?.avatar_url ||
+              (studentRecord.id && localStorage.getItem(`edulink_avatar_${studentRecord.id}`)) ||
+              localStorage.getItem(`edulink_avatar_${user.id}`) ||
+              localStorage.getItem('edulink_active_avatar') ||
+              studentRecord.avatar_url ||
+              null;
+            userProfile = {
+              ...studentRecord,
+              avatar_url: savedAvatar || studentRecord.avatar_url || null,
+              role: 'student'
+            };
+            if (!studentRecord.auth_user_id) {
+              supabase.from('students').update({ auth_user_id: user.id }).eq('id', studentRecord.id).then(null, () => {});
+            }
+          } else {
+            // Only if the user is NOT a student, check lecturers table
             const { data: lecturerRecord } = await supabase
               .from('lecturers')
               .select('*')
@@ -3754,61 +3931,14 @@ export default function App(){
             }
           }
 
-          // If not found yet or savedRole is student, check students table
-          if (!userProfile) {
-            const { data: studentRecord } = await supabase
-              .from('students')
-              .select('*')
-              .or(`auth_user_id.eq.${user.id},email.eq.${user.email}`)
-              .maybeSingle();
-
-            if (studentRecord) {
-              resolvedRole = 'student';
-              const savedAvatar = user.user_metadata?.avatar_url ||
-                (studentRecord.id && localStorage.getItem(`edulink_avatar_${studentRecord.id}`)) ||
-                localStorage.getItem(`edulink_avatar_${user.id}`) ||
-                localStorage.getItem('edulink_active_avatar') ||
-                studentRecord.avatar_url ||
-                null;
-              userProfile = {
-                ...studentRecord,
-                avatar_url: savedAvatar || studentRecord.avatar_url || null,
-                role: 'student'
-              };
-              if (!studentRecord.auth_user_id) {
-                supabase.from('students').update({ auth_user_id: user.id }).eq('id', studentRecord.id).then(null, () => {});
-              }
-            }
+          // Strict fallback: never allow localStorage to elevate a student to lecturer
+          if (!resolvedRole) {
+            resolvedRole = user.user_metadata?.role === 'lecturer' ? 'lecturer' : 'student';
           }
+          try {
+            localStorage.setItem('academic_active_role', resolvedRole);
+          } catch {}
 
-          // Fallback to check lecturers if user profile still not found
-          if (!userProfile && resolvedRole !== 'lecturer') {
-            const { data: lecturerRecord } = await supabase
-              .from('lecturers')
-              .select('*')
-              .or(`auth_user_id.eq.${user.id},email.eq.${user.email}`)
-              .maybeSingle();
-
-            if (lecturerRecord) {
-              resolvedRole = 'lecturer';
-              const savedAvatar = user.user_metadata?.avatar_url ||
-                (lecturerRecord.id && localStorage.getItem(`edulink_avatar_${lecturerRecord.id}`)) ||
-                localStorage.getItem(`edulink_avatar_${user.id}`) ||
-                localStorage.getItem('edulink_active_avatar') ||
-                lecturerRecord.avatar_url ||
-                null;
-              userProfile = {
-                ...lecturerRecord,
-                avatar_url: savedAvatar || lecturerRecord.avatar_url || null,
-                role: 'lecturer'
-              };
-              if (!lecturerRecord.auth_user_id) {
-                supabase.from('lecturers').update({ auth_user_id: user.id }).eq('id', lecturerRecord.id).then(null, () => {});
-              }
-            }
-          }
-
-          if (!resolvedRole) resolvedRole = user.user_metadata?.role || 'student';
           if (!userProfile) {
             const savedAvatar = user.user_metadata?.avatar_url ||
               localStorage.getItem(`edulink_avatar_${user.id}`) ||
@@ -3827,6 +3957,10 @@ export default function App(){
 
           const device = await verifyCurrentDevice({ role: resolvedRole }).catch(() => ({ registered: false }));
           if (device.registered && mounted) {
+            try {
+              window.history.replaceState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', '/');
+              window.history.pushState({ edulinkAuth: true, role: resolvedRole, page: 'home' }, '', '/');
+            } catch {}
             setSessionState({ role: resolvedRole, profile: userProfile });
             setOneSignalUser(userProfile, resolvedRole).catch(() => {});
             if (user.user_metadata?.requires_password_change || userProfile?.requires_password_change || userProfile?.temporary_password) {
@@ -3896,6 +4030,11 @@ export default function App(){
     }
 
     setOneSignalUser(profile, data?.role).catch(() => {});
+
+    try {
+      window.history.replaceState({ edulinkAuth: true, role: data?.role || 'student', page: 'home' }, '', '/');
+      window.history.pushState({ edulinkAuth: true, role: data?.role || 'student', page: 'home' }, '', '/');
+    } catch (e) {}
 
     setSessionState({
       ...data,

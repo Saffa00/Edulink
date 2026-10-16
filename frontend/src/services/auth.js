@@ -179,14 +179,40 @@ export async function signInById({ role, id, password }) {
         .from(table).select(columns)
         .or(`auth_user_id.eq.${data.user?.id},email.eq.${cleanId.toLowerCase()}`).maybeSingle();
 
+      // Strict role enforcement: prevent cross-role login (e.g. student signing into Lecturer Portal via email)
+      const oppositeTable = role === 'lecturer' ? 'students' : 'lecturers';
+      const metaRole = data.user?.user_metadata?.role;
+      if (!profile) {
+        const { data: oppositeProfile } = await supabase()
+          .from(oppositeTable)
+          .select('id')
+          .or(`auth_user_id.eq.${data.user?.id},email.eq.${cleanId.toLowerCase()}`)
+          .maybeSingle();
+
+        if (oppositeProfile || (metaRole && metaRole !== role)) {
+          await supabase().auth.signOut().catch(() => {});
+          if (typeof window !== 'undefined') localStorage.removeItem('academic_active_role');
+          throw new Error(
+            role === 'lecturer'
+              ? 'Access denied: Student accounts cannot sign in to the Lecturer Portal.'
+              : 'Access denied: Lecturer accounts cannot sign in to the Student Portal.'
+          );
+        }
+        await supabase().auth.signOut().catch(() => {});
+        if (typeof window !== 'undefined') localStorage.removeItem('academic_active_role');
+        throw new Error(`${role === 'lecturer' ? 'Lecturer' : 'Student'} profile not found for this account.`);
+      }
+
       if (profile && !profile.auth_user_id && data.user?.id) {
         supabase().from(table).update({ auth_user_id: data.user.id }).eq('id', profile.id).then(null, () => {});
       }
 
       if (role === 'student' && profile && profile.account_status === 'suspended') {
+        await supabase().auth.signOut().catch(() => {});
         throw new Error('Student account is suspended. Please contact administration.');
       }
       if (role === 'lecturer' && profile && profile.active === false) {
+        await supabase().auth.signOut().catch(() => {});
         throw new Error('Lecturer account is inactive.');
       }
       const savedAvatarEmail = (data.user?.user_metadata?.avatar_url) ||
@@ -198,9 +224,7 @@ export async function signInById({ role, id, password }) {
         profile?.avatar_url ||
         null;
 
-      const resolvedProfile = profile
-        ? { ...profile, role, avatar_url: savedAvatarEmail }
-        : { auth_user_id: data.user?.id, email: cleanId, role, avatar_url: savedAvatarEmail };
+      const resolvedProfile = { ...profile, role, avatar_url: savedAvatarEmail };
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('academic_active_role', role);

@@ -88,7 +88,7 @@ export default function StudentDashboardV36({ onNavigate, profile }) {
   const attendancePct = attendance.length ? Math.round((presentCount / attendance.length) * 100) : 100;
 
   return (
-    <div className="page">
+    <div className="page student-home-screen">
       {/* Welcome Hero Banner */}
       <div className="welcome">
         <div>

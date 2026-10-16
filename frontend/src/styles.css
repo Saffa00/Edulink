@@ -921,3 +921,15 @@ main::-webkit-scrollbar,
   color: #94a3b8;
 }
 
+/* Strictly hide any back arrow/button on the student/lecturer home screen */
+.home-screen .back-link,
+.home-screen .back-btn,
+.home-screen .back-arrow,
+.student-home-screen .back-link,
+.student-home-screen .back-btn,
+.student-home-screen .back-arrow,
+.topbar .back-link,
+.topbar .back-btn,
+.topbar .back-arrow {
+  display: none !important;
+}

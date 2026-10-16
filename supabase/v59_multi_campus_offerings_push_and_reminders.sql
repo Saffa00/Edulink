@@ -6,61 +6,6 @@
 create extension if not exists pgcrypto;
 
 -- ============================================================================
--- Security Definer Role Verification Helpers (Self-Contained in V59)
--- ============================================================================
-
-create or replace function public.is_lecturer()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.lecturers l
-    where l.auth_user_id = auth.uid()
-      and coalesce(l.active, true) = true
-  )
-  and not exists (
-    select 1
-    from public.students s
-    where s.auth_user_id = auth.uid()
-  );
-$$;
-
-create or replace function public.is_student()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from public.students s
-    where s.auth_user_id = auth.uid()
-  );
-$$;
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin'
-  );
-$$;
-
-grant execute on function public.is_lecturer() to authenticated;
-grant execute on function public.is_student() to authenticated;
-grant execute on function public.is_admin() to authenticated;
-
--- ============================================================================
 -- TASK 2 & 3.1: Campuses, Profiles, Lecturer Campuses, Module Offerings,
 --               Enrollments, and Course Materials
 -- ============================================================================
@@ -109,6 +54,68 @@ create table if not exists public.profiles (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- ============================================================================
+-- Security Definer Role Verification Helpers
+-- ============================================================================
+
+create or replace function public.is_lecturer()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.lecturers l
+    where l.auth_user_id = auth.uid()
+      and coalesce(l.active, true) = true
+  )
+  or exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid() and p.role = 'lecturer'
+  );
+$$;
+
+create or replace function public.is_student()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.students s
+    where s.auth_user_id = auth.uid()
+  )
+  or exists (
+    select 1
+    from public.profiles p
+    where p.id = auth.uid() and p.role = 'student'
+  );
+$$;
+
+create or replace function public.is_admin()
+returns boolean
+language plpgsql
+security definer
+stable
+set search_path = public
+as $$
+begin
+  if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'profiles') then
+    return exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin');
+  end if;
+  return false;
+end;
+$$;
+
+grant execute on function public.is_lecturer() to authenticated, anon;
+grant execute on function public.is_student() to authenticated, anon;
+grant execute on function public.is_admin() to authenticated, anon;
 
 -- Sync existing students & lecturers into public.profiles
 insert into public.profiles (id, role, campus_id, student_id, full_name, email)

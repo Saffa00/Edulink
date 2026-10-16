@@ -567,14 +567,188 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         <PortalGatewayScreen
           onFinish={() => {
             resetState();
-            setScreen('login');
+            setScreen('role-select');
           }}
           onLogin={() => {
             resetState();
-            setScreen('login');
+            setScreen('role-select');
           }}
         />
       </Suspense>
+    );
+  }
+
+  if (screen === 'role-select') {
+    return (
+      <main className="auth-screen">
+        <section className="auth-card wide" style={{ maxWidth: '640px' }}>
+          <Logo />
+          <div className="auth-heading" style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <span style={{
+              display: 'inline-block',
+              background: '#e0f2fe',
+              color: '#0369a1',
+              padding: '4px 12px',
+              borderRadius: '999px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              marginBottom: '10px',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase'
+            }}>
+              Milton Margai Technical University • EduLink
+            </span>
+            <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#061626', margin: '0 0 8px 0' }}>
+              Select Your Portal Role
+            </h1>
+            <p style={{ color: '#52657c', fontSize: '13.5px', margin: 0, lineHeight: 1.55 }}>
+              Choose your academic role to continue to your dedicated portal.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+            {/* Lecturer Role Card */}
+            <div
+              onClick={() => {
+                resetState();
+                setRole('lecturer');
+                setScreen('login');
+              }}
+              style={{
+                border: '2px solid #e2e8f0',
+                borderRadius: '16px',
+                padding: '22px 18px',
+                background: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                textAlign: 'left'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#0a2540';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(10, 37, 64, 0.12)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <div>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: '#eaf1f8',
+                  color: '#0a2540',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '24px',
+                  marginBottom: '14px'
+                }}>
+                  👨‍🏫
+                </div>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#0f172a', fontWeight: 800 }}>
+                  Lecturer
+                </h3>
+                <p style={{ margin: '0 0 16px 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.55 }}>
+                  Manage teaching modules, GPS attendance sessions, coursework assignments, student grades, and dissertation supervision.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="primary-btn"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '11px',
+                  fontWeight: 700,
+                  fontSize: '13.5px',
+                  background: '#0a2540',
+                  borderColor: '#0a2540',
+                  borderRadius: '10px'
+                }}
+              >
+                Continue as Lecturer →
+              </button>
+            </div>
+
+            {/* Student Role Card */}
+            <div
+              onClick={() => {
+                resetState();
+                setRole('student');
+                setScreen('login');
+              }}
+              style={{
+                border: '2px solid #bae6fd',
+                borderRadius: '16px',
+                padding: '22px 18px',
+                background: 'linear-gradient(180deg, #f8fcff 0%, #ffffff 100%)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                boxShadow: '0 4px 16px rgba(2, 132, 199, 0.08)',
+                textAlign: 'left'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#0284c7';
+                e.currentTarget.style.boxShadow = '0 8px 26px rgba(2, 132, 199, 0.16)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = '#bae6fd';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(2, 132, 199, 0.08)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <div>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: '#e0f2fe',
+                  color: '#0284c7',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontSize: '24px',
+                  marginBottom: '14px'
+                }}>
+                  🎓
+                </div>
+                <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', color: '#0f172a', fontWeight: 800 }}>
+                  Student
+                </h3>
+                <p style={{ margin: '0 0 16px 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.55 }}>
+                  Access semester coursework modules, final year dissertation portal, GPS attendance check-in, and published grades.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="primary-btn"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '11px',
+                  fontWeight: 700,
+                  fontSize: '13.5px',
+                  background: '#0284c7',
+                  borderColor: '#0284c7',
+                  borderRadius: '10px'
+                }}
+              >
+                Continue as Student →
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
     );
   }
 
@@ -584,7 +758,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         <OnboardingScreen
           onFinish={() => {
             resetState();
-            setScreen('login');
+            setScreen('role-select');
           }}
         />
       </Suspense>
@@ -1637,23 +1811,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             {role === 'student' ? '← Back to Track Selection' : '← Back to login'}
           </button>
 
-          <div className="role-switch">
-            <button
-              type="button"
-              className={role === 'lecturer' ? 'active' : ''}
-              onClick={() => setRole('lecturer')}
-            >
-              Lecturer
-            </button>
-            <button
-              type="button"
-              className={role === 'student' ? 'active' : ''}
-              onClick={() => setRole('student')}
-            >
-              Student
-            </button>
-          </div>
-
           <div className="auth-heading">
             <h1>
               {role === 'lecturer'
@@ -2272,23 +2429,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             ← Back to login
           </button>
 
-          <div className="role-switch">
-            <button
-              type="button"
-              className={role === 'lecturer' ? 'active' : ''}
-              onClick={() => { setRole('lecturer'); resetState(); }}
-            >
-              Lecturer
-            </button>
-            <button
-              type="button"
-              className={role === 'student' ? 'active' : ''}
-              onClick={() => { setRole('student'); resetState(); }}
-            >
-              Student
-            </button>
-          </div>
-
           <div className="auth-heading" style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div
               style={{
@@ -2385,10 +2525,26 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
       <main className="auth-screen">
         <section className="auth-card">
           <Logo/>
-          <div className="role-switch">
-            <button className={role==='lecturer'?'active':''} onClick={()=>setRole('lecturer')}>Lecturer</button>
-            <button className={role==='student'?'active':''} onClick={()=>setRole('student')}>Student</button>
-          </div>
+          <button
+            type="button"
+            className="back-link"
+            onClick={() => { resetState(); setScreen('role-select'); }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              color: '#52657c',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0,
+              marginBottom: '12px'
+            }}
+          >
+            ← Change Role
+          </button>
           <div className="auth-heading">
             <h1>{role==='lecturer'?'Lecturer Login':'Student Login'}</h1>
             <p>Sign in with your {role==='lecturer'?'Lecturer ID':'Student ID'} and password.</p>
@@ -2427,7 +2583,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               Create {role === 'lecturer' ? 'Lecturer' : 'Student'} Account
             </button>
           </p>
-          <p className="signup" style={{ marginTop: '10px' }}><button type="button" className="text-btn" onClick={() => onShowOnboarding ? onShowOnboarding() : setScreen('onboarding')} style={{ color: '#0284c7', fontSize: '13px', fontWeight: 600 }}>🎓 View App Tour & Onboarding</button></p>
         </section>
       </main>
       <NotificationSubscribeButton floating={true} position="bottom-right" />
@@ -3679,6 +3834,7 @@ export default function App(){
     } finally {
       clearOneSignalUser().catch(() => {});
       localStorage.removeItem('academic_active_role');
+      setForceAuthScreen({ screen: 'role-select', role: 'student' });
       setSessionState(null);
       setShowPasswordChangeModal(false);
     }

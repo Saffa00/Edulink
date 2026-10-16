@@ -202,37 +202,11 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 color: '#0369a1',
                 marginBottom: '8px'
               }}>
-                Monime Direct Mobile Money Checkout
+                Mobile Money Checkout
               </div>
-              <h1 style={{ fontSize: '24px', color: '#061626', margin: '0 0 6px 0', fontWeight: 800 }}>
+              <h1 style={{ fontSize: '24px', color: '#061626', margin: 0, fontWeight: 800 }}>
                 Pay with Mobile Money
               </h1>
-              <p style={{ color: '#64748b', fontSize: '13px', margin: 0 }}>
-                Select your provider. Monime Checkout will directly prompt your mobile phone for PIN payment authorization.
-              </p>
-
-              {/* Visual Step Breadcrumb */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                marginTop: '12px',
-                fontSize: '11px',
-                color: '#475569',
-                fontWeight: 600,
-                flexWrap: 'wrap'
-              }}>
-                <span>1. Select Modules</span>
-                <span>→</span>
-                <span>2. Provider & Phone</span>
-                <span>→</span>
-                <span>📱 3. Monime Phone Prompt</span>
-                <span>→</span>
-                <span>4. Enter PIN</span>
-                <span>→</span>
-                <span style={{ color: '#16a34a' }}>✓ Confirmed</span>
-              </div>
             </div>
 
             {/* Confirm Module Payment Table */}
@@ -414,9 +388,6 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   />
                   <Smartphone size={17} color="#64748b" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                 </div>
-                <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                  This mobile-money number will approve the payment on their handset. You do <strong>not</strong> enter your PIN inside EduLink.
-                </small>
               </div>
 
               {error && (
@@ -457,11 +428,6 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 {busy ? <RefreshCw size={17} className="v-spin" /> : null}
                 {busy ? 'Initiating Transaction…' : 'Next'} <ArrowRight size={17} />
               </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '14px', color: '#64748b', fontSize: '11px' }}>
-                <Lock size={12} />
-                <span>Secured Backend Gateway • Student Never Enters PIN in EduLink</span>
-              </div>
             </form>
           </>
         )}
@@ -519,12 +485,9 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
               </span>
             </div>
 
-            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#061626', margin: '0 0 6px 0' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#061626', margin: '0 0 16px 0' }}>
               Transaction Initiated
             </h2>
-            <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 18px 0' }}>
-              Edulink has initiated a USSD payment request on your phone for you to authorize the transaction.
-            </p>
 
             {/* Detailed Breakdown Card of Everything Being Paid For */}
             <div style={{
@@ -655,9 +618,6 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                     {copiedCode ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-                <p style={{ fontSize: '11.5px', color: '#475569', margin: 0 }}>
-                  Dial this code on your mobile phone to approve the transaction.
-                </p>
               </div>
             ) : null}
 
@@ -704,29 +664,6 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                 ✓ USSD request opened on phone! Enter your secret Mobile Money PIN on your handset to approve.
               </div>
             )}
-
-            {/* Instructions */}
-            <div style={{
-              textAlign: 'left',
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: '12px',
-              padding: '12px 14px',
-              fontSize: '12px',
-              color: '#166534',
-              marginBottom: '16px',
-              lineHeight: 1.5
-            }}>
-              <strong style={{ display: 'block', color: '#15803d', marginBottom: '4px' }}>
-                📱 Authorize on your phone:
-              </strong>
-              <div>1. Tap <b>Pay Now</b> to trigger your mobile phone dial prompt.</div>
-              <div>2. Confirm university fee of <b>{formattedFee}</b> for {modulesCount} enrolled modules.</div>
-              <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset to approve.</div>
-              <div style={{ marginTop: '4px', fontSize: '11px', color: '#15803d' }}>
-                * EduLink will instantly detect your authorization and activate your student account.
-              </div>
-            </div>
 
             {/* Animated Waiting Radar Indicator */}
             <div style={{

@@ -399,12 +399,9 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                 </span>
               </div>
 
-              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#061626', margin: '0 0 6px 0' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#061626', margin: '0 0 16px 0' }}>
                 Transaction Initiated
               </h2>
-              <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-                Edulink has initiated a USSD payment request on your phone for you to authorize the transaction.
-              </p>
 
               {/* Detailed Breakdown Card */}
               <div style={{
@@ -513,9 +510,6 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                       {copiedCode ? 'Copied' : 'Copy'}
                     </button>
                   </div>
-                  <p style={{ fontSize: '11.5px', color: '#475569', margin: 0 }}>
-                    Dial this code on your mobile phone to approve the transaction.
-                  </p>
                 </div>
               ) : null}
 
@@ -562,29 +556,6 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                   ✓ USSD request opened on phone! Enter your secret Mobile Money PIN on your handset to approve.
                 </div>
               )}
-
-              
-
-              {/* Explanatory Banner: Student approves using PIN on phone */}
-              <div style={{
-                textAlign: 'left',
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '12px',
-                padding: '12px 14px',
-                fontSize: '12px',
-                color: '#166534',
-                marginBottom: '16px',
-                lineHeight: 1.55
-              }}>
-                <strong style={{ display: 'block', color: '#15803d', marginBottom: '4px' }}>
-                  📱 Authorize on your phone:
-                </strong>
-                <div>1. Tap <b>Pay Now</b> to trigger your mobile phone dial prompt.</div>
-                <div>2. Confirm payment to MMTU EduLink for <b>{feeAmount}</b>.</div>
-                <div>3. Enter your secret <b>Mobile Money PIN</b> on your handset screen.</div>
-                <div>4. EduLink will automatically activate your portal once approved.</div>
-              </div>
 
               {/* Waiting Indicator */}
               <div style={{

@@ -6,6 +6,61 @@
 create extension if not exists pgcrypto;
 
 -- ============================================================================
+-- Security Definer Role Verification Helpers (Self-Contained in V59)
+-- ============================================================================
+
+create or replace function public.is_lecturer()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.lecturers l
+    where l.auth_user_id = auth.uid()
+      and coalesce(l.active, true) = true
+  )
+  and not exists (
+    select 1
+    from public.students s
+    where s.auth_user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_student()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.students s
+    where s.auth_user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'admin'
+  );
+$$;
+
+grant execute on function public.is_lecturer() to authenticated;
+grant execute on function public.is_student() to authenticated;
+grant execute on function public.is_admin() to authenticated;
+
+-- ============================================================================
 -- TASK 2 & 3.1: Campuses, Profiles, Lecturer Campuses, Module Offerings,
 --               Enrollments, and Course Materials
 -- ============================================================================
@@ -923,21 +978,6 @@ end $$;
 -- ============================================================================
 -- TASK 2.4 & 3.6: Complete Row Level Security (RLS) for All New & Existing Tables
 -- ============================================================================
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer
-stable
-set search_path = public
-as $$
-  select exists (
-    select 1 from public.profiles p
-    where p.id = auth.uid() and p.role = 'admin'
-  );
-$$;
-
-grant execute on function public.is_admin() to authenticated;
 
 alter table public.campuses enable row level security;
 alter table public.profiles enable row level security;

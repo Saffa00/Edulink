@@ -20,7 +20,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
 
   const isDissertation = profile?.registration_type === 'dissertation';
   const modulesCount = profile?.modulesCount || (Array.isArray(profile?.modules) && profile.modules.length) || (isDissertation ? 1 : 3);
-  const totalAmount = isDissertation ? 500 : Number((modulesCount * 0.40).toFixed(2));
+  const totalAmount = isDissertation ? 500 : Number((modulesCount * 1.00).toFixed(2));
   const feeAmount = `SLE ${totalAmount.toFixed(2)}`;
   const regTypeLabel = isDissertation
     ? 'Final Year Dissertation Registration'
@@ -268,7 +268,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
             <span style={{ fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: '900', color: '#0a2540', flexShrink: 0, whiteSpace: 'nowrap' }}>{feeAmount}</span>
           </div>
           <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#64748b', overflowWrap: 'anywhere' }}>
-            Official university curriculum assessment: SLE 0.40 per module paid securely through student mobile phone.
+            Official university curriculum assessment: SLE 1.00 per module paid securely through student mobile phone.
           </p>
 
           {!ussdStep ? (
@@ -591,6 +591,35 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
                   <PhoneCall size={20} style={{ flexShrink: 0 }} />
                   <span style={{ overflowWrap: 'anywhere' }}>Pay Now ({ussdCode})</span>
                 </button>
+              ) : null}
+
+              {checkoutUrl ? (
+                <a
+                  href={checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="outline-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    marginBottom: '12px',
+                    minHeight: '46px',
+                    fontSize: '13.5px',
+                    fontWeight: 700,
+                    color: '#0284c7',
+                    borderColor: '#7dd3fc',
+                    background: '#f0f9ff',
+                    textDecoration: 'none',
+                    borderRadius: '12px',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <ExternalLink size={16} />
+                  <span>Pay via Monime Web Checkout</span>
+                </a>
               ) : null}
 
               {copiedCode && (

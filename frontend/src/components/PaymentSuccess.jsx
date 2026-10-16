@@ -113,7 +113,7 @@ export default function PaymentSuccess({ onProceedToLogin, data: propData }) {
           </div>
           <h1 style={{ fontSize: 'clamp(19px, 5vw, 22px)', color: '#061626', margin: '0 0 6px 0', fontWeight: 800, overflowWrap: 'anywhere' }}>Payment Confirmed & Account Activated!</h1>
           <p style={{ color: '#15803d', fontSize: '14px', fontWeight: 700, margin: '0 0 14px 0', overflowWrap: 'anywhere' }}>
-            Payment Successful ✓ SLE {Number(data?.amount || 0.40).toFixed(2)} paid • {data?.modulesCount || 1} {data?.modulesCount === 1 ? 'module' : 'modules'} registered
+            Payment Successful ✓ SLE {Number(data?.amount || 1.00).toFixed(2)} paid • {data?.modulesCount || 1} {data?.modulesCount === 1 ? 'module' : 'modules'} registered
           </p>
 
           {Array.isArray(data?.modules) && data.modules.length > 0 && (

@@ -371,9 +371,12 @@ router.post('/initiate-momo', async (req, res) => {
     let paymentCodeId = null;
     if (!isPlaceholderSecret) {
       try {
+        // Monime Payment Code API enforces a minimum floor of SLE 1.00 (100 minor units).
+        // If testing with an amount under SLE 1.00 (e.g. 0.40), floor at 1.00 so Monime returns the live USSD code.
+        const pmcAmount = Math.max(1, Number(amount) || 1);
         const pmc = await createPaymentCode({
           name: `Registration ${student.student_id}`,
-          amount,
+          amount: pmcAmount,
           currency: 'SLE',
           reference: `${reference}-PMC`,
           provider: cleanProvider
@@ -398,8 +401,6 @@ router.post('/initiate-momo', async (req, res) => {
       }
     }
 
-
-
     return res.json({
       success: true,
       paymentId: pendingPayment.id,
@@ -414,7 +415,9 @@ router.post('/initiate-momo', async (req, res) => {
       provider: cleanProvider,
       modulesCount: count,
       status: 'pending',
-      message: `Payment authorization request sent to ${cleanPhone}. Dial ${ussdCode} to approve.`
+      message: ussdCode
+        ? `Payment authorization request sent to ${cleanPhone}. Dial ${ussdCode} to approve.`
+        : `Payment session initialized. Complete payment via mobile money to activate your workspace.`
     });
   } catch (err) {
     console.error('Initiate mobile money payment error:', err);

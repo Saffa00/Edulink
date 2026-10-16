@@ -171,10 +171,10 @@ runSection('6. Timetable Scheduling & Collision Detection');
 runSection('7. Monime Payment & Idempotency');
 {
   function registrationFee(type) {
-    return type === 'dissertation' ? 500 : 0.40;
+    return type === 'dissertation' ? 500 : 1.00;
   }
 
-  assert(registrationFee('normal') === 0.40, 'Normal student registration fee is SLE 0.40 per module');
+  assert(registrationFee('normal') === 1.00, 'Normal student registration fee is SLE 1.00 per module');
   assert(registrationFee('dissertation') === 500, 'Dissertation student registration fee is SLE 500');
 
   // Idempotency test: duplicate webhook event id
@@ -212,7 +212,7 @@ runSection('8. Final-Year Dissertation Access & Eligibility Rules');
     const canViewTimetableAndAttendance = !isYear4Sem2 || hasModuleOverride;
 
     // Fee calculations
-    const registrationFee = isYear4Sem2 ? 500 : 0.40;
+    const registrationFee = isYear4Sem2 ? 500 : 1.00;
 
     return {
       track,
@@ -260,7 +260,7 @@ runSection('8. Final-Year Dissertation Access & Eligibility Rules');
   assert(case1.canSeeDissertationCard === false, 'Case 1: Year 2 student cannot see dissertation card or banner');
   assert(case1.canAccessDissertationRoute === false, 'Case 1: Year 2 student cannot navigate to dissertation route');
   assert(case1.canEnrollModules === true, 'Case 1: Year 2 student can register for modules normally');
-  assert(case1.registrationFee === 0.40, 'Case 1: Year 2 student pays per-module regular fee (SLE 0.40)');
+  assert(case1.registrationFee === 1.00, 'Case 1: Year 2 student pays per-module regular fee (SLE 1.00)');
 
   // Case 2: Year 4 Semester 1 student (Regular modules allowed; dissertation hidden)
   const case2 = evaluateStudentAccess({ level: 4, semester: 1, currentTerm: currentTermSem1, registration: null });

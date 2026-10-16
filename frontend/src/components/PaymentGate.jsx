@@ -20,7 +20,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
 
   const isDissertation = profile?.registration_type === 'dissertation';
   const modulesCount = profile?.modulesCount || (Array.isArray(profile?.modules) && profile.modules.length) || (isDissertation ? 1 : 3);
-  const totalAmount = isDissertation ? 500 : modulesCount * 100;
+  const totalAmount = isDissertation ? 500 : Number((modulesCount * 0.40).toFixed(2));
   const feeAmount = `SLE ${totalAmount.toFixed(2)}`;
   const regTypeLabel = isDissertation
     ? 'Final Year Dissertation Registration'
@@ -268,7 +268,7 @@ export default function PaymentGate({ profile, onActivated, onLogout }) {
             <span style={{ fontSize: 'clamp(20px, 5vw, 24px)', fontWeight: '900', color: '#0a2540', flexShrink: 0, whiteSpace: 'nowrap' }}>{feeAmount}</span>
           </div>
           <p style={{ margin: '0 0 16px', fontSize: '12px', color: '#64748b', overflowWrap: 'anywhere' }}>
-            Official university curriculum assessment: SLE 100 per module paid securely through student mobile phone.
+            Official university curriculum assessment: SLE 0.40 per module paid securely through student mobile phone.
           </p>
 
           {!ussdStep ? (

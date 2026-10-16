@@ -17,8 +17,8 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
   const isDissertation = applicant?.registrationType === 'dissertation';
   const modulesList = Array.isArray(applicant?.modules) ? applicant.modules : [];
   const modulesCount = applicant?.modulesCount || modulesList.length || (isDissertation ? 1 : 3);
-  const amount = applicant?.amount || applicant?.fee || (isDissertation ? 500 : modulesCount * 100);
-  const formattedFee = `SLE ${Number(amount || 0).toLocaleString()}`;
+  const amount = applicant?.amount || applicant?.fee || (isDissertation ? 500 : Number((modulesCount * 0.40).toFixed(2)));
+  const formattedFee = `SLE ${Number(amount || 0).toFixed(2)}`;
   const ussdCode = paymentInfo?.ussdCode || (paymentInfo?.ussdNumericCode ? `*715*${paymentInfo.ussdNumericCode}#` : null);
 
   const handlePayNow = () => {
@@ -256,14 +256,14 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   ? applicant.modulesData
                   : isDissertation
                     ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', fee: 500 }]
-                    : modulesList.map(code => ({ code, title: '', fee: 100 }))
+                    : modulesList.map(code => ({ code, title: '', fee: 0.40 }))
                 ).map((m, idx) => (
                   <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '12.5px' }}>
                     <div style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>
                       <strong style={{ color: '#0284c7', marginRight: '6px' }}>{m.code}</strong>
                       <span style={{ color: '#334155' }}>{m.title || ''}</span>
                     </div>
-                    <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE {m.fee || 100}</span>
+                    <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE {Number(m.fee ?? 0.40).toFixed(2)}</span>
                   </div>
                 ))}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '10px', borderTop: '2px solid #0f172a' }}>
@@ -587,14 +587,14 @@ export default function PaymentCheckout({ applicant, onPaymentCompleted, onCance
                   ? applicant.modulesData
                   : isDissertation
                     ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', fee: 500 }]
-                    : modulesList.map(code => ({ code, title: '', fee: 100 }))
+                    : modulesList.map(code => ({ code, title: '', fee: 0.40 }))
                 ).map((m, idx) => (
                   <div key={m.code || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '5px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '12px' }}>
                     <div style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>
                       <strong style={{ color: '#0284c7', marginRight: '6px' }}>{m.code}</strong>
                       <span style={{ color: '#475569' }}>{m.title || ''}</span>
                     </div>
-                    <span style={{ fontWeight: 600, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE {(m.fee || 100).toFixed(2)}</span>
+                    <span style={{ fontWeight: 600, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE {Number(m.fee ?? 0.40).toFixed(2)}</span>
                   </div>
                 ))}
               </div>

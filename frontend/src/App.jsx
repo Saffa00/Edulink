@@ -255,7 +255,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
   const activeSelectedModulesCount = form.registrationType === 'dissertation'
     ? 1
     : Math.max(1, Math.min(Number(form.selectedModulesCount) || 1, totalDepartmentModules));
-  const studentTuition = form.registrationType === 'dissertation' ? 500 : activeSelectedModulesCount * 100;
+  const studentTuition = form.registrationType === 'dissertation' ? 500 : Number((activeSelectedModulesCount * 0.40).toFixed(2));
 
   React.useEffect(() => {
     if (initialStudentId) {
@@ -472,7 +472,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
 
       const chosenModules = isDissertation ? ['DISSERTATION-RES'] : selectedCodes;
       const chosenCount = chosenModules.length;
-      const totalAmount = isDissertation ? 500 : chosenCount * 100;
+      const totalAmount = isDissertation ? 500 : Number((chosenCount * 0.40).toFixed(2));
 
       const chosenModulesData = isDissertation
         ? [{ code: 'DISSERTATION', title: 'Honours Research Dissertation & Defense', lecturerName: 'Peter Saffa', fee: 500 }]
@@ -482,7 +482,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               code: m.code,
               title: m.title,
               lecturerName: m.lecturerName || 'Department Lecturer',
-              fee: 100
+              fee: 0.40
             }));
 
       const applicantData = {
@@ -862,7 +862,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     const isDissertation = form.registrationType === 'dissertation';
     const targetQuota = isDissertation ? 1 : Math.max(1, Math.min(Number(form.selectedModulesCount) || 1, totalAvailable));
 
-    // Step 1 Quota Options: 1 Module (SLE 100), 2 Modules (SLE 200) ... up to totalAvailable (SLE total * 100)
+    // Step 1 Quota Options: 1 Module (SLE 0.40), 2 Modules (SLE 0.80) ... up to totalAvailable (SLE total * 0.40)
     const quotaOptions = [];
     for (let c = 1; c <= totalAvailable; c++) {
       quotaOptions.push({
@@ -870,7 +870,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
         count: c,
         title: c === 1 ? '1 Module' : `${c} Modules`,
         desc: c === totalAvailable ? 'Full Semester Curriculum' : `Pay & register ${c} modules in department`,
-        fee: c * 100
+        fee: Number((c * 0.40).toFixed(2))
       });
     }
 
@@ -888,7 +888,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
     // Selected module codes & objects
     const selectedCodes = Array.isArray(form.selectedModuleCodes) ? form.selectedModuleCodes : [];
     const selectedModulesList = studentCurriculumModules.filter(m => selectedCodes.includes(m.code));
-    const totalFee = isDissertation ? 500 : selectedCodes.length * 100;
+    const totalFee = isDissertation ? 500 : Number((selectedCodes.length * 0.40).toFixed(2));
 
     const handleSelectQuota = (opt) => {
       resetState();
@@ -1032,7 +1032,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                   </strong>
                 </div>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
-                  Choose your module registration tier (SLE 100 / Module).
+                  Choose your module registration tier (SLE 0.40 / Module).
                 </p>
               </div>
 
@@ -1241,7 +1241,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                           whiteSpace: 'nowrap',
                           flexShrink: 0
                         }}>
-                          SLE 100
+                          SLE 0.40
                         </span>
                       </label>
                     );
@@ -1297,7 +1297,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                   selectedModulesList.map(sm => (
                     <div key={sm.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155' }}>
                       <span style={{ minWidth: 0, flex: 1, overflowWrap: 'anywhere' }}>✓ <strong style={{ color: '#0284c7' }}>{sm.code}</strong> — {sm.title}</span>
-                      <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE 100</span>
+                      <span style={{ fontWeight: 700, color: '#0f172a', flexShrink: 0, whiteSpace: 'nowrap' }}>SLE 0.40</span>
                     </div>
                   ))
                 )}
@@ -1314,7 +1314,7 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
               }}>
                 <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>Total:</span>
                 <span style={{ fontWeight: 900, fontSize: '18px', color: '#0284c7', overflowWrap: 'anywhere' }}>
-                  SLE {isDissertation ? '500.00' : `${selectedCodes.length * 100}.00`}
+                  SLE {isDissertation ? '500.00' : (selectedCodes.length * 0.40).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -1679,14 +1679,14 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
                   Regular Coursework Student
                 </h3>
                 <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.55 }}>
-                  For undergraduate and diploma students taking semester course modules (SLE 100/module). Attend lectures, submit assignments, and view grades.
+                  For undergraduate and diploma students taking semester course modules (SLE 0.40/module). Attend lectures, submit assignments, and view grades.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11.5px', color: '#334155', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ color: '#16a34a' }}>✓</span> Select semester modules (1 to 8 modules)
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ color: '#16a34a' }}>✓</span> SLE 100 per enrolled module
+                    <span style={{ color: '#16a34a' }}>✓</span> SLE 0.40 per enrolled module
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ color: '#16a34a' }}>✓</span> Timetables, GPS attendance & coursework

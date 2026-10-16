@@ -178,7 +178,7 @@ router.post('/student-applicant', async (req, res) => {
       }
     }
 
-    // Prepare Monime payment checkout (SLE 100 per module)
+    // Prepare Monime payment checkout (SLE 0.40 per module for testing)
     const modulesCount = Array.isArray(req.body.modules) && req.body.modules.length ? req.body.modules.length : (req.body.modulesCount || 8);
     const amount = registrationFee(cleanType, modulesCount);
     const reference = `REG-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;

@@ -75,10 +75,10 @@ export default function PaymentCenterV46() {
           <div className="v-payment-action-box">
             <div className="v-fee-detail">
               <span>{isDissertation ? 'Final Year Dissertation Fee (Flat):' : 'Semester Course Registration Fee:'}</span>
-              <strong>{isDissertation ? 'SLE 500.00' : 'SLE 100.00'}</strong>
+              <strong>{isDissertation ? 'SLE 500.00' : 'SLE 0.40'}</strong>
             </div>
             <button className="v-btn primary" onClick={() => handlePay(isDissertation ? 'dissertation' : 'normal')} disabled={busy}>
-              <CreditCard size={16} /> {busy ? 'Connecting to Monime…' : `Pay ${isDissertation ? 'SLE 500' : 'SLE 100'} via Monime`}
+              <CreditCard size={16} /> {busy ? 'Connecting to Monime…' : `Pay ${isDissertation ? 'SLE 500' : 'SLE 0.40'} via Monime`}
             </button>
           </div>
         )}

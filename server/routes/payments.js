@@ -583,7 +583,7 @@ router.post('/simulate-momo-approval', async (req, res) => {
       paid: true,
       reference: payment?.reference || `REG-${Date.now()}`,
       transactionId: payment?.provider_reference || payment?.reference || `MOMO-${Date.now()}`,
-      amount: payment?.amount || 100,
+      amount: payment?.amount || 0.40,
       currency: payment?.currency || 'SLE',
       ...creds
     });
@@ -616,7 +616,7 @@ router.post('/verify-completion', async (req, res) => {
         const creds = await provisionStudentAccount(db, studentRecordId);
         return res.json({
           success: true,
-          amount: 100,
+          amount: 0.40,
           currency: 'SLE',
           ...creds,
           requiresPasswordChange: true
@@ -649,7 +649,7 @@ router.post('/verify-completion', async (req, res) => {
 
     res.json({
       success: true,
-      amount: payment.amount || 100,
+      amount: payment.amount || 0.40,
       currency: payment.currency || 'SLE',
       ...creds,
       modules,

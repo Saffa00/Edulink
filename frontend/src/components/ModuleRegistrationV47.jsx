@@ -81,7 +81,7 @@ export default function ModuleRegistrationV47() {
         .map(m => ({
           code: m.code,
           title: m.title,
-          fee: 100
+          fee: 0.40
         }));
 
       setCheckoutApplicant({
@@ -96,7 +96,7 @@ export default function ModuleRegistrationV47() {
         modules: selectedAddCodes,
         modulesCount: selectedAddCodes.length,
         modulesData: chosenModsData,
-        amount: selectedAddCodes.length * 100
+        amount: Number((selectedAddCodes.length * 0.40).toFixed(2))
       });
       setShowAddModal(false);
     } catch (err) {
@@ -178,11 +178,11 @@ export default function ModuleRegistrationV47() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <strong style={{ color: '#166534', fontSize: '13px' }}>Automatic Department Allocation Active — {modules.length} Modules Assigned</strong>
             <span style={{ fontSize: '12px', fontWeight: 800, color: '#166534', background: '#dcfce7', padding: '3px 10px', borderRadius: '99px' }}>
-              SLE 100.00 / Module • Total: SLE {(modules.length * 100).toFixed(2)}
+              SLE 0.40 / Module • Total: SLE {(modules.length * 0.40).toFixed(2)}
             </span>
           </div>
           <p style={{ margin: '4px 0 0 0', color: '#15803d', fontSize: '12px', lineHeight: 1.5 }}>
-            Your curriculum modules are determined by your faculty, department, and academic progression. For students with Level 2 academic standing, Level 3 curriculum modules are assigned with their respective course lecturers. Tuition is assessed at SLE 100 per registered module paid through mobile money.
+            Your curriculum modules are determined by your faculty, department, and academic progression. For students with Level 2 academic standing, Level 3 curriculum modules are assigned with their respective course lecturers. Tuition is assessed at SLE 0.40 per registered module paid through mobile money.
           </p>
         </div>
       </div>
@@ -263,7 +263,7 @@ export default function ModuleRegistrationV47() {
                           {m.isPaid ? 'PAID / ACTIVE' : 'PENDING PAYMENT'}
                         </span>
                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                          SLE 100.00
+                          SLE 0.40
                         </span>
                       </div>
                     </td>
@@ -363,7 +363,7 @@ export default function ModuleRegistrationV47() {
                       </strong>
                     </div>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#0284c7', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                      SLE {num * 100}
+                      SLE {(num * 0.40).toFixed(2)}
                     </span>
                   </label>
                 ))}
@@ -430,7 +430,7 @@ export default function ModuleRegistrationV47() {
                         </div>
                       </div>
                       <span style={{ fontWeight: 800, fontSize: '11.5px', color: '#0284c7', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                        SLE 100
+                        SLE 0.40
                       </span>
                     </div>
                   );
@@ -459,7 +459,7 @@ export default function ModuleRegistrationV47() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
                 <span style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>Total Due:</span>
                 <span style={{ fontWeight: 900, fontSize: '16px', color: '#0284c7' }}>
-                  SLE {(selectedAddCodes.length * 100).toFixed(2)}
+                  SLE {(selectedAddCodes.length * 0.40).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -481,7 +481,7 @@ export default function ModuleRegistrationV47() {
                 disabled={addBusy || selectedAddCodes.length !== addQuota}
                 onClick={handleConfirmAddPayment}
               >
-                {addBusy ? 'Processing…' : `Pay SLE ${(addQuota * 100).toFixed(2)} & Activate`}
+                {addBusy ? 'Processing…' : `Pay SLE ${(addQuota * 0.40).toFixed(2)} & Activate`}
               </button>
             </div>
           </div>

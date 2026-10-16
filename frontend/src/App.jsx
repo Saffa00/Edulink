@@ -1654,67 +1654,6 @@ function Auth({ onAuthenticated, initialScreen = 'gateway', initialRole = 'stude
             </button>
           </div>
 
-          {/* Student Track Switcher Pills */}
-          {role === 'student' && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '8px',
-              background: '#f1f5f9',
-              padding: '5px',
-              borderRadius: '12px',
-              margin: '14px 0 16px 0'
-            }}>
-              <button
-                type="button"
-                onClick={() => update('registrationType', 'normal')}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '9px',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  background: !isDissertationStudent ? '#ffffff' : 'transparent',
-                  color: !isDissertationStudent ? '#0a2540' : '#64748b',
-                  boxShadow: !isDissertationStudent ? '0 2px 6px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                🎓 Coursework Student
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const prog = getProgrammeInfo(form.programme || 'BSc');
-                  const finalYearLevel = prog?.levels ? String(prog.levels[prog.levels.length - 1]?.value || '4') : '4';
-                  setForm(f => ({
-                    ...f,
-                    registrationType: 'dissertation',
-                    level: finalYearLevel,
-                    modulesCount: 1,
-                    modules: ['DISSERTATION-RES'],
-                    amount: 500
-                  }));
-                }}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '9px',
-                  border: 'none',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  background: isDissertationStudent ? '#4f46e5' : 'transparent',
-                  color: isDissertationStudent ? '#ffffff' : '#64748b',
-                  boxShadow: isDissertationStudent ? '0 2px 6px rgba(79, 70, 229, 0.25)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                📚 Final Year Dissertation
-              </button>
-            </div>
-          )}
-
           <div className="auth-heading">
             <h1>
               {role === 'lecturer'

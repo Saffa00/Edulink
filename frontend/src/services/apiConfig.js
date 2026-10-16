@@ -3,16 +3,7 @@ export function getApiBaseUrl() {
   if (configured && (configured.startsWith('https://') || configured.startsWith('http://'))) {
     return configured.replace(/\/+$/, '');
   }
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname || '';
-    // If running in production on Vercel or any public domain, target the production Render backend
-    if (hostname.includes('vercel.app') || (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.') && !hostname.startsWith('10.'))) {
-      return 'https://edulink-backend-bjn6.onrender.com';
-    }
-    // In local development, use relative path '' so Vite dev proxy handles it
-    return '';
-  }
-  return 'http://localhost:4000';
+  return 'https://edulink-backend-bjn6.onrender.com';
 }
 
 export function apiUrl(path) {

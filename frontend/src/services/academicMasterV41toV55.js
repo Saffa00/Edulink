@@ -391,13 +391,13 @@ export async function getStudentDissertation() {
 export async function getAvailableSupervisors() {
   const { data, error } = await supabase
     .from('lecturers')
-    .select('id, full_name, email, teaching_area, department, faculty_id, department_id')
+    .select('id, full_name, email, teaching_area, faculty_id, department_id')
     .order('full_name', { ascending: true });
   if (error) {
     console.warn('Supervisors fetch notice:', error.message);
     return [];
   }
-  return data || [];
+  return (data || []).map(l => ({ ...l, department: l.teaching_area || l.department_id || '' }));
 }
 
 export async function registerDissertationTopic(title, supervisorId = null) {

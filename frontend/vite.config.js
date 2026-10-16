@@ -60,8 +60,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:4000",
-        changeOrigin: true
+        target: "https://edulink-backend-bjn6.onrender.com",
+        changeOrigin: true,
+        secure: true
       }
     }
   }
